@@ -375,3 +375,9 @@ All new keyboard or grid-style text-entry screens should compose the shared `Key
 ## License
 
 MIT. Embedded Reader font notices remain under [`docs/licenses/`](docs/licenses/).
+
+## To Improve
+
+1. Battery optimazation
+2. Online reading
+3. More games
