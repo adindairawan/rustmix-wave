@@ -1143,10 +1143,38 @@ mod firmware {
                             panel.sleep()?;
                             state.panel_awake = false;
                             info!(
-                                "rustmix-wave=sleep-mode-enter image={} restore-route={} display=global-refresh panel=deep-sleep aldo3=off wifi=off network-services=paused mcu-sleep=false",
+                                "rustmix-wave=sleep-mode-enter image={} restore-route={} display=global-refresh panel=deep-sleep aldo3=off wifi=off network-services=paused mcu-sleep=true-deep-sleep",
                                 selection.file_name,
                                 restore_route.marker()
                             );
+
+                            // Wait 900ms so you can release the physical PWR button cleanly
+                            FreeRtos::delay_ms(POWER_KEY_WAKE_GUARD_QUIET_MS as u32);
+
+                            // Drop normal GPIO drivers on GPIO0 (BOOT) and GPIO45 (RTC Alarm)
+                            // before handing them to the ESP32-S3 RTC wakeup controller
+                            drop(back_button);
+                            drop(rtc_alarm_interrupt);
+
+                            unsafe {
+                                // Configure GPIO0 (BOOT button, active-low) and GPIO45 (RTC Alarm, active-low)
+                                // with internal RTC pull-ups so they don't float during deep sleep
+                                sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_0);
+                                sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_0);
+                                sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_45);
+                                sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_45);
+
+                                // Wake when EITHER GPIO0 (BOOT) OR GPIO45 (RTC Alarm) goes LOW (0)
+                                let wake_mask: u64 = (1u64 << 0) | (1u64 << 45);
+                                sys::esp_sleep_enable_ext1_wakeup(
+                                    wake_mask,
+                                    sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
+                                );
+
+                                // Flush UART logs before cutting CPU/PSRAM power
+                                FreeRtos::delay_ms(50);
+                                sys::esp_deep_sleep_start();
+                            }
                         }
                     }
                     Ok(None) => {}
@@ -1659,7 +1687,13 @@ mod firmware {
                 last_status_refresh = Instant::now();
             }
 
-            FreeRtos::delay_ms(20);
+            if !state.panel_awake && voice_recording.is_none() && voice_playback.is_none() {
+                // When the e-paper panel is idle/asleep between page turns,
+                // slow the poll loop from 50Hz (20ms) down to 10Hz (100ms)
+                FreeRtos::delay_ms(100);
+            } else {
+                FreeRtos::delay_ms(20);
+            }
         }
     }
 
