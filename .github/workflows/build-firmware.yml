@@ -8,14 +8,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: espressif/idf-rust:esp32s3_latest
+    container:
+      image: espressif/idf-rust:esp32s3_latest
+      options: --user root
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Compile Release Firmware
         run: |
-          . $HOME/export-esp.sh
+          export HOME="/home/esp"
+          export CARGO_HOME="/home/esp/.cargo"
+          export RUSTUP_HOME="/home/esp/.rustup"
+          . /home/esp/export-esp.sh
+          export PATH="/home/esp/.cargo/bin:$PATH"
           export CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_LINKER="ldproxy"
           export RUSTFLAGS="--cfg esp_idf_version_least_5_5_0"
           cargo +esp build --release --target xtensa-esp32s3-espidf -Zbuild-std=core,alloc,std,panic_abort
