@@ -8,29 +8,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: espressif/idf-rust:esp32s3_latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc clang libudev-dev libssl-dev pkg-config python3 python3-pip python3-venv cmake ninja-build
-
-      - name: Install Espressif Rust Xtensa Toolchain
-        uses: esp-rs/xtensa-toolchain@v1.5
-        with:
-          default: true
-          buildtargets: esp32s3
-          ldproxy: false
-
-      - name: Install ldproxy binary
-        run: cargo install ldproxy
-
       - name: Compile Release Firmware
         run: |
+          . $HOME/export-esp.sh
+          export CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_LINKER="ldproxy"
           export RUSTFLAGS="--cfg esp_idf_version_least_5_5_0"
-          cargo build --release --target xtensa-esp32s3-espidf -Zbuild-std=core,alloc,std,panic_abort
+          cargo +esp build --release --target xtensa-esp32s3-espidf -Zbuild-std=core,alloc,std,panic_abort
 
       - name: Upload Compiled Binary
         uses: actions/upload-artifact@v4
