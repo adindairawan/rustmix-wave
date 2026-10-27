@@ -1,0 +1,41 @@
+name: Build ESP32 Firmware
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Compile ESP32-S3 Binary
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config python3 python3-pip ninja-build cmake
+
+      - name: Install espup toolchain
+        run: |
+          curl -L https://github.com/esp-rs/espup/releases/latest/download/espup-x86_64-unknown-linux-gnu -o espup
+          chmod +x espup
+          ./espup install
+          echo "$HOME/.rustup/toolchains/esp/bin" >> $GITHUB_PATH
+          echo "LIBCLANG_PATH=$HOME/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-clang/lib" >> $GITHUB_ENV
+
+      - name: Build release binary
+        run: |
+          . $HOME/export-esp.sh
+          export RUSTFLAGS="${RUSTFLAGS:-} --cfg esp_idf_version_least_5_5_0"
+          cargo +esp build --release --target xtensa-esp32s3-espidf
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustmix-wave-firmware
+          path: target/xtensa-esp32s3-espidf/release/waveshare-epd397-rust-app
