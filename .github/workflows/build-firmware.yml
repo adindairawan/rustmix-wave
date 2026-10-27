@@ -22,7 +22,10 @@ jobs:
         with:
           default: true
           buildtargets: esp32s3
-          ldproxy: true
+          ldproxy: false
+
+      - name: Install ldproxy binary
+        run: cargo install ldproxy
 
       - name: Compile Release Firmware
         run: |
