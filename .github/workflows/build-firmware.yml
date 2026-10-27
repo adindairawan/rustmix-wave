@@ -27,7 +27,7 @@ jobs:
       - name: Compile Release Firmware
         run: |
           export RUSTFLAGS="--cfg esp_idf_version_least_5_5_0"
-          cargo build --release --target xtensa-esp32s3-espidf
+          cargo build --release --target xtensa-esp32s3-espidf -Zbuild-std=core,alloc,std,panic_abort
 
       - name: Upload Compiled Binary
         uses: actions/upload-artifact@v4
