@@ -1,8 +1,7 @@
-//! Native Sokoban Tilt sample for debounced portrait tilt events.
+//! Native Sokoban Tilt campaign & level selector for debounced portrait tilt events.
 //!
-//! The SD script declares one bounded 9x9 level. Rust owns parsing, player and
-//! crate state, push validation, goal detection, rendering and dirty metadata.
-//! Only debounced native tilt events cross the game boundary.
+//! Supports single 9x9 maps (Automatically upgraded to a 5-level campaign) or
+//! pipe-separated (`|`) multi-level strings from `MAIN.LUA`.
 
 use super::{
     canvas::{CanvasTextStyle, NativeGameCanvas},
@@ -19,6 +18,7 @@ pub const SOKOBAN_CELL_COUNT: usize = SOKOBAN_COLUMNS * SOKOBAN_ROWS;
 pub const SOKOBAN_GRID_X: i32 = 51;
 pub const SOKOBAN_GRID_Y: i32 = 176;
 pub const SOKOBAN_CELL_SIZE: i32 = 42;
+const SOKOBAN_HEADER_RECT: DirtyRect = DirtyRect::new(16, 48, 448, 96);
 const SOKOBAN_STATUS_RECT: DirtyRect = DirtyRect::new(16, 606, 448, 142);
 const SOKOBAN_BOARD_RECT: DirtyRect = DirtyRect::new(
     SOKOBAN_GRID_X,
@@ -26,6 +26,26 @@ const SOKOBAN_BOARD_RECT: DirtyRect = DirtyRect::new(
     SOKOBAN_COLUMNS as i32 * SOKOBAN_CELL_SIZE + 1,
     SOKOBAN_ROWS as i32 * SOKOBAN_CELL_SIZE + 1,
 );
+
+/// Built-in campaign levels appended when the SD script only provides 1 map.
+const BUILTIN_CAMPAIGN_MAPS: &[&str] = &[
+    // Level 2: Corner Pocket (1 Crate)
+    "#########/#S..#...#/#..C#...#/#...#G..#/#.......#/#####...#/#.......#/#.......#/#########",
+    // Level 3: Double Trouble (2 Crates)
+    "#########/####..###/##.G..###/##..C..##/##.C.S.##/##.G...##/#########/#########/#########",
+    // Level 4: Hallway Shuffle (2 Crates)
+    "#########/#G..#..G#/#...C...#/#.#.#.#.#/#..S.C..#/#.......#/#########/#.......#/#########",
+    // Level 5: Warehouse Master (3 Crates)
+    "#########/#G.G.G..#/#.......#/#.C.C.C.#/#...S...#/#..###..#/#.......#/#.......#/#########",
+];
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ParsedLevel {
+    walls: [bool; SOKOBAN_CELL_COUNT],
+    goals: [bool; SOKOBAN_CELL_COUNT],
+    initial_crates: [bool; SOKOBAN_CELL_COUNT],
+    start: usize,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SokobanDirection {
@@ -73,6 +93,7 @@ impl SokobanDirection {
         }
     }
 }
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SokobanOutcome {
     InProgress,
@@ -91,6 +112,7 @@ impl SokobanOutcome {
         matches!(self, Self::Won)
     }
 }
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SokobanTiltEventResult {
     pub reason: &'static str,
@@ -104,8 +126,14 @@ pub struct SokobanTiltEventResult {
     pub raw_axis: &'static str,
     pub dirty_regions: Vec<DirtyRect>,
 }
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SokobanTiltGame {
+    levels: Vec<ParsedLevel>,
+    solved_levels: Vec<bool>,
+    current_level: usize,
+    menu_open: bool,
+    menu_selected: usize,
     walls: [bool; SOKOBAN_CELL_COUNT],
     goals: [bool; SOKOBAN_CELL_COUNT],
     initial_crates: [bool; SOKOBAN_CELL_COUNT],
@@ -117,9 +145,10 @@ pub struct SokobanTiltGame {
     status: String,
     outcome: SokobanOutcome,
 }
+
 impl SokobanTiltGame {
-    pub fn from_map(encoded: &str) -> Result<Self, String> {
-        let rows = encoded.split('/').collect::<Vec<_>>();
+    fn parse_single_map(encoded: &str) -> Result<ParsedLevel, String> {
+        let rows = encoded.trim().split('/').collect::<Vec<_>>();
         if rows.len() != SOKOBAN_ROWS
             || rows
                 .iter()
@@ -158,19 +187,71 @@ impl SokobanTiltGame {
         if walls[start] || crates[start] {
             return Err("sokoban start cell is blocked".into());
         }
-        Ok(Self {
+        Ok(ParsedLevel {
             walls,
             goals,
             initial_crates: crates,
-            crates,
             start,
-            player: start,
+        })
+    }
+
+    pub fn from_map(encoded: &str) -> Result<Self, String> {
+        let mut levels = Vec::new();
+        for part in encoded.split('|') {
+            if !part.trim().is_empty() {
+                levels.push(Self::parse_single_map(part)?);
+            }
+        }
+        if levels.is_empty() {
+            return Err("sokoban v0.18.6 expects one 9x9 slash-separated map".into());
+        }
+        // If the SD card MAIN.LUA only provided a single level, append our built-in campaign!
+        if levels.len() == 1 {
+            for extra in BUILTIN_CAMPAIGN_MAPS {
+                if let Ok(parsed) = Self::parse_single_map(extra) {
+                    levels.push(parsed);
+                }
+            }
+        }
+        let first = levels[0];
+        let total = levels.len();
+        Ok(Self {
+            levels,
+            solved_levels: vec![false; total],
+            current_level: 0,
+            menu_open: false,
+            menu_selected: 0,
+            walls: first.walls,
+            goals: first.goals,
+            initial_crates: first.initial_crates,
+            crates: first.initial_crates,
+            start: first.start,
+            player: first.start,
             moves: 0,
             pushes: 0,
-            status: "Tilt to move  Push crates onto G".into(),
+            status: "Tilt move  SELECT levels  UP/DN skip".into(),
             outcome: SokobanOutcome::InProgress,
         })
     }
+
+    fn load_level(&mut self, index: usize, status_msg: String) {
+        let index = index % self.levels.len();
+        let lvl = self.levels[index];
+        self.current_level = index;
+        self.menu_selected = index;
+        self.menu_open = false;
+        self.walls = lvl.walls;
+        self.goals = lvl.goals;
+        self.initial_crates = lvl.initial_crates;
+        self.crates = lvl.initial_crates;
+        self.start = lvl.start;
+        self.player = lvl.start;
+        self.moves = 0;
+        self.pushes = 0;
+        self.outcome = SokobanOutcome::InProgress;
+        self.status = status_msg;
+    }
+
     #[must_use]
     pub const fn player_row(&self) -> usize {
         self.player / SOKOBAN_COLUMNS
@@ -199,6 +280,7 @@ impl SokobanTiltGame {
             .filter(|(crate_cell, goal)| **crate_cell && **goal)
             .count()
     }
+
     pub fn render_initial(&self, canvas: &mut NativeGameCanvas) -> Result<(), String> {
         self.render_commands(canvas)?;
         canvas.reset_dirty_regions();
@@ -206,11 +288,15 @@ impl SokobanTiltGame {
         canvas.request_refresh();
         Ok(())
     }
+
     pub fn apply_motion_and_render(
         &mut self,
         event: ImuDetectedEvent,
         canvas: &mut NativeGameCanvas,
     ) -> Result<Option<SokobanTiltEventResult>, String> {
+        if self.menu_open {
+            return Ok(None);
+        }
         let ImuDetectedEventKind::Tilt(axis) = event.kind else {
             return Ok(None);
         };
@@ -221,7 +307,7 @@ impl SokobanTiltGame {
         let old_player = self.player;
         let mut pushed = false;
         let reason = if self.outcome.completed() {
-            self.status = "Puzzle solved  SELECT reset".into();
+            self.status = "Solved! Press SELECT for next level".into();
             "game-finished"
         } else if let Some(next) = shifted_cell(self.player, row_delta, column_delta) {
             if self.walls[next] {
@@ -238,7 +324,20 @@ impl SokobanTiltGame {
                         pushed = true;
                         if self.crates_on_goal() == self.goals.iter().filter(|v| **v).count() {
                             self.outcome = SokobanOutcome::Won;
-                            self.status = format!("Solved in {} moves  SELECT reset", self.moves);
+                            self.solved_levels[self.current_level] = true;
+                            if self.current_level + 1 < self.levels.len() {
+                                self.status = format!(
+                                    "Lv{} Solved ({}m)! SELECT -> Lv{}",
+                                    self.current_level + 1,
+                                    self.moves,
+                                    self.current_level + 2
+                                );
+                            } else {
+                                self.status = format!(
+                                    "All {} Levels Cleared! SELECT menu",
+                                    self.levels.len()
+                                );
+                            }
                             "goal-reached"
                         } else {
                             self.status = format!("{} push  Keep solving", direction.label());
@@ -286,29 +385,93 @@ impl SokobanTiltGame {
             dirty_regions,
         )))
     }
+
     pub fn apply_button_and_render(
         &mut self,
         event: ButtonEvent,
         canvas: &mut NativeGameCanvas,
     ) -> Result<Option<SokobanTiltEventResult>, String> {
-        if event != ButtonEvent::Select {
-            return Ok(None);
-        }
-        self.crates = self.initial_crates;
-        self.player = self.start;
-        self.moves = 0;
-        self.pushes = 0;
-        self.outcome = SokobanOutcome::InProgress;
-        self.status = "Puzzle reset  Tilt to move".into();
+        let reason = if self.menu_open {
+            match event {
+                ButtonEvent::Up => {
+                    self.menu_selected = self
+                        .menu_selected
+                        .checked_sub(1)
+                        .unwrap_or(self.levels.len() - 1);
+                    self.status = format!("Select Level {} of {}", self.menu_selected + 1, self.levels.len());
+                    "menu-up"
+                }
+                ButtonEvent::Down => {
+                    self.menu_selected = (self.menu_selected + 1) % self.levels.len();
+                    self.status = format!("Select Level {} of {}", self.menu_selected + 1, self.levels.len());
+                    "menu-down"
+                }
+                ButtonEvent::Select => {
+                    let target = self.menu_selected;
+                    self.load_level(
+                        target,
+                        format!("Level {} started  Tilt to move", target + 1),
+                    );
+                    "level-selected"
+                }
+            }
+        } else {
+            match event {
+                ButtonEvent::Up => {
+                    let prev = self
+                        .current_level
+                        .checked_sub(1)
+                        .unwrap_or(self.levels.len() - 1);
+                    self.load_level(prev, format!("Switched to Level {}", prev + 1));
+                    "level-prev"
+                }
+                ButtonEvent::Down => {
+                    let next = (self.current_level + 1) % self.levels.len();
+                    self.load_level(next, format!("Switched to Level {}", next + 1));
+                    "level-next"
+                }
+                ButtonEvent::Select => {
+                    if self.outcome.completed() {
+                        if self.current_level + 1 < self.levels.len() {
+                            let next = self.current_level + 1;
+                            self.load_level(next, format!("Level {}  Tilt to move", next + 1));
+                            "level-advance"
+                        } else {
+                            self.menu_open = true;
+                            self.menu_selected = 0;
+                            self.status = "Campaign Complete! Pick any level".into();
+                            "menu-open"
+                        }
+                    } else if self.moves == 0 {
+                        // Pressing SELECT before making a move opens the Level Selection Menu
+                        self.menu_open = true;
+                        self.menu_selected = self.current_level;
+                        self.status = "UP/DOWN choose level  SELECT play".into();
+                        "menu-open"
+                    } else {
+                        // Pressing SELECT mid-puzzle resets the puzzle (at 0 moves, press SELECT again for Menu)
+                        self.crates = self.initial_crates;
+                        self.player = self.start;
+                        self.moves = 0;
+                        self.pushes = 0;
+                        self.outcome = SokobanOutcome::InProgress;
+                        self.status = "Reset! Press SELECT again for Level Menu".into();
+                        "reset"
+                    }
+                }
+            }
+        };
+
         self.render_commands(canvas)?;
         canvas.reset_dirty_regions();
-        let dirty_regions = vec![SOKOBAN_BOARD_RECT, SOKOBAN_STATUS_RECT];
+        let dirty_regions = vec![SOKOBAN_HEADER_RECT, SOKOBAN_BOARD_RECT, SOKOBAN_STATUS_RECT];
         for rect in &dirty_regions {
             canvas.invalidate_rect(*rect);
         }
         canvas.request_refresh();
-        Ok(Some(self.result("reset", "none", "none", dirty_regions)))
+        Ok(Some(self.result(reason, "none", "none", dirty_regions)))
     }
+
     fn result(
         &self,
         reason: &'static str,
@@ -329,64 +492,108 @@ impl SokobanTiltGame {
             dirty_regions,
         }
     }
+
     fn render_commands(&self, canvas: &mut NativeGameCanvas) -> Result<(), String> {
         canvas.clear_frame();
-        canvas.text(24, 82, "Sokoban Tilt".into(), CanvasTextStyle::Heading)?;
         canvas.text(
             24,
-            126,
-            "Native tilt crate-pushing sample".into(),
-            CanvasTextStyle::Detail,
+            82,
+            format!(
+                "Sokoban Tilt   Lv {}/{}",
+                self.current_level + 1,
+                self.levels.len()
+            ),
+            CanvasTextStyle::Heading,
         )?;
-        canvas.grid(
-            SOKOBAN_GRID_X,
-            SOKOBAN_GRID_Y,
-            SOKOBAN_COLUMNS as u8,
-            SOKOBAN_ROWS as u8,
-            SOKOBAN_CELL_SIZE,
-            SOKOBAN_CELL_SIZE,
-        )?;
-        for index in 0..SOKOBAN_CELL_COUNT {
-            let (x, y) = cell_origin(index);
-            if self.walls[index] {
-                canvas.rect(
-                    x + 1,
-                    y + 1,
-                    SOKOBAN_CELL_SIZE - 2,
-                    SOKOBAN_CELL_SIZE - 2,
-                    true,
+
+        if self.menu_open {
+            canvas.text(
+                24,
+                126,
+                "LEVEL SELECT MENU (UP/DN + SELECT)".into(),
+                CanvasTextStyle::Detail,
+            )?;
+            canvas.rect(
+                SOKOBAN_GRID_X,
+                SOKOBAN_GRID_Y,
+                SOKOBAN_COLUMNS as i32 * SOKOBAN_CELL_SIZE,
+                SOKOBAN_ROWS as i32 * SOKOBAN_CELL_SIZE,
+                false,
+            )?;
+            for (idx, solved) in self.solved_levels.iter().enumerate().take(7) {
+                let row_y = SOKOBAN_GRID_Y + 46 + (idx as i32 * 48);
+                let cursor = if idx == self.menu_selected { ">" } else { " " };
+                let badge = if *solved { "[SOLVED]" } else { "[OPEN]" };
+                let style = if idx == self.menu_selected {
+                    CanvasTextStyle::Heading
+                } else {
+                    CanvasTextStyle::Body
+                };
+                canvas.text(
+                    SOKOBAN_GRID_X + 24,
+                    row_y,
+                    format!("{cursor} Level {}   {badge}", idx + 1),
+                    style,
                 )?;
-            } else {
-                if self.goals[index] {
-                    canvas.text(x + 13, y + 30, "G".into(), CanvasTextStyle::Heading)?;
-                }
-                if self.crates[index] {
+            }
+        } else {
+            canvas.text(
+                24,
+                126,
+                "UP/DN switch level  SELECT reset/menu".into(),
+                CanvasTextStyle::Detail,
+            )?;
+            canvas.grid(
+                SOKOBAN_GRID_X,
+                SOKOBAN_GRID_Y,
+                SOKOBAN_COLUMNS as u8,
+                SOKOBAN_ROWS as u8,
+                SOKOBAN_CELL_SIZE,
+                SOKOBAN_CELL_SIZE,
+            )?;
+            for index in 0..SOKOBAN_CELL_COUNT {
+                let (x, y) = cell_origin(index);
+                if self.walls[index] {
                     canvas.rect(
-                        x + 7,
-                        y + 7,
-                        SOKOBAN_CELL_SIZE - 14,
-                        SOKOBAN_CELL_SIZE - 14,
-                        false,
+                        x + 1,
+                        y + 1,
+                        SOKOBAN_CELL_SIZE - 2,
+                        SOKOBAN_CELL_SIZE - 2,
+                        true,
                     )?;
-                    canvas.text(x + 13, y + 30, "C".into(), CanvasTextStyle::Heading)?;
+                } else {
+                    if self.goals[index] {
+                        canvas.text(x + 13, y + 30, "G".into(), CanvasTextStyle::Heading)?;
+                    }
+                    if self.crates[index] {
+                        canvas.rect(
+                            x + 7,
+                            y + 7,
+                            SOKOBAN_CELL_SIZE - 14,
+                            SOKOBAN_CELL_SIZE - 14,
+                            false,
+                        )?;
+                        canvas.text(x + 13, y + 30, "C".into(), CanvasTextStyle::Heading)?;
+                    }
                 }
             }
+            let (px, py) = cell_origin(self.player);
+            canvas.rect(
+                px + 13,
+                py + 13,
+                SOKOBAN_CELL_SIZE - 26,
+                SOKOBAN_CELL_SIZE - 26,
+                true,
+            )?;
         }
-        let (px, py) = cell_origin(self.player);
-        canvas.rect(
-            px + 13,
-            py + 13,
-            SOKOBAN_CELL_SIZE - 26,
-            SOKOBAN_CELL_SIZE - 26,
-            true,
-        )?;
+
         canvas.text(
             24,
             634,
             format!(
-                "R{} C{}  MOVES {}  PUSHES {}  {}",
-                self.player_row() + 1,
-                self.player_column() + 1,
+                "LV {}/{}  MOVES {}  PUSHES {}  {}",
+                self.current_level + 1,
+                self.levels.len(),
                 self.moves,
                 self.pushes,
                 self.outcome.marker().to_ascii_uppercase()
@@ -397,12 +604,13 @@ impl SokobanTiltGame {
         canvas.text(
             24,
             734,
-            "TILT move  SELECT reset  Hold BOOT back".into(),
+            "TILT move  UP/DN level  SELECT next/menu".into(),
             CanvasTextStyle::Body,
         )?;
         Ok(())
     }
 }
+
 fn shifted_cell(index: usize, row_delta: i32, column_delta: i32) -> Option<usize> {
     let row = index / SOKOBAN_COLUMNS;
     let column = index % SOKOBAN_COLUMNS;
@@ -415,6 +623,7 @@ fn shifted_cell(index: usize, row_delta: i32, column_delta: i32) -> Option<usize
     }
     Some(next_row as usize * SOKOBAN_COLUMNS + next_column as usize)
 }
+
 fn cell_origin(index: usize) -> (i32, i32) {
     let row = index / SOKOBAN_COLUMNS;
     let column = index % SOKOBAN_COLUMNS;
@@ -423,10 +632,12 @@ fn cell_origin(index: usize) -> (i32, i32) {
         SOKOBAN_GRID_Y + row as i32 * SOKOBAN_CELL_SIZE,
     )
 }
+
 fn cell_rect(index: usize) -> DirtyRect {
     let (x, y) = cell_origin(index);
     DirtyRect::new(x, y, SOKOBAN_CELL_SIZE + 1, SOKOBAN_CELL_SIZE + 1)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -452,7 +663,7 @@ mod tests {
         assert_eq!((result.row, result.column), (1, 2));
     }
     #[test]
-    fn push_to_goal_can_win() {
+    fn push_to_goal_can_win_and_advance_level() {
         let mut game = SokobanTiltGame::from_map(MAP).unwrap();
         let mut canvas = NativeGameCanvas::default();
         game.player = 3 * SOKOBAN_COLUMNS + 4;
@@ -467,6 +678,15 @@ mod tests {
             .unwrap();
         assert_eq!(second.reason, "goal-reached");
         assert!(second.outcome.completed());
+
+        // Pressing Select after winning advances to Level 2 (index 1)
+        let advance = game
+            .apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap()
+            .unwrap();
+        assert_eq!(advance.reason, "level-advance");
+        assert_eq!(game.current_level, 1);
+        assert_eq!(game.outcome(), SokobanOutcome::InProgress);
     }
     #[test]
     fn blocked_wall_uses_status_only_dirty() {
