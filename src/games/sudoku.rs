@@ -644,7 +644,7 @@ impl SudokuGame {
             ),
             CanvasTextStyle::Body,
         )?;
-        canvas.text(24, 690, self.status.clone(), CanvasTextStyle::Detail)?;
+        canvas.text(24, 722, footer, CanvasTextStyle::Detail)?;
         let footer = if self.menu_open {
             "UP/DN level  SELECT load  BOOT short close"
         } else {
