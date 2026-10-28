@@ -644,7 +644,7 @@ impl SudokuGame {
             ),
             CanvasTextStyle::Body,
         )?;
-        canvas.text(24, 722, footer, CanvasTextStyle::Detail)?;
+        canvas.text(24, 690, self.status.clone(), CanvasTextStyle::Detail)?;
         let footer = if self.menu_open {
             "UP/DN level  SELECT load  BOOT short close"
         } else {
@@ -674,103 +674,191 @@ fn validate_initial_board(board: &[u8; SUDOKU_CELL_COUNT]) -> Result<(), String>
 fn conflicts(board: &[u8; SUDOKU_CELL_COUNT], index: usize, value: u8) -> bool {
     let row = index / 9;
     let column = index % 9;
-    
-    // Check row and column peers
     for peer in 0..9 {
         let row_index = row * 9 + peer;
+        let column_index = peer * 9 + column;
         if row_index != index && board[row_index] == value {
             return true;
         }
-        let column_index = peer * 9 + column;
         if column_index != index && board[column_index] == value {
             return true;
         }
     }
-
-    // Check 3x3 box peers
-    let box_row = (row / 3) * 3;
-    let box_col = (column / 3) * 3;
-    for r in 0..3 {
-        for c in 0..3 {
-            let box_index = (box_row + r) * 9 + (box_col + c);
-            if box_index != index && board[box_index] == value {
+    let block_row = (row / 3) * 3;
+    let block_column = (column / 3) * 3;
+    for block_y in 0..3 {
+        for block_x in 0..3 {
+            let peer = (block_row + block_y) * 9 + block_column + block_x;
+            if peer != index && board[peer] == value {
                 return true;
             }
         }
     }
-
     false
 }
 
-fn first_editable_cell(givens: &[bool; SUDOKU_CELL_COUNT]) -> Option<usize> {
-    givens.iter().position(|&g| !g)
-}
-
-fn next_cell(current: usize, axis: SudokuMovementAxis) -> usize {
-    match axis {
-        SudokuMovementAxis::Horizontal => {
-            if (current + 1) % 9 == 0 {
-                current - 8
-            } else {
-                current + 1
-            }
-        }
-        SudokuMovementAxis::Vertical => {
-            if current >= 72 {
-                current % 9
-            } else {
-                current + 9
-            }
-        }
-    }
-}
-
-fn previous_cell(current: usize, axis: SudokuMovementAxis) -> usize {
-    match axis {
-        SudokuMovementAxis::Horizontal => {
-            if current % 9 == 0 {
-                current + 8
-            } else {
-                current - 1
-            }
-        }
-        SudokuMovementAxis::Vertical => {
-            if current < 9 {
-                current + 72
-            } else {
-                current - 9
-            }
-        }
-    }
-}
-
 fn is_complete(board: &[u8; SUDOKU_CELL_COUNT]) -> bool {
-    !board.contains(&0) && !board.iter().enumerate().any(|(i, &v)| conflicts(board, i, v))
+    board.iter().all(|value| *value != 0)
+        && board
+            .iter()
+            .copied()
+            .enumerate()
+            .all(|(index, value)| !conflicts(board, index, value))
+}
+
+fn first_editable_cell(givens: &[bool; SUDOKU_CELL_COUNT]) -> Option<usize> {
+    givens.iter().position(|given| !*given)
+}
+
+fn previous_cell(index: usize, axis: SudokuMovementAxis) -> usize {
+    let row = index / 9;
+    let column = index % 9;
+    match axis {
+        SudokuMovementAxis::Horizontal => row * 9 + column.checked_sub(1).unwrap_or(8),
+        SudokuMovementAxis::Vertical => row.checked_sub(1).unwrap_or(8) * 9 + column,
+    }
+}
+
+fn next_cell(index: usize, axis: SudokuMovementAxis) -> usize {
+    let row = index / 9;
+    let column = index % 9;
+    match axis {
+        SudokuMovementAxis::Horizontal => row * 9 + (column + 1) % 9,
+        SudokuMovementAxis::Vertical => (row + 1) % 9 * 9 + column,
+    }
 }
 
 fn cell_rect(index: usize) -> DirtyRect {
-    let row = index / 9;
-    let column = index % 9;
     DirtyRect::new(
-        SUDOKU_GRID_X + column as i32 * SUDOKU_CELL_SIZE,
-        SUDOKU_GRID_Y + row as i32 * SUDOKU_CELL_SIZE,
-        SUDOKU_CELL_SIZE,
-        SUDOKU_CELL_SIZE,
+        SUDOKU_GRID_X + (index % 9) as i32 * SUDOKU_CELL_SIZE,
+        SUDOKU_GRID_Y + (index / 9) as i32 * SUDOKU_CELL_SIZE,
+        SUDOKU_CELL_SIZE + 1,
+        SUDOKU_CELL_SIZE + 1,
     )
 }
 
 fn candidate_status(candidate: u8) -> String {
     if candidate == 0 {
-        "EDIT: Value cleared (SELECT to save)".into()
+        "EDIT value CLEAR  SELECT save".into()
     } else {
-        format!("EDIT: Value {candidate} (SELECT to save)")
+        format!("EDIT value {candidate}  SELECT save")
     }
 }
 
 fn display_candidate(candidate: u8) -> String {
     if candidate == 0 {
-        "-".into()
+        "CLEAR".into()
     } else {
         candidate.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{buttons::ButtonEvent, games::canvas::NativeGameCanvas};
+
+    use super::{SudokuGame, SudokuMode, SudokuMovementAxis};
+
+    const PUZZLE: &str =
+        "530070000600195000098000060800060003400803001700020006060000280000419005000080079";
+    const MULTI_PUZZLE: &str =
+        "530070000600195000098000060800060003400803001700020006060000280000419005000080079|003020600900305001001806400008102900700000008006708200002609500800203009005010300";
+
+    #[test]
+    fn loads_valid_puzzle_and_renders_bounded_native_canvas() {
+        let game = SudokuGame::from_puzzle(PUZZLE).unwrap();
+        let mut canvas = NativeGameCanvas::default();
+        game.render_initial(&mut canvas).unwrap();
+        assert!(!canvas.commands().is_empty());
+        assert!(canvas.refresh_requested());
+    }
+
+    #[test]
+    fn multi_puzzle_opens_menu_on_fixed_clue_and_switches_levels() {
+        let mut game = SudokuGame::from_puzzle(MULTI_PUZZLE).unwrap();
+        let mut canvas = NativeGameCanvas::default();
+        game.render_initial(&mut canvas).unwrap();
+        // Move cursor left to index 0 (which is a fixed clue '5')
+        game.apply_button_and_render(ButtonEvent::Up, &mut canvas).unwrap();
+        game.apply_button_and_render(ButtonEvent::Up, &mut canvas).unwrap();
+        let menu = game.apply_button_and_render(ButtonEvent::Select, &mut canvas).unwrap();
+        assert_eq!(menu.reason, "menu-open");
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas).unwrap();
+        let selected = game.apply_button_and_render(ButtonEvent::Select, &mut canvas).unwrap();
+        assert_eq!(selected.reason, "level-selected");
+        assert_eq!(game.current_level, 1);
+    }
+
+    #[test]
+    fn rotary_reference_flow_moves_edits_cycles_and_commits() {
+        let mut game = SudokuGame::from_puzzle(PUZZLE).unwrap();
+        let mut canvas = NativeGameCanvas::default();
+        game.render_initial(&mut canvas).unwrap();
+        let moved = game
+            .apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        assert_eq!(moved.reason, "cursor-move");
+        let entered = game
+            .apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap();
+        if entered.reason == "fixed-clue" {
+            game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+                .unwrap();
+            game.apply_button_and_render(ButtonEvent::Select, &mut canvas)
+                .unwrap();
+        }
+        assert_eq!(game.mode(), SudokuMode::Edit);
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        let committed = game
+            .apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap();
+        assert!(matches!(committed.reason, "commit" | "conflict"));
+        assert!(canvas.dirty().regions().len() <= 4 || canvas.dirty().full_canvas_fallback());
+    }
+
+    #[test]
+    fn boot_short_axis_toggle_switches_horizontal_and_vertical_navigation() {
+        let mut game = SudokuGame::from_puzzle(PUZZLE).unwrap();
+        let mut canvas = NativeGameCanvas::default();
+        game.render_initial(&mut canvas).unwrap();
+        assert_eq!(game.movement_axis(), SudokuMovementAxis::Horizontal);
+        let horizontal = game
+            .apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        assert_eq!((horizontal.row, horizontal.column), (0, 3));
+        let toggled = game.apply_boot_short_press_and_render(&mut canvas).unwrap();
+        assert_eq!(toggled.reason, "axis-toggle");
+        assert_eq!(toggled.axis, SudokuMovementAxis::Vertical);
+        assert_eq!(toggled.dirty_regions, vec![super::SUDOKU_STATUS_RECT]);
+        let vertical = game
+            .apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        assert_eq!((vertical.row, vertical.column), (1, 3));
+    }
+
+    #[test]
+    fn boot_short_cancels_edit_and_preserves_navigation_axis() {
+        let mut game = SudokuGame::from_puzzle(PUZZLE).unwrap();
+        let mut canvas = NativeGameCanvas::default();
+        game.render_initial(&mut canvas).unwrap();
+        game.apply_boot_short_press_and_render(&mut canvas).unwrap();
+        assert_eq!(game.movement_axis(), SudokuMovementAxis::Vertical);
+        game.apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap();
+        assert_eq!(game.mode(), SudokuMode::Edit);
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        let canceled = game.apply_boot_short_press_and_render(&mut canvas).unwrap();
+        assert_eq!(canceled.reason, "edit-cancel");
+        assert_eq!(canceled.mode, SudokuMode::Navigate); // FIXED: Removed parentheses here
+        assert_eq!(canceled.axis, SudokuMovementAxis::Vertical);
+        assert_eq!(canceled.dirty_regions.len(), 2);
+    }
+
+    #[test]
+    fn rejects_conflicting_initial_board() {
+        let puzzle = format!("11{}", "0".repeat(79));
+        assert!(SudokuGame::from_puzzle(&puzzle).is_err());
     }
 }
