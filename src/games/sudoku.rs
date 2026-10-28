@@ -674,7 +674,103 @@ fn validate_initial_board(board: &[u8; SUDOKU_CELL_COUNT]) -> Result<(), String>
 fn conflicts(board: &[u8; SUDOKU_CELL_COUNT], index: usize, value: u8) -> bool {
     let row = index / 9;
     let column = index % 9;
+    
+    // Check row and column peers
     for peer in 0..9 {
         let row_index = row * 9 + peer;
+        if row_index != index && board[row_index] == value {
+            return true;
+        }
         let column_index = peer * 9 + column;
-        if row_index != index && board[row_index] == value
+        if column_index != index && board[column_index] == value {
+            return true;
+        }
+    }
+
+    // Check 3x3 box peers
+    let box_row = (row / 3) * 3;
+    let box_col = (column / 3) * 3;
+    for r in 0..3 {
+        for c in 0..3 {
+            let box_index = (box_row + r) * 9 + (box_col + c);
+            if box_index != index && board[box_index] == value {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+fn first_editable_cell(givens: &[bool; SUDOKU_CELL_COUNT]) -> Option<usize> {
+    givens.iter().position(|&g| !g)
+}
+
+fn next_cell(current: usize, axis: SudokuMovementAxis) -> usize {
+    match axis {
+        SudokuMovementAxis::Horizontal => {
+            if (current + 1) % 9 == 0 {
+                current - 8
+            } else {
+                current + 1
+            }
+        }
+        SudokuMovementAxis::Vertical => {
+            if current >= 72 {
+                current % 9
+            } else {
+                current + 9
+            }
+        }
+    }
+}
+
+fn previous_cell(current: usize, axis: SudokuMovementAxis) -> usize {
+    match axis {
+        SudokuMovementAxis::Horizontal => {
+            if current % 9 == 0 {
+                current + 8
+            } else {
+                current - 1
+            }
+        }
+        SudokuMovementAxis::Vertical => {
+            if current < 9 {
+                current + 72
+            } else {
+                current - 9
+            }
+        }
+    }
+}
+
+fn is_complete(board: &[u8; SUDOKU_CELL_COUNT]) -> bool {
+    !board.contains(&0) && !board.iter().enumerate().any(|(i, &v)| conflicts(board, i, v))
+}
+
+fn cell_rect(index: usize) -> DirtyRect {
+    let row = index / 9;
+    let column = index % 9;
+    DirtyRect::new(
+        SUDOKU_GRID_X + column as i32 * SUDOKU_CELL_SIZE,
+        SUDOKU_GRID_Y + row as i32 * SUDOKU_CELL_SIZE,
+        SUDOKU_CELL_SIZE,
+        SUDOKU_CELL_SIZE,
+    )
+}
+
+fn candidate_status(candidate: u8) -> String {
+    if candidate == 0 {
+        "EDIT: Value cleared (SELECT to save)".into()
+    } else {
+        format!("EDIT: Value {candidate} (SELECT to save)")
+    }
+}
+
+fn display_candidate(candidate: u8) -> String {
+    if candidate == 0 {
+        "-".into()
+    } else {
+        candidate.to_string()
+    }
+}
