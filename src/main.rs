@@ -194,7 +194,20 @@ mod firmware {
             }
         };
 
-        Err(error) => {
+        let weather_config = match WeatherConfig::load_from_path(WEATHER_CONFIG_PATH) {
+            Ok(config) => {
+                info!(
+                    "rustmix-wave=weather-config status=ready path={WEATHER_CONFIG_PATH} provider={} location={} latitude={:.4} longitude={:.4} timezone={} refresh-minutes={}",
+                    config.provider,
+                    config.location,
+                    config.latitude,
+                    config.longitude,
+                    config.timezone,
+                    config.refresh_minutes
+                );
+                Some(config)
+            }
+            Err(error) => {
                 warn!(
                     "rustmix-wave=weather-config status=fallback-jakarta path={WEATHER_CONFIG_PATH} error={error:#}"
                 );
