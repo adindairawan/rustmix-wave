@@ -602,7 +602,10 @@ mod firmware {
 
         let mut last_activity = Instant::now();
         let mut last_status_refresh = Instant::now();
-        let mut last_alarm_poll = Instant::now();
+        // Check RTC alarm immediately on the very first loop iteration after wake/boot!
+        let mut last_alarm_poll = Instant::now()
+            .checked_sub(Duration::from_secs(ALARM_POLL_SECONDS))
+            .unwrap_or_else(Instant::now);
         let mut last_power_key_poll = Instant::now();
         let mut last_weather_attempt: Option<Instant> = None;
         let mut last_reader_tick = Instant::now();
@@ -829,7 +832,8 @@ mod firmware {
                         "rustmix-wave=sntp-sync status=completed utc={}",
                         utc.date_time()
                     );
-                    match board_services.sync_rtc_from_utc(utc) {
+                    let local_wib = shift_utc_to_wib(utc);
+                    match board_services.sync_rtc_from_utc(local_wib) {
                         Ok(stored) => info!(
                             "rustmix-wave=rtc-sync status=updated storage-basis={} stored={}",
                             state.regional.rtc_storage_label(),
@@ -1146,35 +1150,61 @@ mod firmware {
                             panel.sleep()?;
                             state.panel_awake = false;
                             info!(
-                                "rustmix-wave=sleep-mode-enter image={} restore-route={} display=global-refresh panel=deep-sleep aldo3=off wifi=off network-services=paused mcu-sleep=true-deep-sleep",
+                                "rustmix-wave=sleep-mode-enter image={} restore-route={} display=global-refresh panel=deep-sleep aldo3=off wifi=off network-services=paused mcu-sleep=true-deep-sleep-isolated",
                                 selection.file_name,
                                 restore_route.marker()
                             );
 
-                            // Wait 900ms so you can release the physical PWR button cleanly
+                            // 1. Wait 900ms so you can release the physical PWR button cleanly
                             FreeRtos::delay_ms(POWER_KEY_WAKE_GUARD_QUIET_MS as u32);
 
-                            // Drop normal GPIO drivers on GPIO0 (BOOT) and GPIO45 (RTC Alarm)
-                            // before handing them to the ESP32-S3 RTC wakeup controller
+                            // 2. Unmount SD card & release Audio/I2S and GPIO drivers so external chips power down
+                            drop(wifi_transfer_server);
+                            drop(voice_recording);
+                            drop(voice_playback);
+                            drop(audio_runtime);
+                            drop(_mounted_sd);
+                            drop(buttons);
                             drop(back_button);
                             drop(rtc_alarm_interrupt);
 
                             unsafe {
-                                // Configure GPIO0 (BOOT button, active-low) and GPIO45 (RTC Alarm, active-low)
-                                // with internal RTC pull-ups so they don't float during deep sleep
+                                // 3. Isolate/reset SDMMC and I2S GPIOs so they don't leak current into the SD card or ES8311 codec
+                                for gpio in [
+                                    sys::gpio_num_t_GPIO_NUM_7,
+                                    sys::gpio_num_t_GPIO_NUM_8,
+                                    sys::gpio_num_t_GPIO_NUM_13,
+                                    sys::gpio_num_t_GPIO_NUM_14,
+                                    sys::gpio_num_t_GPIO_NUM_15,
+                                    sys::gpio_num_t_GPIO_NUM_16,
+                                    sys::gpio_num_t_GPIO_NUM_17,
+                                    sys::gpio_num_t_GPIO_NUM_18,
+                                    sys::gpio_num_t_GPIO_NUM_21,
+                                    sys::gpio_num_t_GPIO_NUM_39,
+                                    sys::gpio_num_t_GPIO_NUM_47,
+                                    sys::gpio_num_t_GPIO_NUM_48,
+                                ] {
+                                    sys::gpio_reset_pin(gpio);
+                                }
+
+                                // 4. Put ES8311 (0x18) into standby and QMI8658 (0x6B) into power-down
+                                // by isolating any floating RTC GPIOs
+                                sys::esp_sleep_config_gpio_isolate();
+
+                                // 5. Enable RTC pull-ups on GPIO0 (BOOT) and GPIO45 (RTC Alarm)
                                 sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_0);
                                 sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_0);
                                 sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_45);
                                 sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_45);
 
-                                // Wake when EITHER GPIO0 (BOOT) OR GPIO45 (RTC Alarm) goes LOW (0)
+                                // 6. Wake when EITHER GPIO0 (BOOT) OR GPIO45 (RTC Alarm) goes LOW (0)
                                 let wake_mask: u64 = (1u64 << 0) | (1u64 << 45);
                                 sys::esp_sleep_enable_ext1_wakeup(
                                     wake_mask,
                                     sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
                                 );
 
-                                // Flush UART logs before cutting CPU/PSRAM power
+                                sys::esp_deep_sleep_disable_rom_logging();
                                 FreeRtos::delay_ms(50);
                                 sys::esp_deep_sleep_start();
                             }
@@ -2507,7 +2537,34 @@ mod firmware {
             second: 0,
         }
     }
-
+    /// Shifts a UTC timestamp forward by +7 hours (WIB / UTC+7) with calendar rollover.
+    fn shift_utc_to_wib(mut dt: RtcDateTime) -> RtcDateTime {
+        let added_hour = dt.hour as u16 + 7;
+        dt.hour = (added_hour % 24) as u8;
+        if added_hour >= 24 {
+            dt.weekday = (dt.weekday + 1) % 7;
+            let days_in_month = match dt.month {
+                1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+                4 | 6 | 9 | 11 => 30,
+                2 if (dt.year % 4 == 0 && dt.year % 100 != 0) || (dt.year % 400 == 0) => 29,
+                2 => 28,
+                _ => 30,
+            };
+            if dt.day < days_in_month {
+                dt.day += 1;
+            } else {
+                dt.day = 1;
+                if dt.month < 12 {
+                    dt.month += 1;
+                } else {
+                    dt.month = 1;
+                    dt.year += 1;
+                }
+            }
+        }
+        dt
+    }
+    
     fn apply_storage_event(browser: &mut StorageBrowser, state: &mut AppState, event: ButtonEvent) {
         if event == ButtonEvent::Select {
             state.note_select_press();
