@@ -2540,7 +2540,7 @@ mod firmware {
     /// Shifts a UTC timestamp forward by +7 hours (WIB / UTC+7) with calendar rollover.
     /// Shifts the SNTP timestamp so the localized RTC display matches WIB (UTC+7).
     fn shift_utc_to_wib(mut dt: RtcDateTime) -> RtcDateTime {
-        let added_hour = dt.hour as u16 + 6; // Adjusted by -1 hour to fix the 1-hour-ahead offset
+        let added_hour = dt.hour as u16 + 7; // Adjusted by -1 hour to fix the 1-hour-ahead offset
         dt.hour = (added_hour % 24) as u8;
         if added_hour >= 24 {
             dt.weekday = (dt.weekday + 1) % 7;
