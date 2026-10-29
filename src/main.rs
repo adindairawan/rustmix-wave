@@ -398,6 +398,9 @@ mod firmware {
             state.regional = state.regional.with_timezone_name(&config.timezone)?;
             state.update_network_snapshot(NetworkSnapshot::provisioned(config));
         }
+        // Force Celsius as the default temperature unit everywhere (Home, Environment, Weather)
+        state.regional.temperature_unit =
+            waveshare_epd397_rust_app::regional::TemperatureUnit::Celsius;
         if let Some(config) = weather_config.as_ref() {
             state.update_weather_snapshot(WeatherSnapshot::provisioned(config));
         }
