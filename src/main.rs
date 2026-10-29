@@ -849,6 +849,19 @@ mod firmware {
             }
 
             if !sleep_network.is_suspended() {
+                // Auto-reconnect Wi-Fi so the Weather fetch can finally run
+                if state.network.wifi_state != WifiConnectionState::Connected
+                    && last_network_log.elapsed() >= Duration::from_secs(15)
+                {
+                    if let Some(config) = network_config.as_ref() {
+                        if network_runtime.resume(config).is_ok() {
+                            last_weather_attempt = None;
+                            weather_retry.clear();
+                        }
+                    }
+                    last_network_log = Instant::now();
+                }
+
                 if let Some(utc) = network_runtime.tick() {
                     info!(
                         "rustmix-wave=sntp-sync status=completed utc={}",
