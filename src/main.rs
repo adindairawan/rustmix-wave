@@ -107,6 +107,8 @@ mod firmware {
         },
     };
 
+    const DEFAULT_WEATHER_CONFIG_TEXT: &str = "provider=open-meteo\nlocation=Jakarta\nlatitude=-6.2088\nlongitude=106.8456\ntimezone=UTC\nrefresh_minutes=30\n";
+
     pub fn run() -> Result<()> {
         sys::link_patches();
         EspLogger::initialize_default();
@@ -194,6 +196,8 @@ mod firmware {
             }
         };
 
+        // If WEATHER.TXT is missing or rejected (e.g. unsupported timezone string),
+        // automatically write a valid WEATHER.TXT to the SD card and reload it.
         let weather_config = match WeatherConfig::load_from_path(WEATHER_CONFIG_PATH) {
             Ok(config) => {
                 info!(
@@ -209,16 +213,27 @@ mod firmware {
             }
             Err(error) => {
                 warn!(
-                    "rustmix-wave=weather-config status=fallback-jakarta path={WEATHER_CONFIG_PATH} error={error:#}"
+                    "rustmix-wave=weather-config status=repairing path={WEATHER_CONFIG_PATH} error={error:#}"
                 );
-                Some(WeatherConfig {
-                    provider: "open-meteo".into(),
-                    location: "Jakarta".into(),
-                    latitude: -6.2088,
-                    longitude: 106.8456,
-                    timezone: "UTC".into(),
-                    refresh_minutes: 30,
-                })
+                if _mounted_sd.is_some() {
+                    let _ = std::fs::write(WEATHER_CONFIG_PATH, DEFAULT_WEATHER_CONFIG_TEXT);
+                }
+                match WeatherConfig::load_from_path(WEATHER_CONFIG_PATH) {
+                    Ok(config) => {
+                        info!(
+                            "rustmix-wave=weather-config status=repaired path={WEATHER_CONFIG_PATH} provider={} location={}",
+                            config.provider,
+                            config.location
+                        );
+                        Some(config)
+                    }
+                    Err(retry_err) => {
+                        warn!(
+                            "rustmix-wave=weather-config status=unavailable path={WEATHER_CONFIG_PATH} error={retry_err:#}"
+                        );
+                        None
+                    }
+                }
             }
         };
 
@@ -546,7 +561,7 @@ mod firmware {
         info!("rustmix-wave=calendar-navigation-ready modes=day,month select=toggle-mode boot-short=agenda back=boot-long-press");
         info!("rustmix-wave=calendar-us-events-daily-agenda-ready root={CALENDAR_ROOT} personal={CALENDAR_EVENTS_FILE} us={CALENDAR_US_EVENTS_FILE} hindu=excluded markers=month-grid agenda=scrollable details=personal-editor missing-files=safe alarms=separate");
         info!("rustmix-wave=calendar-personal-event-editor-ready writable=EVENTS.TXT temp=EVENTS.TMP backup=EVENTS.BAK operations=create,edit,delete us-holidays=read-only keyboard=boot-hv-axis alarms=separate");
-        info!("rustmix-wave=power-key-sleep-entry-wake-guard-ready source=axp2101-pek minimum-quiet-ms={POWER_KEY_WAKE_GUARD_QUIET_MS} policy=suppress-stale-until-quiet-window");
+        info!("rustmix-wave=power-key-sleep-entry-wake-guard-ready source=axp2101-pek minimum-quiet-ms={POWER_KEY_WAKE_GUARD_QUIET_MS} policy=suppress-stale-power-key");
         info!("rustmix-wave=unit-converter-foundation-ready categories=length,mass,temperature,volume mode=offline fixed-point=true precision=thousandths");
         info!("rustmix-wave=unit-converter-navigation-ready fields=category,from-unit,value,to-unit,step-size back=boot-long-press");
         info!("rustmix-wave=unit-converter-host-tests-ready coverage=length,mass,temperature,volume,bounds");
@@ -855,6 +870,16 @@ mod firmware {
                         sync_alarm_hardware(&mut alarm_engine, &mut board_services, state.regional);
                         state.update_alarm_snapshot(alarm_engine.snapshot());
                         log_alarm_snapshot(&state.alarms);
+                    }
+                    // Immediately redraw the screen when SNTP updates the clock!
+                    if state.panel_awake {
+                        refresh_screen(
+                            &mut panel,
+                            &mut frame,
+                            &mut state,
+                            &mut panel_refresh,
+                            RefreshRequest::Normal,
+                        )?;
                     }
                 }
                 let latest_network = network_runtime.snapshot();
@@ -1194,8 +1219,7 @@ mod firmware {
                                     sys::gpio_reset_pin(gpio);
                                 }
 
-                                // 4. Put ES8311 (0x18) into standby and QMI8658 (0x6B) into power-down
-                                // by isolating any floating RTC GPIOs
+                                // 4. Isolate any floating RTC GPIOs
                                 sys::esp_sleep_config_gpio_isolate();
 
                                 // 5. Enable RTC pull-ups on GPIO0 (BOOT) and GPIO45 (RTC Alarm)
@@ -2544,10 +2568,10 @@ mod firmware {
             second: 0,
         }
     }
+
     /// Shifts a UTC timestamp forward by +7 hours (WIB / UTC+7) with calendar rollover.
-    /// Shifts the SNTP timestamp so the localized RTC display matches WIB (UTC+7).
     fn shift_utc_to_wib(mut dt: RtcDateTime) -> RtcDateTime {
-        let added_hour = dt.hour as u16 + 6; // Adjusted by -1 hour to fix the 1-hour-ahead offset
+        let added_hour = dt.hour as u16 + 7;
         dt.hour = (added_hour % 24) as u8;
         if added_hour >= 24 {
             dt.weekday = (dt.weekday + 1) % 7;
@@ -2572,7 +2596,7 @@ mod firmware {
         }
         dt
     }
-    
+
     fn apply_storage_event(browser: &mut StorageBrowser, state: &mut AppState, event: ButtonEvent) {
         if event == ButtonEvent::Select {
             state.note_select_press();
