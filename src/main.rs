@@ -194,24 +194,18 @@ mod firmware {
             }
         };
 
-        let weather_config = match WeatherConfig::load_from_path(WEATHER_CONFIG_PATH) {
-            Ok(config) => {
-                info!(
-                    "rustmix-wave=weather-config status=ready path={WEATHER_CONFIG_PATH} provider={} location={} latitude={:.4} longitude={:.4} timezone={} refresh-minutes={}",
-                    config.provider,
-                    config.location,
-                    config.latitude,
-                    config.longitude,
-                    config.timezone,
-                    config.refresh_minutes
-                );
-                Some(config)
-            }
-            Err(error) => {
+        Err(error) => {
                 warn!(
-                    "rustmix-wave=weather-config status=unavailable path={WEATHER_CONFIG_PATH} error={error:#}"
+                    "rustmix-wave=weather-config status=fallback-jakarta path={WEATHER_CONFIG_PATH} error={error:#}"
                 );
-                None
+                Some(WeatherConfig {
+                    provider: "open-meteo".into(),
+                    location: "Jakarta".into(),
+                    latitude: -6.2088,
+                    longitude: 106.8456,
+                    timezone: "UTC".into(),
+                    refresh_minutes: 30,
+                })
             }
         };
 
