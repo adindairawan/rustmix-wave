@@ -380,4 +380,4 @@ MIT. Embedded Reader font notices remain under [`docs/licenses/`](docs/licenses/
 
 ~~1. Battery optimazation~~ ✓
 2. Online reading
-3. More games
+3. More games ~~[added level]~~ add dice
