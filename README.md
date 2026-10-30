@@ -379,5 +379,5 @@ MIT. Embedded Reader font notices remain under [`docs/licenses/`](docs/licenses/
 ## To Improve
 
 ~~1. Battery optimazation~~ ✓
-2. Online reading
-3. More games ~~[added level]~~ add dice
+2. Online reading (AO3 is down, 2-4 week)
+3. More games ~~(added level)~~ add dice
