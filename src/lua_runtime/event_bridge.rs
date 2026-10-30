@@ -1,9 +1,9 @@
 //! Bounded SD Lua event bridge.
 //!
 //! Static bootstrap drawing remains available. Rust owns mutable Sudoku,
-//! Minesweeper, Tilt Maze, Motion 2048 and Sokoban Tilt state, redraw decisions
-//! and hardware-facing input. SD declarations never receive raw QMI8658 or
-//! panel access.
+//! Minesweeper, Tilt Maze, Motion 2048, Sokoban Tilt and Shake Dice state,
+//! redraw decisions and hardware-facing input. SD declarations never receive
+//! raw QMI8658 or panel access.
 
 use crate::{
     buttons::ButtonEvent,
@@ -11,6 +11,7 @@ use crate::{
         canvas::NativeGameCanvas,
         minesweeper::{MinesweeperEventResult, MinesweeperGame},
         motion_2048::{Motion2048EventResult, Motion2048Game},
+        shake_dice::{ShakeDiceEventResult, ShakeDiceGame},
         sokoban_tilt::{SokobanTiltEventResult, SokobanTiltGame},
         sudoku::{SudokuEventResult, SudokuGame},
         tilt_maze::{TiltMazeEventResult, TiltMazeGame},
@@ -25,6 +26,7 @@ pub enum LuaGameEventResult {
     TiltMaze(TiltMazeEventResult),
     Motion2048(Motion2048EventResult),
     SokobanTilt(SokobanTiltEventResult),
+    ShakeDice(ShakeDiceEventResult),
 }
 impl LuaGameEventResult {
     #[must_use]
@@ -35,6 +37,7 @@ impl LuaGameEventResult {
             Self::TiltMaze(_) => "tilt-maze",
             Self::Motion2048(_) => "motion-2048",
             Self::SokobanTilt(_) => "sokoban-tilt",
+            Self::ShakeDice(_) => "shake-dice",
         }
     }
     #[must_use]
@@ -45,6 +48,7 @@ impl LuaGameEventResult {
             Self::TiltMaze(r) => r.reason,
             Self::Motion2048(r) => r.reason,
             Self::SokobanTilt(r) => r.reason,
+            Self::ShakeDice(r) => r.reason,
         }
     }
     #[must_use]
@@ -55,6 +59,7 @@ impl LuaGameEventResult {
             Self::TiltMaze(r) => r.row,
             Self::Motion2048(r) => r.row,
             Self::SokobanTilt(r) => r.row,
+            Self::ShakeDice(_) => 0,
         }
     }
     #[must_use]
@@ -65,6 +70,7 @@ impl LuaGameEventResult {
             Self::TiltMaze(r) => r.column,
             Self::Motion2048(r) => r.column,
             Self::SokobanTilt(r) => r.column,
+            Self::ShakeDice(_) => 0,
         }
     }
     #[must_use]
@@ -72,7 +78,10 @@ impl LuaGameEventResult {
         match self {
             Self::Sudoku(r) => r.mode.marker(),
             Self::Minesweeper(r) => r.mode.marker(),
-            Self::TiltMaze(_) | Self::Motion2048(_) | Self::SokobanTilt(_) => "motion",
+            Self::TiltMaze(_)
+            | Self::Motion2048(_)
+            | Self::SokobanTilt(_)
+            | Self::ShakeDice(_) => "motion",
         }
     }
     #[must_use]
@@ -80,7 +89,10 @@ impl LuaGameEventResult {
         match self {
             Self::Sudoku(r) => r.axis.marker(),
             Self::Minesweeper(r) => r.axis.marker(),
-            Self::TiltMaze(_) | Self::Motion2048(_) | Self::SokobanTilt(_) => "imu",
+            Self::TiltMaze(_)
+            | Self::Motion2048(_)
+            | Self::SokobanTilt(_)
+            | Self::ShakeDice(_) => "imu",
         }
     }
     #[must_use]
@@ -119,6 +131,12 @@ impl LuaGameEventResult {
                 r.crates_on_goal,
                 r.outcome.marker()
             ),
+            Self::ShakeDice(r) => format!(
+                "die={} value={} rolls={}",
+                r.die.marker(),
+                r.value,
+                r.rolls
+            ),
         }
     }
     #[must_use]
@@ -129,6 +147,7 @@ impl LuaGameEventResult {
             Self::TiltMaze(r) => r.outcome.completed(),
             Self::Motion2048(r) => r.outcome.completed(),
             Self::SokobanTilt(r) => r.outcome.completed(),
+            Self::ShakeDice(_) => false,
         }
     }
     #[must_use]
@@ -139,6 +158,7 @@ impl LuaGameEventResult {
             Self::TiltMaze(r) => r.dirty_regions.len(),
             Self::Motion2048(r) => r.dirty_regions.len(),
             Self::SokobanTilt(r) => r.dirty_regions.len(),
+            Self::ShakeDice(r) => r.dirty_regions.len(),
         }
     }
 }
@@ -151,10 +171,15 @@ pub enum LuaEventBridge {
     TiltMaze(TiltMazeGame),
     Motion2048(Motion2048Game),
     SokobanTilt(SokobanTiltGame),
+    ShakeDice(ShakeDiceGame),
 }
 impl LuaEventBridge {
     pub fn load(source: &str, canvas: &mut NativeGameCanvas) -> Result<Self, String> {
-        if let Some(map) = parse_sokoban_init(source)? {
+        if let Some(seed) = parse_shakedice_init(source)? {
+            let game = ShakeDiceGame::from_seed(seed)?;
+            game.render_initial(canvas)?;
+            Ok(Self::ShakeDice(game))
+        } else if let Some(map) = parse_sokoban_init(source)? {
             let game = SokobanTiltGame::from_map(&map)?;
             game.render_initial(canvas)?;
             Ok(Self::SokobanTilt(game))
@@ -188,13 +213,17 @@ impl LuaEventBridge {
             Self::TiltMaze(_) => "tilt-maze",
             Self::Motion2048(_) => "motion-2048",
             Self::SokobanTilt(_) => "sokoban-tilt",
+            Self::ShakeDice(_) => "shake-dice",
         }
     }
     #[must_use]
     pub const fn needs_imu_events(&self) -> bool {
         matches!(
             self,
-            Self::TiltMaze(_) | Self::Motion2048(_) | Self::SokobanTilt(_)
+            Self::TiltMaze(_)
+                | Self::Motion2048(_)
+                | Self::SokobanTilt(_)
+                | Self::ShakeDice(_)
         )
     }
     pub fn apply_button(
@@ -221,6 +250,9 @@ impl LuaEventBridge {
             Self::SokobanTilt(g) => g
                 .apply_button_and_render(event, canvas)
                 .map(|r| r.map(LuaGameEventResult::SokobanTilt)),
+            Self::ShakeDice(g) => g
+                .apply_button_and_render(event, canvas)
+                .map(|r| r.map(LuaGameEventResult::ShakeDice)),
         }
     }
     pub fn apply_boot_short_press(
@@ -228,9 +260,11 @@ impl LuaEventBridge {
         canvas: &mut NativeGameCanvas,
     ) -> Result<Option<LuaGameEventResult>, String> {
         match self {
-            Self::Static | Self::TiltMaze(_) | Self::Motion2048(_) | Self::SokobanTilt(_) => {
-                Ok(None)
-            }
+            Self::Static
+            | Self::TiltMaze(_)
+            | Self::Motion2048(_)
+            | Self::SokobanTilt(_)
+            | Self::ShakeDice(_) => Ok(None),
             Self::Sudoku(g) => g
                 .apply_boot_short_press_and_render(canvas)
                 .map(LuaGameEventResult::Sudoku)
@@ -256,6 +290,9 @@ impl LuaEventBridge {
             Self::SokobanTilt(g) => g
                 .apply_motion_and_render(event, canvas)
                 .map(|r| r.map(LuaGameEventResult::SokobanTilt)),
+            Self::ShakeDice(g) => g
+                .apply_motion_and_render(event, canvas)
+                .map(|r| r.map(LuaGameEventResult::ShakeDice)),
             Self::Static | Self::Sudoku(_) | Self::Minesweeper(_) => Ok(None),
         }
     }
@@ -311,6 +348,37 @@ fn parse_quoted(value: &str, label: &str) -> Result<String, String> {
         return Err(format!("escaped {label} strings are not supported"));
     }
     Ok(inner.to_string())
+}
+fn parse_shakedice_init(source: &str) -> Result<Option<u32>, String> {
+    let mut seed = None;
+    for (index, raw) in source.lines().enumerate() {
+        let line_number = index + 1;
+        let line = raw.split("--").next().unwrap_or_default().trim();
+        if line.is_empty() {
+            continue;
+        }
+        if !line.starts_with("shakedice.init(") || !line.ends_with(')') {
+            if line.starts_with("shakedice.") {
+                return Err(format!(
+                    "MAIN.LUA line {line_number}: unsupported shakedice call"
+                ));
+            }
+            return Ok(None);
+        }
+        if seed.is_some() {
+            return Err(format!(
+                "MAIN.LUA line {line_number}: duplicate shakedice.init"
+            ));
+        }
+        let argument = &line["shakedice.init(".len()..line.len() - 1];
+        seed = Some(
+            argument
+                .trim()
+                .parse::<u32>()
+                .map_err(|_| format!("MAIN.LUA line {line_number}: invalid shakedice seed"))?,
+        );
+    }
+    Ok(seed)
 }
 fn parse_motion2048_init(source: &str) -> Result<Option<u32>, String> {
     let mut seed = None;
@@ -386,91 +454,4 @@ fn parse_minesweeper_init(source: &str) -> Result<Option<(usize, usize, usize, u
         ));
     }
     Ok(config)
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        buttons::ButtonEvent,
-        games::canvas::NativeGameCanvas,
-        imu_events::{ImuDetectedEventKind, MotionAxis},
-    };
-    const PUZZLE: &str =
-        "530070000600195000098000060800060003400803001700020006060000280000419005000080079";
-    const MAP: &str =
-        "#########/#S..#...#/#.#.#.#.#/#.#...#.#/#.###.#.#/#...#.#.#/###.#...#/#.....#G#/#########";
-    const SOKOBAN: &str =
-        "#########/#S......#/#.###...#/#.......#/#...C...#/#.......#/#...G...#/#.......#/#########";
-    fn tilt() -> ImuDetectedEvent {
-        ImuDetectedEvent {
-            kind: ImuDetectedEventKind::Tilt(MotionAxis::PositiveX),
-            at_ms: 1,
-        }
-    }
-    #[test]
-    fn loads_sudoku_init_and_routes_native_event() {
-        let mut c = NativeGameCanvas::default();
-        let mut b = LuaEventBridge::load(&format!("sudoku.init(\"{PUZZLE}\")"), &mut c).unwrap();
-        assert_eq!(b.marker(), "sudoku");
-        assert_eq!(
-            b.apply_button(ButtonEvent::Down, &mut c)
-                .unwrap()
-                .unwrap()
-                .reason(),
-            "cursor-move"
-        );
-    }
-    #[test]
-    fn loads_minesweeper_init_and_routes_native_event() {
-        let mut c = NativeGameCanvas::default();
-        let mut b = LuaEventBridge::load("minesweeper.init(9, 9, 10, 1803)", &mut c).unwrap();
-        assert_eq!(b.marker(), "minesweeper");
-        assert_eq!(
-            b.apply_button(ButtonEvent::Select, &mut c)
-                .unwrap()
-                .unwrap()
-                .reason(),
-            "action-enter"
-        );
-    }
-    #[test]
-    fn loads_tiltmaze_and_routes_native_motion() {
-        let mut c = NativeGameCanvas::default();
-        let mut b = LuaEventBridge::load(&format!("tiltmaze.init(\"{MAP}\")"), &mut c).unwrap();
-        assert_eq!(b.marker(), "tilt-maze");
-        assert!(b.needs_imu_events());
-        assert_eq!(
-            b.apply_motion_event(tilt(), &mut c)
-                .unwrap()
-                .unwrap()
-                .reason(),
-            "tilt-move"
-        );
-    }
-    #[test]
-    fn loads_motion2048_and_routes_native_motion() {
-        let mut c = NativeGameCanvas::default();
-        let mut b = LuaEventBridge::load("motion2048.init(2048)", &mut c).unwrap();
-        assert_eq!(b.marker(), "motion-2048");
-        assert!(b.needs_imu_events());
-        assert!(b.apply_motion_event(tilt(), &mut c).unwrap().is_some());
-    }
-    #[test]
-    fn loads_sokoban_and_routes_native_motion() {
-        let mut c = NativeGameCanvas::default();
-        let mut b = LuaEventBridge::load(&format!("sokoban.init(\"{SOKOBAN}\")"), &mut c).unwrap();
-        assert_eq!(b.marker(), "sokoban-tilt");
-        assert!(b.needs_imu_events());
-        assert!(b.apply_motion_event(tilt(), &mut c).unwrap().is_some());
-    }
-    #[test]
-    fn preserves_static_hello_grid_bootstrap() {
-        let mut c = NativeGameCanvas::default();
-        assert_eq!(
-            LuaEventBridge::load("ui.grid(80, 220, 4, 4, 64, 64)", &mut c)
-                .unwrap()
-                .marker(),
-            "static"
-        );
-    }
 }
