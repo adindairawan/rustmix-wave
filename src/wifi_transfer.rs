@@ -228,7 +228,7 @@ pub fn shorten_to_fat83_filename(raw_name: &str) -> String {
         .take(8)
         .collect();
 
-    let stem_ trimmed = stem.trim_matches(|c| c == '_' || c == '-');
+    let stem_trimmed = stem.trim_matches(|c| c == '_' || c == '-');
     if stem_trimmed.is_empty() {
         stem = String::from("BOOK0001");
     } else if stem_trimmed.len() != stem.len() {
