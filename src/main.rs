@@ -848,7 +848,7 @@ mod firmware {
                 }
             }
 
-            if !sleep_network.if !sleep_network.is_suspended() {
+            if !sleep_network.is_suspended() {
                 // Only attempt Wi-Fi reconnect when the user explicitly opens Network or Weather screens
                 let on_network_screen = matches!(
                     state.active_route(),
