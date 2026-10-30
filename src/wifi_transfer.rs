@@ -16,7 +16,7 @@ pub const WIFI_TRANSFER_STREAM_CHUNK_BYTES: usize = 4 * 1024;
 /// Keep accidental huge uploads bounded for the first portal slice.
 pub const WIFI_TRANSFER_MAX_UPLOAD_BYTES: usize = 64 * 1024 * 1024;
 /// Bound decoded browser paths before touching removable storage.
-pub const WIFI_TRANSFER_MAX_PATH_BYTES: usize = 128;
+pub const WIFI_TRANSFER_MAX_PATH_BYTES: usize = 256;
 /// Stop a forgotten transfer portal after ten minutes without HTTP traffic.
 pub const WIFI_TRANSFER_INACTIVITY_SECONDS: u64 = 10 * 60;
 /// The first slice uses the conventional LAN HTTP port.
@@ -148,6 +148,100 @@ pub fn resolve_portal_path(relative: &str) -> Result<PathBuf, &'static str> {
     Ok(safe)
 }
 
+/// Resolves an upload destination path while automatically shortening the final
+/// filename into a compliant, uppercase FAT 8.3 filename (e.g. `.epub` -> `.EPU`).
+pub fn resolve_upload_portal_path(relative: &str) -> Result<PathBuf, &'static str> {
+    let decoded = percent_decode(relative)?;
+    if decoded.len() > WIFI_TRANSFER_MAX_PATH_BYTES {
+        return Err("path exceeds portal limit");
+    }
+    let trimmed = decoded.trim_start_matches('/');
+    if trimmed.is_empty() {
+        return Err("filename required");
+    }
+    let relative_path = Path::new(trimmed);
+    let components: Vec<Component<'_>> = relative_path.components().collect();
+    if components.is_empty() {
+        return Err("filename required");
+    }
+    let mut safe = PathBuf::from(WIFI_TRANSFER_ROOT);
+    for (index, component) in components.iter().enumerate() {
+        let is_last = index + 1 == components.len();
+        match component {
+            Component::Normal(name) => {
+                let name = name.to_str().ok_or("path is not UTF-8")?;
+                if is_last {
+                    let fat_name = shorten_to_fat83_filename(name);
+                    safe.push(fat_name);
+                } else {
+                    if !is_fat83_component(name) {
+                        return Err("use FAT 8.3-safe folder names");
+                    }
+                    safe.push(name);
+                }
+            }
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err("path traversal is blocked");
+            }
+        }
+    }
+    Ok(safe)
+}
+
+/// Converts an arbitrary filename (such as `"My AO3 Story - Ch 1.epub"`) into
+/// a strict FAT 8.3 filename (`"MYAO3STO.EPU"`).
+#[must_use]
+pub fn shorten_to_fat83_filename(raw_name: &str) -> String {
+    let trimmed = raw_name.trim();
+    let (raw_stem, raw_ext) = match trimmed.rfind('.') {
+        Some(dot) if dot > 0 && dot + 1 < trimmed.len() => (&trimmed[..dot], &trimmed[dot + 1..]),
+        _ => (trimmed, ""),
+    };
+
+    let clean_ext: String = raw_ext
+        .bytes()
+        .filter(|byte| byte.is_ascii_alphanumeric())
+        .map(|byte| (byte as char).to_ascii_uppercase())
+        .collect();
+
+    let ext = match clean_ext.as_str() {
+        "EPUB" => String::from("EPU"),
+        "HTML" | "XHTML" => String::from("HTM"),
+        "JPEG" => String::from("JPG"),
+        "JSON" => String::from("JSN"),
+        "TOML" => String::from("TOM"),
+        other => other.chars().take(3).collect(),
+    };
+
+    let mut stem: String = raw_stem
+        .bytes()
+        .filter_map(|byte| {
+            if byte.is_ascii_alphanumeric() {
+                Some((byte as char).to_ascii_uppercase())
+            } else if matches!(byte, b'_' | b'-') {
+                Some(byte as char)
+            } else {
+                None
+            }
+        })
+        .take(8)
+        .collect();
+
+    let stem_ trimmed = stem.trim_matches(|c| c == '_' || c == '-');
+    if stem_trimmed.is_empty() {
+        stem = String::from("BOOK0001");
+    } else if stem_trimmed.len() != stem.len() {
+        stem = stem_trimmed.to_string();
+    }
+
+    if ext.is_empty() {
+        stem
+    } else {
+        format!("{stem}.{ext}")
+    }
+}
+
 /// Configuration files stay hidden and cannot be modified by the initial LAN
 /// portal.  This prevents accidental credential disclosure or live config
 /// replacement while services are running.
@@ -239,7 +333,7 @@ pub mod espidf {
     use std::{
         fs::{self, File},
         io::{Read as StdRead, Write as StdWrite},
-        path::Path,
+        path::{Path, PathBuf},
         sync::{Arc, Mutex},
         time::{Duration, Instant},
     };
@@ -250,10 +344,11 @@ pub mod espidf {
     use log::info;
 
     use super::{
-        is_protected_portal_path, query_value, resolve_portal_path, WifiTransferSnapshot,
-        WifiTransferState, WIFI_TRANSFER_HTTP_PORT, WIFI_TRANSFER_INACTIVITY_SECONDS,
-        WIFI_TRANSFER_MAX_DIRECTORY_ROWS, WIFI_TRANSFER_MAX_UPLOAD_BYTES, WIFI_TRANSFER_ROOT,
-        WIFI_TRANSFER_SERVER_STACK_BYTES, WIFI_TRANSFER_STREAM_CHUNK_BYTES,
+        is_protected_portal_path, query_value, resolve_portal_path, resolve_upload_portal_path,
+        WifiTransferSnapshot, WifiTransferState, WIFI_TRANSFER_HTTP_PORT,
+        WIFI_TRANSFER_INACTIVITY_SECONDS, WIFI_TRANSFER_MAX_DIRECTORY_ROWS,
+        WIFI_TRANSFER_MAX_UPLOAD_BYTES, WIFI_TRANSFER_ROOT, WIFI_TRANSFER_SERVER_STACK_BYTES,
+        WIFI_TRANSFER_STREAM_CHUNK_BYTES,
     };
 
     const PORTAL_HTML: &str = r#"<!doctype html>
@@ -261,11 +356,11 @@ pub mod espidf {
 <title>Rustmix-Wave Transfer</title><style>
 body{font-family:sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem}button,input{padding:.65rem;margin:.2rem}pre{white-space:pre-wrap;background:#f4f4f4;padding:1rem}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #ddd;padding:.5rem;text-align:left}
 </style></head><body><h1>Rustmix-Wave Wi-Fi Transfer</h1>
-<p>LAN-only SD portal rooted at <code>/RUSTMIX</code>. Use FAT 8.3-safe names.</p>
+<p>LAN-only SD portal rooted at <code>/RUSTMIX</code>. Long book names (including <code>.epub</code>) are automatically shortened to FAT 8.3.</p>
 <label>Session code <input id="code" maxlength="6"><button onclick="saveCode()">Unlock</button></label>
-<p><button onclick="loadList('/')">Home</button><button onclick="loadList(current)">Refresh</button></p>
+<p><button onclick="loadList('/')">Home</button><button onclick="loadList('/BOOKS')">Books</button><button onclick="loadList(current)">Refresh</button></p>
 <p>Path: <code id="path">/</code></p><div id="list"></div>
-<h2>Upload</h2><input id="file" type="file"><input id="name" placeholder="BOOK0001.TXT"><button onclick="upload()">Upload</button>
+<h2>Upload</h2><input id="file" type="file" onchange="autoName()"><input id="name" placeholder="Auto FAT 8.3 name"><button onclick="upload()">Upload</button>
 <h2>Folder</h2><input id="folder" placeholder="NEWFOLD"><button onclick="mkdir()">Create folder</button>
 <pre id="status">Enter the six-digit code displayed on the device.</pre>
 <script>
@@ -273,12 +368,23 @@ let current='/'; const status=t=>document.getElementById('status').textContent=t
 const code=()=>localStorage.rustmixCode||document.getElementById('code').value;
 function saveCode(){localStorage.rustmixCode=document.getElementById('code').value;loadList(current)}
 const enc=s=>encodeURIComponent(s); const join=n=>(current==='/'?'/':current+'/')+n;
+function toFat83(raw){
+  let dot=raw.lastIndexOf('.');
+  let stem=(dot>0?raw.slice(0,dot):raw).toUpperCase().replace(/[^A-Z0-9_-]/g,'').replace(/^[_-]+|[_-]+$/g,'').slice(0,8)||'BOOK0001';
+  let ext=(dot>0?raw.slice(dot+1):'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(ext==='EPUB')ext='EPU';else if(ext==='HTML'||ext==='XHTML')ext='HTM';else if(ext==='JPEG')ext='JPG';else ext=ext.slice(0,3);
+  return ext?(stem+'.'+ext):stem;
+}
+function autoName(){
+  let f=document.getElementById('file').files[0];
+  if(f)document.getElementById('name').value=toFat83(f.name);
+}
 async function api(url,opt){let r=await fetch(url+(url.includes('?')?'&':'?')+'code='+enc(code()),opt);let t=await r.text();if(!r.ok)throw Error(t);return t}
 async function loadList(path){try{current=path;document.getElementById('path').textContent=path;let rows=JSON.parse(await api('/api/list?path='+enc(path)));let h='<table><tr><th>Name</th><th>Type</th><th>Size</th><th>Actions</th></tr>';if(path!='/')h+='<tr><td><button onclick="up()">..</button></td><td>folder</td><td></td><td></td></tr>';for(let e of rows){let p=join(e.name);h+='<tr><td>'+e.name+'</td><td>'+e.kind+'</td><td>'+e.size+'</td><td>'+(e.kind==='folder'?'<button onclick="loadList(\''+p+'\')">Open</button>':'<a href="/api/download?code='+enc(code())+'&path='+enc(p)+'">Download</a>')+' <button onclick="renamePath(\''+p+'\')">Rename</button> <button onclick="del(\''+p+'\')">Delete</button></td></tr>'}h+='</table>';document.getElementById('list').innerHTML=h;status('Ready')}catch(e){status(e.message)}}
 function up(){let p=current.split('/').filter(Boolean);p.pop();loadList('/'+p.join('/'))}
-async function upload(){try{let f=document.getElementById('file').files[0];let n=document.getElementById('name').value||f.name;await api('/api/upload?path='+enc(join(n)),{method:'POST',body:f});status('Upload complete');loadList(current)}catch(e){status(e.message)}}
+async function upload(){try{let f=document.getElementById('file').files[0];if(!f)throw Error('Select a file first');let raw=document.getElementById('name').value||f.name;let n=toFat83(raw);status('Uploading '+n+'...');let saved=await api('/api/upload?path='+enc(join(n)),{method:'POST',body:f});status('Upload complete: '+saved);document.getElementById('file').value='';document.getElementById('name').value='';loadList(current)}catch(e){status(e.message)}}
 async function mkdir(){try{await api('/api/mkdir?path='+enc(join(document.getElementById('folder').value)),{method:'POST'});status('Folder created');loadList(current)}catch(e){status(e.message)}}
-async function renamePath(p){try{let n=prompt('New FAT 8.3-safe name');if(!n)return;let parent=p.substring(0,p.lastIndexOf('/'))||'/';let to=(parent==='/'?'/':parent+'/')+n;await api('/api/rename?from='+enc(p)+'&to='+enc(to),{method:'POST'});status('Renamed');loadList(current)}catch(e){status(e.message)}}
+async function renamePath(p){try{let n=prompt('New name (will be formatted to FAT 8.3)');if(!n)return;let parent=p.substring(0,p.lastIndexOf('/'))||'/';let to=(parent==='/'?'/':parent+'/')+toFat83(n);await api('/api/rename?from='+enc(p)+'&to='+enc(to),{method:'POST'});status('Renamed');loadList(current)}catch(e){status(e.message)}}
 async function del(p){try{await api('/api/delete?path='+enc(p),{method:'POST'});status('Deleted');loadList(current)}catch(e){status(e.message)}}
 loadList('/');
 </script></body></html>"#;
@@ -378,8 +484,23 @@ loadList('/');
             server.fn_handler("/api/upload", Method::Post, move |mut request| {
                 authenticate(request.uri(), &upload_code)?;
                 let relative = required_query(request.uri(), "path")?;
-                reject_protected(&relative)?;
-                let path = resolve_portal_path(&relative).map_err(|error| anyhow!(error))?;
+                let initial_path =
+                    resolve_upload_portal_path(&relative).map_err(|error| anyhow!(error))?;
+                let normalized_relative = initial_path
+                    .strip_prefix(WIFI_TRANSFER_ROOT)
+                    .ok()
+                    .and_then(|p| p.to_str())
+                    .unwrap_or(&relative);
+                reject_protected(normalized_relative)?;
+
+                // Avoid colliding with existing books that share the same 8-char prefix
+                let path = unique_fat83_destination(&initial_path);
+                let final_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("BOOK.EPU")
+                    .to_string();
+
                 let temporary = temporary_path(&path)?;
                 if temporary.exists() {
                     fs::remove_file(&temporary)?;
@@ -409,9 +530,12 @@ loadList('/');
                     }
                 };
                 commit_atomic_upload(&temporary, &path)?;
-                lock(&upload_shared).touch(format!("Uploaded {relative}"), total);
-                info!("rustmix-wave=wifi-transfer-request method=POST route=upload path={relative} bytes={total} status=completed");
-                request.into_ok_response()?.write_all(b"uploaded")?;
+                lock(&upload_shared).touch(format!("Uploaded {final_name}"), total);
+                info!(
+                    "rustmix-wave=wifi-transfer-request method=POST route=upload path={} saved-as={} bytes={total} status=completed",
+                    relative, final_name
+                );
+                request.into_ok_response()?.write_all(final_name.as_bytes())?;
                 Ok::<(), anyhow::Error>(())
             })?;
 
@@ -450,9 +574,15 @@ loadList('/');
                 let from = required_query(request.uri(), "from")?;
                 let to = required_query(request.uri(), "to")?;
                 reject_protected(&from)?;
-                reject_protected(&to)?;
                 let source = resolve_portal_path(&from).map_err(|error| anyhow!(error))?;
-                let destination = resolve_portal_path(&to).map_err(|error| anyhow!(error))?;
+                let destination =
+                    resolve_upload_portal_path(&to).map_err(|error| anyhow!(error))?;
+                let normalized_to = destination
+                    .strip_prefix(WIFI_TRANSFER_ROOT)
+                    .ok()
+                    .and_then(|p| p.to_str())
+                    .unwrap_or(&to);
+                reject_protected(normalized_to)?;
                 fs::rename(&source, &destination)?;
                 lock(&rename_shared).touch(format!("Renamed {from}"), 0);
                 info!("rustmix-wave=wifi-transfer-request method=POST route=rename from={from} to={to} status=completed");
@@ -523,6 +653,39 @@ loadList('/');
             bail!("protected configuration file")
         }
         Ok(())
+    }
+
+    /// If `path` already exists on the SD card, appends `~1`..`~99` to the stem
+    /// so uploading multiple books with similar starting titles never overwrites
+    /// an existing file.
+    fn unique_fat83_destination(path: &Path) -> PathBuf {
+        if !path.exists() {
+            return path.to_path_buf();
+        }
+        let Some(parent) = path.parent() else {
+            return path.to_path_buf();
+        };
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("BOOK");
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+
+        for index in 1..=99 {
+            let suffix = format!("~{index}");
+            let max_prefix = 8usize.saturating_sub(suffix.len());
+            let prefix: String = stem.chars().take(max_prefix).collect();
+            let candidate_name = if ext.is_empty() {
+                format!("{prefix}{suffix}")
+            } else {
+                format!("{prefix}{suffix}.{ext}")
+            };
+            let candidate = parent.join(candidate_name);
+            if !candidate.exists() {
+                return candidate;
+            }
+        }
+        path.to_path_buf()
     }
 
     fn sibling_path(path: &Path, extension: &str) -> Result<std::path::PathBuf> {
@@ -600,7 +763,8 @@ loadList('/');
 mod tests {
     use super::{
         is_fat83_component, is_protected_portal_path, query_value, resolve_portal_path,
-        WifiTransferSnapshot, WifiTransferState,
+        resolve_upload_portal_path, shorten_to_fat83_filename, WifiTransferSnapshot,
+        WifiTransferState,
     };
 
     #[test]
@@ -618,6 +782,21 @@ mod tests {
         assert!(is_fat83_component("MAIN.LUA"));
         assert!(is_fat83_component("SUDOKU"));
         assert!(!is_fat83_component("NOT FAT SAFE.TXT"));
+    }
+
+    #[test]
+    fn upload_paths_auto_shorten_long_epub_names() {
+        assert_eq!(
+            shorten_to_fat83_filename("My Favorite AO3 Story (Chapter 1).epub"),
+            "MYFAVORI.EPU"
+        );
+        assert_eq!(
+            shorten_to_fat83_filename("   ---.epub"),
+            "BOOK0001.EPU"
+        );
+        let resolved =
+            resolve_upload_portal_path("/BOOKS/The Slow Burn Coffee Shop AU.epub").unwrap();
+        assert!(resolved.ends_with("BOOKS/THESLOWB.EPU"));
     }
 
     #[test]
