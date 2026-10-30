@@ -848,11 +848,14 @@ mod firmware {
                 }
             }
 
-            if !sleep_network.is_suspended() {
-                // Only attempt Wi-Fi reconnect when the user explicitly opens Settings > Network
+            if !sleep_network.if !sleep_network.is_suspended() {
+                // Only attempt Wi-Fi reconnect when the user explicitly opens Network or Weather screens
                 let on_network_screen = matches!(
-                    state.current_screen(), // or `state.screen` / `state.route`, matching your AppState field
-                    Screen::NetworkSettings | Screen::WeatherSettings
+                    state.active_route(),
+                    ScreenRoute::Network
+                        | ScreenRoute::NetworkDetails
+                        | ScreenRoute::Weather
+                        | ScreenRoute::WeatherDetails
                 );
 
                 if on_network_screen
