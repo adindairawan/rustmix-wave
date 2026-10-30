@@ -849,12 +849,26 @@ mod firmware {
             }
 
             if !sleep_network.is_suspended() {
-                // Auto-reconnect Wi-Fi so the Weather fetch can finally run
-                if state.network.wifi_state != WifiConnectionState::Connected
+                // Only attempt Wi-Fi reconnect when the user explicitly opens Settings > Network
+                let on_network_screen = matches!(
+                    state.current_screen(), // or `state.screen` / `state.route`, matching your AppState field
+                    Screen::NetworkSettings | Screen::WeatherSettings
+                );
+
+                if on_network_screen
+                    && state.network.wifi_state != WifiConnectionState::Connected
                     && last_network_log.elapsed() >= Duration::from_secs(15)
                 {
                     if let Some(config) = network_config.as_ref() {
+                        info!(
+                            "rustmix-wave=wifi-on-demand-reconnect status=retrying ssid={}",
+                            config.ssid
+                        );
                         if network_runtime.resume(config).is_ok() {
+                            info!(
+                                "rustmix-wave=wifi-on-demand-reconnect status=connected ssid={}",
+                                config.ssid
+                            );
                             last_weather_attempt = None;
                             weather_retry.clear();
                         }
