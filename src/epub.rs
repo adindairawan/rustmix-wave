@@ -3,31 +3,35 @@
 // rustmix-wave=epub-parser-stack-isolation-ready
 // rustmix-wave=epub-chapter-aware-presentation-ready
 // rustmix-wave=epub-watchdog-memory-pressure-repair-ready
-//! Bounded reflowable EPUB reader foundation[cite: 15].
+//! Bounded reflowable EPUB reader foundation.
 
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+};
 
 use miniz_oxide::inflate::decompress_to_vec;
 
-/// Maximum EPUB archive bytes accepted from removable storage[cite: 15].
+/// Maximum EPUB archive bytes accepted from removable storage.
 pub const EPUB_ARCHIVE_BYTES_LIMIT: usize = 16 * 1024 * 1024;
-/// Maximum central-directory records accepted from one EPUB[cite: 15].
+/// Maximum central-directory records accepted from one EPUB.
 pub const EPUB_ARCHIVE_ENTRY_LIMIT: usize = 512;
-/// Maximum compressed bytes extracted for one EPUB member[cite: 15].
+/// Maximum compressed bytes extracted for one EPUB member.
 pub const EPUB_MEMBER_COMPRESSED_LIMIT: usize = 2 * 1024 * 1024;
-/// Maximum decompressed bytes extracted for one EPUB member[cite: 15].
+/// Maximum decompressed bytes extracted for one EPUB member.
 pub const EPUB_MEMBER_UNCOMPRESSED_LIMIT: usize = 4 * 1024 * 1024;
-/// Maximum flattened reflowable text retained in RAM for one EPUB[cite: 15].
+/// Maximum flattened reflowable text retained in RAM for one EPUB.
 pub const EPUB_REFLOW_TEXT_LIMIT: usize = 2 * 1024 * 1024;
-/// Maximum manifest records retained from one OPF package[cite: 15].
+/// Maximum manifest records retained from one OPF package.
 pub const EPUB_MANIFEST_LIMIT: usize = 256;
-/// Maximum spine records retained from one OPF package[cite: 15].
+/// Maximum spine records retained from one OPF package.
 pub const EPUB_SPINE_LIMIT: usize = 128;
-/// Maximum TOC records rendered by the Reader UI[cite: 15].
+/// Maximum TOC records rendered by the Reader UI.
 pub const EPUB_TOC_LIMIT: usize = 128;
-/// Dedicated parser-worker stack budget[cite: 15].
+/// Dedicated parser-worker stack budget.
 pub const EPUB_PARSER_WORKER_STACK_BYTES: usize = 64 * 1024;
-/// Lightweight OPF-title worker stack budget[cite: 15].
+/// Lightweight OPF-title worker stack budget.
 pub const EPUB_TITLE_WORKER_STACK_BYTES: usize = 32 * 1024;
 
 /// AO3 work metadata for the mobile AO3 Meta Box & Preface layout.
@@ -70,7 +74,7 @@ impl Default for EpubAo3Meta {
     }
 }
 
-/// One reflowable EPUB TOC destination[cite: 15].
+/// One reflowable EPUB TOC destination.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EpubTocEntry {
     pub label: String,
@@ -78,7 +82,7 @@ pub struct EpubTocEntry {
     pub spine_index: usize,
 }
 
-/// One readable spine chapter retained alongside flattened EPUB text[cite: 15].
+/// One readable spine chapter retained alongside flattened EPUB text.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EpubChapter {
     pub number: usize,
@@ -88,7 +92,7 @@ pub struct EpubChapter {
     pub spine_index: usize,
 }
 
-/// One bounded, reflowable EPUB book retained while the Reader session is open[cite: 15].
+/// One bounded, reflowable EPUB book retained while the Reader session is open.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EpubDocument {
     pub title: String,
@@ -268,6 +272,54 @@ impl ZipArchive {
     }
 }
 
+// ---------------------------------------------------------------------------
+// ZIP primitives
+// ---------------------------------------------------------------------------
+
+fn find_eocd(bytes: &[u8]) -> Option<usize> {
+    if bytes.len() < 22 {
+        return None;
+    }
+    let min = bytes.len().saturating_sub(22 + 0xFFFF);
+    (min..=bytes.len() - 22)
+        .rev()
+        .find(|&index| bytes[index..index + 4] == [0x50, 0x4B, 0x05, 0x06])
+}
+
+fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, String> {
+    let end = offset
+        .checked_add(2)
+        .ok_or_else(|| "EPUB ZIP read overflow".to_string())?;
+    let slice = bytes
+        .get(offset..end)
+        .ok_or_else(|| "EPUB ZIP read out of bounds".to_string())?;
+    Ok(u16::from_le_bytes([slice[0], slice[1]]))
+}
+
+fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, String> {
+    let end = offset
+        .checked_add(4)
+        .ok_or_else(|| "EPUB ZIP read overflow".to_string())?;
+    let slice = bytes
+        .get(offset..end)
+        .ok_or_else(|| "EPUB ZIP read out of bounds".to_string())?;
+    Ok(u32::from_le_bytes([slice[0], slice[1], slice[2], slice[3]]))
+}
+
+fn utf8_member(archive: &ZipArchive, name: &str) -> Result<String, String> {
+    let bytes = archive.extract(name)?;
+    let text = match String::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(error) => String::from_utf8_lossy(error.as_bytes()).into_owned(),
+    };
+    Ok(text.trim_start_matches('\u{FEFF}').to_string())
+}
+
+// ---------------------------------------------------------------------------
+// OPF package
+// ---------------------------------------------------------------------------
+
+#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ManifestItem {
     id: String,
@@ -275,6 +327,251 @@ struct ManifestItem {
     media_type: String,
     properties: String,
 }
+
+/// Returns `(opf_path, opf_xml, opf_directory)`.
+fn epub_package(archive: &ZipArchive) -> Result<(String, String, String), String> {
+    let container = utf8_member(archive, "META-INF/container.xml")?;
+    let rootfile = first_open_tag(&container, "rootfile")
+        .and_then(|tag| attribute(tag, "full-path"))
+        .ok_or_else(|| "EPUB container rootfile missing".to_string())?;
+    let opf_path = rootfile.trim_start_matches('/').replace('\\', "/");
+    let package = utf8_member(archive, &opf_path)?;
+    let package_dir = opf_path
+        .rsplit_once('/')
+        .map_or_else(String::new, |(dir, _)| dir.to_string());
+    Ok((opf_path, package, package_dir))
+}
+
+fn package_title(package: &str) -> String {
+    first_element_text(package, "title")
+        .map(|title| title.split_whitespace().collect::<Vec<_>>().join(" "))
+        .unwrap_or_default()
+}
+
+fn parse_manifest(package: &str) -> Result<BTreeMap<String, ManifestItem>, String> {
+    let mut manifest = BTreeMap::new();
+    for tag in all_open_tags(package, "item") {
+        if manifest.len() >= EPUB_MANIFEST_LIMIT {
+            break;
+        }
+        let (Some(id), Some(href)) = (attribute(tag, "id"), attribute(tag, "href")) else {
+            continue;
+        };
+        let item = ManifestItem {
+            id: id.clone(),
+            href,
+            media_type: attribute(tag, "media-type").unwrap_or_default(),
+            properties: attribute(tag, "properties").unwrap_or_default(),
+        };
+        manifest.insert(id, item);
+    }
+    if manifest.is_empty() {
+        return Err("EPUB manifest is empty".into());
+    }
+    Ok(manifest)
+}
+
+fn parse_spine_ids(package: &str) -> Result<Vec<String>, String> {
+    Ok(all_open_tags(package, "itemref")
+        .into_iter()
+        .filter_map(|tag| attribute(tag, "idref"))
+        .take(EPUB_SPINE_LIMIT)
+        .collect())
+}
+
+fn normalize_archive_path(base_dir: &str, href: &str) -> String {
+    let href = percent_decode(href.split('#').next().unwrap_or(""));
+    let joined = if href.starts_with('/') {
+        href.trim_start_matches('/').to_string()
+    } else if base_dir.is_empty() {
+        href.clone()
+    } else {
+        format!("{base_dir}/{href}")
+    };
+    let mut parts: Vec<&str> = Vec::new();
+    for part in joined.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            value => parts.push(value),
+        }
+    }
+    parts.join("/")
+}
+
+fn percent_decode(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut output = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            let high = (bytes[index + 1] as char).to_digit(16);
+            let low = (bytes[index + 2] as char).to_digit(16);
+            if let (Some(high), Some(low)) = (high, low) {
+                output.push((high * 16 + low) as u8);
+                index += 3;
+                continue;
+            }
+        }
+        output.push(bytes[index]);
+        index += 1;
+    }
+    String::from_utf8_lossy(&output).into_owned()
+}
+
+fn fallback_chapter_label(xhtml: &str, index: usize) -> String {
+    for name in ["h1", "h2", "h3", "title"] {
+        if let Some(text) = first_element_text(xhtml, name) {
+            let label = text.split_whitespace().collect::<Vec<_>>().join(" ");
+            if !label.is_empty() {
+                return label.chars().take(60).collect();
+            }
+        }
+    }
+    format!("Chapter {}", index + 1)
+}
+
+// ---------------------------------------------------------------------------
+// Navigation (EPUB 3 nav / EPUB 2 NCX)
+// ---------------------------------------------------------------------------
+
+fn parse_navigation_toc(
+    archive: &ZipArchive,
+    package: &str,
+    package_dir: &str,
+    manifest: &BTreeMap<String, ManifestItem>,
+    chapter_offsets: &BTreeMap<String, (usize, u64)>,
+) -> Result<Vec<EpubTocEntry>, String> {
+    let mut candidates: Vec<(&ManifestItem, bool)> = Vec::new();
+    if let Some(item) = manifest
+        .values()
+        .find(|item| item.properties.split_whitespace().any(|value| value == "nav"))
+    {
+        candidates.push((item, true));
+    }
+    let spine_toc = first_open_tag(package, "spine").and_then(|tag| attribute(tag, "toc"));
+    if let Some(item) = spine_toc
+        .as_ref()
+        .and_then(|id| manifest.get(id))
+        .or_else(|| {
+            manifest
+                .values()
+                .find(|item| item.media_type == "application/x-dtbncx+xml")
+        })
+    {
+        candidates.push((item, false));
+    }
+
+    for (item, is_nav) in candidates {
+        let member = normalize_archive_path(package_dir, &item.href);
+        let Ok(source) = utf8_member(archive, &member) else {
+            continue;
+        };
+        let links = if is_nav {
+            anchor_links(toc_nav_region(&source))
+        } else {
+            ncx_links(&source)
+        };
+        let base_dir = member.rsplit_once('/').map_or("", |(dir, _)| dir);
+        let mut toc = Vec::new();
+        for (href, label) in links {
+            if toc.len() >= EPUB_TOC_LIMIT {
+                break;
+            }
+            let target = normalize_archive_path(base_dir, &href);
+            if let Some(&(spine_index, text_offset)) = chapter_offsets.get(&target) {
+                toc.push(EpubTocEntry {
+                    label,
+                    text_offset,
+                    spine_index,
+                });
+            }
+        }
+        if !toc.is_empty() {
+            return Ok(toc);
+        }
+    }
+    Ok(Vec::new())
+}
+
+fn toc_nav_region(xhtml: &str) -> &str {
+    for marker in ["epub:type=\"toc\"", "epub:type='toc'"] {
+        if let Some(position) = xhtml.find(marker) {
+            let start = xhtml[..position].rfind('<').unwrap_or(0);
+            let end = xhtml[position..]
+                .find("</nav>")
+                .map_or(xhtml.len(), |relative| position + relative);
+            return &xhtml[start..end];
+        }
+    }
+    xhtml
+}
+
+fn anchor_links(xml: &str) -> Vec<(String, String)> {
+    let mut links = Vec::new();
+    let mut cursor = 0;
+    while let Some(start_rel) = xml[cursor..].find('<') {
+        let start = cursor + start_rel;
+        let Some(end_rel) = xml[start + 1..].find('>') else {
+            break;
+        };
+        let end = start + 1 + end_rel;
+        let tag = xml[start + 1..end].trim_start();
+        cursor = end + 1;
+        if tag.starts_with('/') {
+            continue;
+        }
+        let name = tag
+            .split(|c: char| c.is_whitespace() || c == '/')
+            .next()
+            .unwrap_or("");
+        if name.rsplit(':').next() != Some("a") {
+            continue;
+        }
+        let Some(href) = attribute(tag, "href") else {
+            continue;
+        };
+        let close = format!("</{name}>");
+        let Some(close_rel) = xml[cursor..].find(&close) else {
+            continue;
+        };
+        let label = html_to_text(&xml[cursor..cursor + close_rel])
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        cursor += close_rel + close.len();
+        if !label.is_empty() {
+            links.push((href, label));
+        }
+    }
+    links
+}
+
+fn ncx_links(xml: &str) -> Vec<(String, String)> {
+    let starts: Vec<usize> = xml.match_indices("<navPoint").map(|(index, _)| index).collect();
+    let mut links = Vec::new();
+    for (position, &start) in starts.iter().enumerate() {
+        let end = starts.get(position + 1).copied().unwrap_or(xml.len());
+        let segment = &xml[start..end];
+        let label = first_element_text(segment, "text");
+        let src = first_open_tag(segment, "content").and_then(|tag| attribute(tag, "src"));
+        if let (Some(label), Some(src)) = (label, src) {
+            links.push((src, label));
+        }
+    }
+    links
+}
+
+fn dedupe_toc(toc: &mut Vec<EpubTocEntry>) {
+    let mut seen = BTreeSet::new();
+    toc.retain(|entry| seen.insert(entry.text_offset));
+}
+
+// ---------------------------------------------------------------------------
+// Workers
+// ---------------------------------------------------------------------------
 
 pub fn open_epub_on_worker(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
     let path = path.as_ref().to_path_buf();
@@ -308,6 +605,12 @@ pub fn open_epub_on_worker(path: impl AsRef<Path>) -> Result<EpubDocument, Strin
     result
 }
 
+fn read_epub_title(path: impl AsRef<Path>) -> Result<String, String> {
+    let archive = ZipArchive::open(path)?;
+    let (_, package, _) = epub_package(&archive)?;
+    Ok(package_title(&package))
+}
+
 pub fn read_epub_title_on_worker(path: impl AsRef<Path>) -> Result<String, String> {
     let path = path.as_ref().to_path_buf();
     let worker = std::thread::Builder::new()
@@ -325,12 +628,14 @@ pub fn read_epub_ao3_on_worker(path: impl AsRef<Path>) -> Result<(String, EpubAo
     let worker = std::thread::Builder::new()
         .name("epub-ao3".into())
         .stack_size(EPUB_TITLE_WORKER_STACK_BYTES)
-        .spawn(move || {
+        .spawn(move || -> Result<(String, EpubAo3Meta), String> {
             let archive = ZipArchive::open(path)?;
             let (_, package, package_dir) = epub_package(&archive)?;
             let title = package_title(&package);
             let mut preface_text = String::new();
-            if let (Ok(manifest), Ok(spine_ids)) = (parse_manifest(&package), parse_spine_ids(&package)) {
+            if let (Ok(manifest), Ok(spine_ids)) =
+                (parse_manifest(&package), parse_spine_ids(&package))
+            {
                 if let Some(first_id) = spine_ids.first() {
                     if let Some(item) = manifest.get(first_id) {
                         let member = normalize_archive_path(&package_dir, &item.href);
@@ -376,7 +681,7 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
 
     let mut preface_text = String::new();
     let mut text = String::new();
-    let mut chapter_offsets = BTreeMap::new();
+    let mut chapter_offsets: BTreeMap<String, (usize, u64)> = BTreeMap::new();
     let mut chapter_labels = Vec::new();
     let mut chapters = Vec::new();
 
@@ -391,8 +696,7 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
             continue;
         }
 
-        // If spine item 0 is AO3's preface page (split_000.xhtml), extract metadata
-        // from it and skip adding it to the readable chapter buffer so Chapter 1 starts on spine item 1.
+        // AO3 preface page: harvest metadata, keep it out of the readable text.
         if spine_index == 0 && is_ao3_preface_spine(&member, &chapter, spine_ids.len()) {
             preface_text = chapter;
             continue;
@@ -463,6 +767,23 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
     })
 }
 
+// ---------------------------------------------------------------------------
+// AO3 metadata
+// ---------------------------------------------------------------------------
+
+fn strip_any<'a>(line: &'a str, prefixes: &[&str]) -> Option<&'a str> {
+    prefixes.iter().find_map(|prefix| line.strip_prefix(*prefix))
+}
+
+fn stat_value(line: &str, next: &str, key: &str) -> Option<String> {
+    let position = line.find(key)?;
+    let rest = line[position + key.len()..].trim();
+    rest.split_whitespace()
+        .next()
+        .or_else(|| next.split_whitespace().next())
+        .map(str::to_string)
+}
+
 fn parse_ao3_opf_metadata(
     package: &str,
     flattened_text: &str,
@@ -470,7 +791,6 @@ fn parse_ao3_opf_metadata(
     chapter_count: usize,
 ) -> EpubAo3Meta {
     let mut meta = EpubAo3Meta::default();
-    let word_count = flattened_text.split_whitespace().count();
     if word_count > 0 {
         meta.words = word_count.to_string();
     }
@@ -490,9 +810,11 @@ fn parse_ao3_opf_metadata(
     if let Some(date) = first_element_text(package, "date").filter(|s| !s.trim().is_empty()) {
         meta.published = date.trim().chars().take(10).collect();
     }
-    if let Some(desc) = first_element_text(package, "description").filter(|s| !s.trim().is_empty()) {
-        let clean_desc: String = desc.replace('\n', " ");
-        meta.summary = clean_desc.trim().to_string();
+    if let Some(desc) = first_element_text(package, "description").filter(|s| !s.trim().is_empty())
+    {
+        // OPF descriptions are usually escaped HTML; flatten them a second time.
+        let clean_desc = html_to_text(&desc).replace('\n', " ");
+        meta.summary = clean_desc.split_whitespace().collect::<Vec<_>>().join(" ");
     }
 
     let subjects: Vec<String> = all_element_texts(package, "subject");
@@ -537,26 +859,42 @@ fn parse_ao3_opf_metadata(
     if !freeform.is_empty() {
         meta.additional_tags = freeform.join(", ");
     }
-    if !chars.is_empty() {
-        meta.characters = chars.join(", ");
-    }
 
-    // Scan AO3's preface text (split_000.xhtml) for exact Rating, Fandom, Character, Summary, and Notes
-    let preface: String = preface_source.chars().take(4000).collect();
-    let lines: Vec<&str> = preface.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
-    for (i, line) in lines.iter().enumerate() {
+    // Scan AO3's preface text (split_000.xhtml) for exact tags, stats, summary and notes.
+    let preface: String = flattened_text.chars().take(4000).collect();
+    let lines: Vec<&str> = preface
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    for (i, line) in lines.iter().copied().enumerate() {
         let next = lines.get(i + 1).copied().unwrap_or("");
-        if let Some(v) = line.strip_prefix("Rating:") {
-            meta.rating_text = if v.trim().is_empty() { next.into() } else { v.trim().into() };
-        } else if let Some(v) = line.strip_prefix("Fandom:").or_else(|| line.strip_prefix("Fandoms:")) {
-            meta.fandoms = if v.trim().is_empty() { next.into() } else { v.trim().into() };
-        } else if let Some(v) = line.strip_prefix("Character:").or_else(|| line.strip_prefix("Characters:")) {
-            meta.characters = if v.trim().is_empty() { next.into() } else { v.trim().into() };
-        } else if *line == "Summary" || *line == "Summary:" {
+        let pick = |value: &str| -> String {
+            if value.trim().is_empty() {
+                next.to_string()
+            } else {
+                value.trim().to_string()
+            }
+        };
+        if let Some(v) = strip_any(line, &["Rating:"]) {
+            meta.rating_text = pick(v);
+        } else if let Some(v) = strip_any(line, &["Archive Warnings:", "Archive Warning:"]) {
+            meta.warning_text = pick(v);
+        } else if let Some(v) = strip_any(line, &["Categories:", "Category:"]) {
+            meta.category_text = pick(v);
+        } else if let Some(v) = strip_any(line, &["Fandoms:", "Fandom:"]) {
+            meta.fandoms = pick(v);
+        } else if let Some(v) = strip_any(line, &["Relationships:", "Relationship:"]) {
+            meta.relationships = pick(v);
+        } else if let Some(v) = strip_any(line, &["Characters:", "Character:"]) {
+            meta.characters = pick(v);
+        } else if let Some(v) = strip_any(line, &["Additional Tags:"]) {
+            meta.additional_tags = pick(v);
+        } else if line == "Summary" || line == "Summary:" {
             if !next.is_empty() {
                 meta.summary = next.into();
             }
-        } else if *line == "Notes" || *line == "Notes:" {
+        } else if line == "Notes" || line == "Notes:" {
             let mut note_lines = Vec::new();
             for n_line in lines.iter().skip(i + 1).take(8) {
                 if n_line.starts_with("Chapter ") || n_line.ends_with("Notes:") {
@@ -568,9 +906,27 @@ fn parse_ao3_opf_metadata(
                 meta.notes = note_lines.join(" ");
             }
         }
+
+        if let Some(value) = stat_value(line, next, "Words:")
+            .filter(|v| v.chars().all(|c| c.is_ascii_digit() || c == ','))
+        {
+            meta.words = value;
+        }
+        if let Some(value) = stat_value(line, next, "Chapters:").filter(|v| v.contains('/')) {
+            meta.chapters = value;
+        }
+        if let Some(value) = stat_value(line, next, "Published:")
+            .filter(|v| v.len() >= 8 && v.chars().all(|c| c.is_ascii_digit() || c == '-'))
+        {
+            meta.published = value;
+        }
     }
     meta
 }
+
+// ---------------------------------------------------------------------------
+// XHTML / XML helpers
+// ---------------------------------------------------------------------------
 
 pub fn html_to_text(html: &str) -> String {
     let mut output = String::new();
@@ -597,6 +953,14 @@ pub fn html_to_text(html: &str) -> String {
                     | "article"
                     | "blockquote"
                     | "li"
+                    | "ul"
+                    | "ol"
+                    | "dl"
+                    | "dt"
+                    | "dd"
+                    | "tr"
+                    | "table"
+                    | "hr"
                     | "h1"
                     | "h2"
                     | "h3"
@@ -692,6 +1056,97 @@ fn decode_entity(entity: &str) -> String {
             .map_or_else(|| "?".into(), |character| character.to_string()),
         _ => "?".into(),
     }
+}
+
+/// Every opening (or self-closing) tag whose local name matches, returned
+/// without the surrounding `<` / `>`.
+fn all_open_tags<'a>(xml: &'a str, local_name: &str) -> Vec<&'a str> {
+    let mut tags = Vec::new();
+    let mut cursor = 0;
+    while let Some(start_rel) = xml[cursor..].find('<') {
+        let start = cursor + start_rel;
+        let Some(end_rel) = xml[start + 1..].find('>') else {
+            break;
+        };
+        let end = start + 1 + end_rel;
+        let tag = xml[start + 1..end].trim_start();
+        cursor = end + 1;
+        if tag.starts_with('/') || tag.starts_with('!') || tag.starts_with('?') {
+            continue;
+        }
+        let name = tag
+            .split(|c: char| c.is_whitespace() || c == '/')
+            .next()
+            .unwrap_or("");
+        if name.rsplit(':').next() == Some(local_name) {
+            tags.push(tag);
+        }
+    }
+    tags
+}
+
+fn first_open_tag<'a>(xml: &'a str, local_name: &str) -> Option<&'a str> {
+    all_open_tags(xml, local_name).into_iter().next()
+}
+
+/// Read one attribute value from a tag body such as `item id='x' href="y"/`.
+fn attribute(tag: &str, name: &str) -> Option<String> {
+    let bytes = tag.as_bytes();
+    let mut i = 0;
+    // Skip the element name.
+    while i < bytes.len() && !bytes[i].is_ascii_whitespace() && bytes[i] != b'/' {
+        i += 1;
+    }
+    while i < bytes.len() {
+        while i < bytes.len() && (bytes[i].is_ascii_whitespace() || bytes[i] == b'/') {
+            i += 1;
+        }
+        let key_start = i;
+        while i < bytes.len()
+            && !bytes[i].is_ascii_whitespace()
+            && bytes[i] != b'='
+            && bytes[i] != b'/'
+        {
+            i += 1;
+        }
+        let key = &tag[key_start..i];
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= bytes.len() || bytes[i] != b'=' {
+            if key.is_empty() {
+                i += 1;
+            }
+            continue;
+        }
+        i += 1;
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= bytes.len() {
+            break;
+        }
+        let value = if bytes[i] == b'"' || bytes[i] == b'\'' {
+            let quote = bytes[i] as char;
+            let start = i + 1;
+            let end = tag[start..]
+                .find(quote)
+                .map_or(tag.len(), |relative| start + relative);
+            i = (end + 1).min(tag.len());
+            &tag[start..end]
+        } else {
+            let start = i;
+            while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            tag[start..i].trim_end_matches('/')
+        };
+        let key_local = key.rsplit(':').next().unwrap_or(key);
+        if key == name || key_local == name {
+            return Some(decode_entities(value));
+        }
+    }
+    None
 }
 
 fn first_element_text(xml: &str, local_name: &str) -> Option<String> {
