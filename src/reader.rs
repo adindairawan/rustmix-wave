@@ -2376,34 +2376,64 @@ impl ReaderUiState {
     }
 }
 
-fn build_ao3_header_stream(
-    title: &str,
-    meta: &EpubAo3Meta,
-    pages_lines: &[ReaderPageLine],
-) -> Vec<Ao3ScrollLine> {
+fn build_ao3_header_stream(title: &str, meta: &EpubAo3Meta) -> Vec<Ao3ScrollLine> {
     use Ao3ScrollLine::*;
-    let mut s = Vec::new();
+    let mut s = Vec::with_capacity(48);
 
-    // 1. AO3 Header & Action Bar
     s.push(TopBanner);
     s.push(NavBar);
     s.push(ActionButtons);
     s.push(MetaBoxTop);
 
-    // 2. Strictly ONLY Rating:, Fandom:, and Character: inside the Meta Box
     let fields = [
-        ("Rating:", meta.rating_text.as_str()),
-        ("Fandom:", meta.fandoms.as_str()),
-        ("Character:", meta.characters.as_str()),
+        ("Rating:", meta.rating_text.as_str(), false),
+        ("Archive Warning:", meta.warning_text.as_str(), true),
+        ("Category:", meta.category_text.as_str(), false),
+        ("Fandom:", meta.fandoms.as_str(), false),
+        ("Relationships:", meta.relationships.as_str(), false),
+        ("Characters:", meta.characters.as_str(), false),
+        ("Additional Tags:", meta.additional_tags.as_str(), false),
+        ("Language:", meta.language.as_str(), false),
     ];
-    for (label, val) in fields {
-        s.push(MetaLabel(label.into(), false));
+    for (label, val, bold) in fields {
+        s.push(MetaLabel(label.into(), bold));
         for wrapped in wrap_plain_str(val, 38) {
-            s.push(MetaValue(wrapped, false));
+            s.push(MetaValue(wrapped, bold));
         }
     }
+    s.push(MetaLabel("Stats:".into(), false));
+    s.push(MetaStats(format!(
+        "Published: {}  Words: {}  Chapters: {}",
+        meta.published, meta.words, meta.chapters
+    )));
     s.push(MetaBoxBottom);
     s.push(Blank);
+
+    for t_line in wrap_plain_str(title, 22) {
+        s.push(WorkTitle(t_line));
+    }
+    s.push(WorkAuthor(meta.author.clone()));
+    s.push(Blank);
+
+    if !meta.summary.is_empty() {
+        s.push(SectionHeader("Summary:".into()));
+        for line in wrap_plain_str(&meta.summary, 38) {
+            s.push(IndentedProse(line));
+        }
+        s.push(Blank);
+    }
+
+    if !meta.notes.is_empty() {
+        s.push(SectionHeader("Notes:".into()));
+        for line in wrap_plain_str(&meta.notes, 38) {
+            s.push(IndentedProse(line));
+        }
+        s.push(Blank);
+    }
+
+    s.push(ChapterHeading("Chapter 1".into()));
+    s.push(Blank);
+}
 
     // 3. Georgia Title & Author
     for t_line in wrap_plain_str(title, 22) {
