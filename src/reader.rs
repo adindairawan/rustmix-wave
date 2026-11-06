@@ -2479,8 +2479,6 @@ fn build_ao3_header_stream(title: &str, meta: &EpubAo3Meta) -> Vec<Ao3ScrollLine
         });
     }
     s.push(Blank);
-
-    s
 }
 
 fn wrap_plain_str(input: &str, max_chars: usize) -> Vec<String> {
