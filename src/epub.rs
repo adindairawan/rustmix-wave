@@ -891,24 +891,14 @@ fn parse_ao3_opf_metadata(package: &str, flattened_text: &str, chapter_count: us
     if let Some(creator) = first_element_text(package, "creator").filter(|s| !s.trim().is_empty()) {
         meta.author = creator.trim().to_string();
     }
-    if let Some(lang) = first_element_text(package, "language").filter(|s| !s.trim().is_empty()) {
-        meta.language = if lang.trim().eq_ignore_ascii_case("en") {
-            "English".into()
-        } else {
-            lang.trim().to_string()
-        };
-    }
-    if let Some(date) = first_element_text(package, "date").filter(|s| !s.trim().is_empty()) {
-        meta.published = date.trim().chars().take(10).collect();
-    }
     if let Some(desc) = first_element_text(package, "description").filter(|s| !s.trim().is_empty()) {
         meta.summary = desc.replace('\n', " ").trim().to_string();
     }
 
+    // Parse OPF <dc:subject> tags for Rating and Fandom fallbacks
     let subjects = all_element_texts(package, "subject");
     let mut fandoms = Vec::new();
-    let mut ships = Vec::new();
-    let mut freeform = Vec::new();
+    let mut chars = Vec::new();
 
     for subj in subjects {
         let lower = subj.to_ascii_lowercase();
@@ -919,60 +909,53 @@ fn parse_ao3_opf_metadata(package: &str, flattened_text: &str, chapter_count: us
             || lower.contains("not rated")
         {
             meta.rating_text = subj;
-        } else if lower.contains("archive warning")
-            || lower.contains("depictions of violence")
-            || lower.contains("character death")
-            || lower.contains("underage")
-            || lower.contains("non-con")
+        } else if lower != "fanfiction"
+            && !lower.starts_with("ao3")
+            && !lower.contains("archive warning")
+            && !matches!(subj.as_str(), "Gen" | "F/F" | "F/M" | "M/M" | "Multi" | "Other")
+            && !subj.contains('/')
+            && !subj.contains(" & ")
         {
-            meta.warning_text = subj;
-        } else if matches!(subj.as_str(), "Gen" | "F/F" | "F/M" | "M/M" | "Multi" | "Other") {
-            meta.category_text = subj;
-        } else if subj.contains('/') || subj.contains(" & ") {
-            ships.push(subj);
-        } else if lower != "fanfiction" && !lower.starts_with("ao3") {
             if fandoms.is_empty() {
                 fandoms.push(subj);
-            } else {
-                freeform.push(subj);
+            } else if chars.len() < 6 {
+                chars.push(subj);
             }
         }
     }
     if !fandoms.is_empty() {
         meta.fandoms = fandoms.join(", ");
     }
-    if !ships.is_empty() {
-        meta.relationships = ships.join(", ");
-    }
-    if !freeform.is_empty() {
-        meta.additional_tags = freeform.join(", ");
+    if !chars.is_empty() {
+        meta.characters = chars.join(", ");
     }
 
-    let preface: String = flattened_text.chars().take(2500).collect();
+    // Scan AO3's preface text (split_000.xhtml) for exact Rating, Fandom, Character, Summary, and Notes
+    let preface: String = flattened_text.chars().take(3500).collect();
     let lines: Vec<&str> = preface.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
     for (i, line) in lines.iter().enumerate() {
         let next = lines.get(i + 1).copied().unwrap_or("");
         if let Some(v) = line.strip_prefix("Rating:") {
             meta.rating_text = if v.trim().is_empty() { next.into() } else { v.trim().into() };
-        } else if let Some(v) = line.strip_prefix("Archive Warning:") {
-            meta.warning_text = if v.trim().is_empty() { next.into() } else { v.trim().into() };
-        } else if let Some(v) = line.strip_prefix("Category:") {
-            meta.category_text = if v.trim().is_empty() { next.into() } else { v.trim().into() };
         } else if let Some(v) = line.strip_prefix("Fandom:").or_else(|| line.strip_prefix("Fandoms:")) {
             meta.fandoms = if v.trim().is_empty() { next.into() } else { v.trim().into() };
-        } else if let Some(v) = line.strip_prefix("Relationship:").or_else(|| line.strip_prefix("Relationships:")) {
-            meta.relationships = if v.trim().is_empty() { next.into() } else { v.trim().into() };
         } else if let Some(v) = line.strip_prefix("Character:").or_else(|| line.strip_prefix("Characters:")) {
             meta.characters = if v.trim().is_empty() { next.into() } else { v.trim().into() };
-        } else if let Some(v) = line.strip_prefix("Additional Tags:") {
-            meta.additional_tags = if v.trim().is_empty() { next.into() } else { v.trim().into() };
         } else if *line == "Summary" || *line == "Summary:" {
             if !next.is_empty() {
                 meta.summary = next.into();
             }
         } else if *line == "Notes" || *line == "Notes:" {
-            if !next.is_empty() {
-                meta.notes = next.into();
+            // Collect multi-line notes
+            let mut note_lines = Vec::new();
+            for n_line in lines.iter().skip(i + 1).take(8) {
+                if n_line.starts_with("Chapter ") || n_line.ends_with("Notes:") {
+                    break;
+                }
+                note_lines.push(*n_line);
+            }
+            if !note_lines.is_empty() {
+                meta.notes = note_lines.join(" ");
             }
         }
     }
