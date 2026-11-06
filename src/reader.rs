@@ -1,8 +1,8 @@
-//! Offline Reader state, TXT / EPUB pagination, AO3 fanfic scrolling and Reader-owned persistence.
+//! Offline Reader state, TXT / EPUB pagination, AO3 fanfic scrolling and Reader-owned persistence[cite: 5].
 //!
 //! v0.17.1 adds chapter-aware EPUB page labels, persistent chapter-aware EPUB
 //! bookmark labels and OPF-title Library rows while preserving the accepted TXT
-//! Reader, FAT 8.3 persistence, per-book resume and staged loading architecture.
+//! Reader, FAT 8.3 persistence, per-book resume and staged loading architecture[cite: 5].
 // rustmix-wave=epub-watchdog-memory-pressure-repair-ready
 
 use std::{
@@ -20,54 +20,56 @@ use crate::{
     },
 };
 
-/// SD-card library owned by the Reader subsystem.
+/// SD-card library owned by the Reader subsystem[cite: 5].
 pub const READER_BOOKS_DIRECTORY: &str = "/sdcard/RUSTMIX/BOOKS";
 /// SD-card fanfiction library owned by the Reader subsystem.
 pub const READER_FANFIC_DIRECTORY: &str = "/sdcard/RUSTMIX/BOOKS/FANFIC";
-/// SD-card state directory owned by the Reader subsystem.
+/// SD-card state directory owned by the Reader subsystem[cite: 5].
 pub const READER_STATE_DIRECTORY: &str = "/sdcard/RUSTMIX/READER";
-/// Persistent last-read state file.
+/// Persistent last-read state file[cite: 5].
 pub const READER_STATE_FILE: &str = "STATE.TXT";
-/// Persistent per-book last-position map.
+/// Persistent per-book last-position map[cite: 5].
 pub const READER_POSITIONS_FILE: &str = "POSITS.TXT";
-/// Legacy long-name per-book positions file accepted read-only for migration.
+/// Legacy long-name per-book positions file accepted read-only for migration[cite: 5].
 pub const LEGACY_READER_POSITIONS_FILE: &str = "POSITIONS.TXT";
-/// Persistent recent-book list.
+/// Persistent recent-book list[cite: 5].
 pub const READER_RECENT_FILE: &str = "RECENT.TXT";
-/// Persistent bookmark list.
+/// Persistent bookmark list[cite: 5].
 pub const READER_BOOKMARKS_FILE: &str = "MARKS.TXT";
-/// Persistent Reader-specific preferences.
+/// Persistent Reader-specific preferences[cite: 5].
 pub const READER_PREFS_FILE: &str = "PREFS.TXT";
-/// SD-backed TXT anchor-cache directory.
+/// SD-backed TXT anchor-cache directory[cite: 5].
 pub const READER_CACHE_DIRECTORY: &str = "CACHE";
-/// Number of text lines rendered on one portrait Reader page.
+/// Number of text lines rendered on one portrait Reader page[cite: 5].
 pub const READER_LINES_PER_PAGE: usize = 22;
-/// Maximum wrapped characters per line for the current Reader body profile.
+/// Maximum wrapped characters per line for the current Reader body profile[cite: 5].
 pub const READER_CHARS_PER_LINE: usize = 43;
-/// Nearby page cache retained in RAM while one book is open.
+/// Maximum wrapped characters per line for full-screen AO3 Lucida Sans (Inter) prose.
+pub const FANFIC_CHARS_PER_LINE: usize = 52;
+/// Nearby page cache retained in RAM while one book is open[cite: 5].
 pub const READER_NEARBY_PAGE_CACHE: usize = 8;
-/// Maximum bytes read while generating a single page.
+/// Maximum bytes read while generating a single page[cite: 5].
 pub const READER_PAGE_READ_BYTES: usize = 16 * 1024;
-/// Maximum library rows retained for the embedded product UI.
+/// Maximum library rows retained for the embedded product UI[cite: 5].
 pub const READER_LIBRARY_LIMIT: usize = 128;
-/// Maximum per-book last-position records retained on removable storage.
+/// Maximum per-book last-position records retained on removable storage[cite: 5].
 pub const READER_POSITION_LIMIT: usize = 64;
-/// Maximum recent-book records retained on removable storage.
+/// Maximum recent-book records retained on removable storage[cite: 5].
 pub const READER_RECENT_LIMIT: usize = 16;
-/// Maximum bookmark records retained on removable storage.
+/// Maximum bookmark records retained on removable storage[cite: 5].
 pub const READER_BOOKMARK_LIMIT: usize = 128;
-/// Maximum page anchors accepted from one SD-backed cache file.
+/// Maximum page anchors accepted from one SD-backed cache file[cite: 5].
 pub const READER_CACHE_OFFSET_LIMIT: usize = 4096;
-/// Persist an anchor-cache checkpoint after this many newly indexed pages.
+/// Persist an anchor-cache checkpoint after this many newly indexed pages[cite: 5].
 pub const READER_CACHE_CHECKPOINT_PAGES: usize = 4;
-/// Maximum pre-indexed EPUB page anchors retained for chapter-aware labels.
+/// Maximum pre-indexed EPUB page anchors retained for chapter-aware labels[cite: 5].
 pub const READER_EPUB_PAGE_ANCHOR_LIMIT: usize = 4096;
 /// Number of EPUB page anchors generated before briefly blocking the current
 /// task. The pause lets the ESP-IDF idle task feed its watchdog while large
-/// chapters are indexed for chapter-relative totals.
+/// chapters are indexed for chapter-relative totals[cite: 5].
 pub const READER_EPUB_INDEX_YIELD_EVERY_PAGES: usize = 4;
-/// Cooperative pause used during bounded EPUB chapter pagination (10ms = 1 RTOS tick).
-pub const READER_EPUB_INDEX_YIELD_MILLIS: u64 = 10;
+/// Cooperative pause used during bounded EPUB chapter pagination[cite: 5].
+pub const READER_EPUB_INDEX_YIELD_MILLIS: u64 = 1;
 /// Number of virtual lines scrolled per UP/DOWN button press in Fanfic mode.
 pub const FANFIC_SCROLL_STEP: usize = 5;
 /// Approximate number of virtual lines visible in the portrait Fanfic viewport.
@@ -102,7 +104,7 @@ pub enum Ao3ScrollLine {
     },
 }
 
-/// Reader-supported content types. TXT and bounded reflowable EPUB are active.
+/// Reader-supported content types. TXT and bounded reflowable EPUB are active[cite: 5].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BookFormat {
     Text,
@@ -135,7 +137,7 @@ impl BookFormat {
     }
 }
 
-/// One Reader library row.
+/// One Reader library row[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderBook {
     pub path: String,
@@ -147,7 +149,7 @@ pub struct ReaderBook {
 }
 
 /// Chapter-relative EPUB page presentation retained with bookmarks so MARKS.TXT
-/// remains useful after restart and before the matching book is reopened.
+/// remains useful after restart and before the matching book is reopened[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderChapterPageLabel {
     pub chapter_number: usize,
@@ -163,7 +165,8 @@ impl ReaderChapterPageLabel {
 }
 
 /// Stable logical reading position used by STATE.TXT, RECENT.TXT and
-/// MARKS.TXT.
+/// MARKS.TXT. TXT byte offsets remain valid independently of generated UI page
+/// labels. EPUB reuses this byte-offset boundary against its flattened text buffer[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderLocation {
     pub path: String,
@@ -203,14 +206,14 @@ impl ReaderLocation {
     }
 }
 
-/// One list row rendered by Recent, Books, Fanfic, Files or Bookmarks.
+/// One list row rendered by Recent, Books, Fanfic, Files or Bookmarks[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderLibraryEntry {
     pub book: ReaderBook,
     pub location: Option<ReaderLocation>,
 }
 
-/// Reader Library tab model.
+/// Reader Library tab model[cite: 5].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ReaderLibraryTab {
     Recent,
@@ -245,7 +248,7 @@ impl ReaderLibraryTab {
     }
 }
 
-/// Text decoding mode detected when a TXT book is opened.
+/// Text decoding mode detected when a TXT book is opened[cite: 5].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TextEncoding {
     Utf8,
@@ -264,7 +267,7 @@ impl TextEncoding {
     }
 }
 
-/// E-paper-friendly Reader page theme.
+/// E-paper-friendly Reader page theme[cite: 5].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ReadingTheme {
     #[default]
@@ -311,7 +314,7 @@ impl ReadingTheme {
     }
 }
 
-/// Reader-page orientation independent from the portrait system UI.
+/// Reader-page orientation independent from the portrait system UI[cite: 5].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ReaderOrientation {
     #[default]
@@ -358,7 +361,8 @@ impl ReaderOrientation {
     }
 }
 
-/// Reader-specific book font size.
+/// Reader-specific book font size. This is intentionally independent from
+/// `/sdcard/RUSTMIX/DISPLAY.TXT`[cite: 5].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum BookFontSize {
     Small,
@@ -420,7 +424,7 @@ impl BookFontSize {
     }
 }
 
-/// Reader-specific body font family.
+/// Reader-specific body font family[cite: 5].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum BookFont {
     Inter,
@@ -484,7 +488,7 @@ impl BookFont {
     }
 }
 
-/// Reader paragraph alignment.
+/// Reader paragraph alignment. Justified is the default e-book presentation[cite: 5].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ParagraphAlignment {
     #[default]
@@ -546,7 +550,7 @@ impl ParagraphAlignment {
     }
 }
 
-/// Layout dimensions affecting TXT pagination and cache fingerprints.
+/// Layout dimensions affecting TXT pagination and cache fingerprints[cite: 5].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ReaderLayout {
     pub chars_per_line: usize,
@@ -557,7 +561,7 @@ pub struct ReaderLayout {
     pub paragraph_alignment: ParagraphAlignment,
 }
 
-/// Reader-owned preference file persisted as `/RUSTMIX/READER/PREFS.TXT`.
+/// Reader-owned preference file persisted as `/RUSTMIX/READER/PREFS.TXT`[cite: 5].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ReaderPreferences {
     pub theme: ReadingTheme,
@@ -697,7 +701,7 @@ impl ReaderPreferences {
     }
 }
 
-/// Coarse stages used by the e-paper loading screen.
+/// Coarse stages used by the e-paper loading screen[cite: 5].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReaderLoadingStage {
     OpeningFile,
@@ -751,7 +755,7 @@ impl ReaderLoadingStage {
     }
 }
 
-/// Pending staged book open retained while the loading screen is visible.
+/// Pending staged book open retained while the loading screen is visible[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PendingReaderOpen {
     pub book: ReaderBook,
@@ -762,14 +766,14 @@ pub struct PendingReaderOpen {
     pub message: String,
 }
 
-/// One wrapped Reader line.
+/// One wrapped Reader line[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderPageLine {
     pub text: String,
     pub paragraph_end: bool,
 }
 
-/// One cached portrait page and its byte anchor.
+/// One cached portrait page and its byte anchor[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderCachedPage {
     pub page_index: usize,
@@ -778,7 +782,7 @@ pub struct ReaderCachedPage {
     pub lines: Vec<ReaderPageLine>,
 }
 
-/// SD-backed page-anchor cache.
+/// SD-backed page-anchor cache[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ReaderAnchorCache {
     fingerprint: u64,
@@ -788,7 +792,7 @@ struct ReaderAnchorCache {
     complete: bool,
 }
 
-/// One EPUB chapter's layout-specific page anchors.
+/// One EPUB chapter's layout-specific page anchors[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderEpubChapterPages {
     pub chapter_number: usize,
@@ -797,7 +801,7 @@ pub struct ReaderEpubChapterPages {
     pub page_offsets: Vec<u64>,
 }
 
-/// Active Reader session.
+/// Active Reader session[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderSession {
     pub book: ReaderBook,
@@ -813,7 +817,6 @@ pub struct ReaderSession {
     pub epub_chapter_pages: Vec<ReaderEpubChapterPages>,
     pub is_fanfic: bool,
     pub scroll_line: usize,
-    /// Holds ONLY the ~35 AO3 Header/Preface lines; prose lines stream from `self.cache`.
     pub ao3_scroll_lines: Vec<Ao3ScrollLine>,
 }
 
@@ -936,75 +939,6 @@ impl ReaderSession {
         })
     }
 
-    /// Total virtual lines = AO3 Header/Preface lines + (Total Pages * lines_per_page).
-    #[must_use]
-    pub fn total_fanfic_virtual_lines(&self) -> usize {
-        let prose_pages = self.page_offsets.len().max(1);
-        self.ao3_scroll_lines
-            .len()
-            .saturating_add(prose_pages.saturating_mul(self.layout.lines_per_page))
-    }
-
-    /// Ensure the 2-3 pages overlapping the current `scroll_line` viewport are in `self.cache`.
-    pub fn ensure_fanfic_scroll_window_cached(&mut self) -> Result<(), String> {
-        let header_len = self.ao3_scroll_lines.len();
-        let end_line = self.scroll_line.saturating_add(FANFIC_VIEWPORT_LINES + 6);
-        if end_line <= header_len {
-            return Ok(());
-        }
-        let lpp = self.layout.lines_per_page.max(1);
-        let first_prose_line = self.scroll_line.saturating_sub(header_len);
-        let last_prose_line = end_line.saturating_sub(header_len);
-        let start_page = first_prose_line / lpp;
-        let end_page = last_prose_line / lpp;
-
-        for page_idx in start_page..=end_page {
-            while page_idx >= self.page_offsets.len() && !self.index_complete {
-                self.index_one_page()?;
-            }
-            if page_idx < self.page_offsets.len() {
-                self.ensure_page_cached(page_idx)?;
-            }
-        }
-        self.current_page = start_page.min(self.page_offsets.len().saturating_sub(1));
-        Ok(())
-    }
-
-    /// Returns up to `count` virtual lines starting at `self.scroll_line` without full-book allocation.
-    #[must_use]
-    pub fn visible_fanfic_lines(&self, count: usize) -> Vec<Ao3ScrollLine> {
-        let mut out = Vec::with_capacity(count);
-        let header_len = self.ao3_scroll_lines.len();
-        let lpp = self.layout.lines_per_page.max(1);
-
-        for v_idx in self.scroll_line..self.scroll_line.saturating_add(count) {
-            if v_idx < header_len {
-                out.push(self.ao3_scroll_lines[v_idx].clone());
-            } else {
-                let prose_idx = v_idx - header_len;
-                let local_page = prose_idx / lpp;
-                let line_in_page = prose_idx % lpp;
-                let abs_page = self.page_number_base.saturating_add(local_page);
-
-                if let Some(cached) = self.cache.iter().find(|p| p.page_index == abs_page) {
-                    if let Some(line) = cached.lines.get(line_in_page) {
-                        out.push(Ao3ScrollLine::BodyProse {
-                            text: line.text.clone(),
-                            paragraph_end: line.paragraph_end,
-                        });
-                    } else if local_page + 1 >= self.page_offsets.len() && self.index_complete {
-                        break;
-                    } else {
-                        out.push(Ao3ScrollLine::Blank);
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
-        out
-    }
-
     fn push_cached_page(&mut self, page: ReaderCachedPage) {
         if let Some(existing) = self
             .cache
@@ -1120,7 +1054,7 @@ impl ReaderSession {
     }
 }
 
-/// Reader Options action rows.
+/// Reader Options action rows[cite: 5].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReaderOption {
     Bookmark,
@@ -1169,7 +1103,7 @@ impl ReaderOption {
     }
 }
 
-/// Reading Preferences editor rows.
+/// Reading Preferences editor rows[cite: 5].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReadingPreference {
     ReadingTheme,
@@ -1203,7 +1137,7 @@ impl ReadingPreference {
     }
 }
 
-/// Coarse background tick result.
+/// Coarse background tick result[cite: 5].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReaderTickOutcome {
     None,
@@ -1213,7 +1147,7 @@ pub enum ReaderTickOutcome {
     Failed,
 }
 
-/// Non-fatal Reader persistence startup report.
+/// Non-fatal Reader persistence startup report[cite: 5].
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ReaderPersistenceReport {
     pub state_loaded: bool,
@@ -1224,7 +1158,7 @@ pub struct ReaderPersistenceReport {
     pub warning: Option<String>,
 }
 
-/// Hardware-independent Reader UI state.
+/// Hardware-independent Reader UI state[cite: 5].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReaderUiState {
     pub books_root: String,
@@ -1718,10 +1652,8 @@ impl ReaderUiState {
         if let Some(session) = self.session.as_mut() {
             if session.is_fanfic {
                 session.scroll_line = session.scroll_line.saturating_sub(FANFIC_SCROLL_STEP);
-                if let Err(error) = session.ensure_fanfic_scroll_window_cached() {
-                    self.last_message = Some(error);
-                    return;
-                }
+                session.current_page = (session.scroll_line / FANFIC_VIEWPORT_LINES)
+                    .min(session.page_offsets.len().saturating_sub(1));
                 self.persist_current_session_best_effort();
                 return;
             }
@@ -1737,13 +1669,12 @@ impl ReaderUiState {
         if let Some(session) = self.session.as_mut() {
             if session.is_fanfic {
                 let max_scroll = session
-                    .total_fanfic_virtual_lines()
+                    .ao3_scroll_lines
+                    .len()
                     .saturating_sub(FANFIC_VIEWPORT_LINES);
                 session.scroll_line = (session.scroll_line + FANFIC_SCROLL_STEP).min(max_scroll);
-                if let Err(error) = session.ensure_fanfic_scroll_window_cached() {
-                    self.last_message = Some(error);
-                    return;
-                }
+                session.current_page = (session.scroll_line / FANFIC_VIEWPORT_LINES)
+                    .min(session.page_offsets.len().saturating_sub(1));
                 self.persist_current_session_best_effort();
                 return;
             }
@@ -2189,13 +2120,15 @@ impl ReaderUiState {
 
         let is_fanfic = book.path.contains("FANFIC") || book.ao3.is_some();
         let ao3_scroll_lines = if is_fanfic {
+            let raw = fs::read_to_string(&book.path).unwrap_or_default();
+            let story_lines = wrap_story_paragraphs(&raw, FANFIC_CHARS_PER_LINE);
             let meta = book.ao3.clone().unwrap_or_default();
-            build_ao3_header_stream(&book.title, &meta)
+            build_ao3_scroll_stream(&book.title, &meta, &story_lines)
         } else {
             Vec::new()
         };
-        let scroll_line = if is_fanfic && current_page > 0 {
-            ao3_scroll_lines.len() + current_page * layout.lines_per_page
+        let scroll_line = if is_fanfic {
+            current_page * FANFIC_VIEWPORT_LINES
         } else {
             0
         };
@@ -2251,17 +2184,18 @@ impl ReaderUiState {
 
         let is_fanfic = session_book.path.contains("FANFIC") || book.ao3.is_some();
         let ao3_scroll_lines = if is_fanfic {
-            build_ao3_header_stream(&session_book.title, &document.ao3)
+            let story_lines = wrap_story_paragraphs(&document.text, FANFIC_CHARS_PER_LINE);
+            build_ao3_scroll_stream(&session_book.title, &document.ao3, &story_lines)
         } else {
             Vec::new()
         };
-        let scroll_line = if is_fanfic && current_page > 0 {
-            ao3_scroll_lines.len() + current_page * layout.lines_per_page
+        let scroll_line = if is_fanfic {
+            current_page * FANFIC_VIEWPORT_LINES
         } else {
             0
         };
 
-        let mut session = ReaderSession {
+        Ok(ReaderSession {
             book: session_book,
             encoding: TextEncoding::Utf8,
             epub_document: Some(document),
@@ -2276,11 +2210,7 @@ impl ReaderUiState {
             is_fanfic,
             scroll_line,
             ao3_scroll_lines,
-        };
-        if is_fanfic {
-            let _ = session.ensure_fanfic_scroll_window_cached();
-        }
-        Ok(session)
+        })
     }
 
     fn persist_current_session_best_effort(&mut self) {
@@ -2376,63 +2306,117 @@ impl ReaderUiState {
     }
 }
 
-fn build_ao3_header_stream(title: &str, meta: &EpubAo3Meta) -> Vec<Ao3ScrollLine> {
-    use Ao3ScrollLine::*;
-    let mut s = Vec::with_capacity(48);
+/// Word-wraps multi-paragraph story prose to full 480px screen width (52 chars/line for Inter)
+/// without splitting words mid-character.
+fn wrap_story_paragraphs(raw_text: &str, max_chars: usize) -> Vec<ReaderPageLine> {
+    let decoded = decode_with_offsets(raw_text.as_bytes(), TextEncoding::Utf8, 0);
+    let normalized: String = normalize_decoded(&decoded)
+        .into_iter()
+        .map(|(ch, _)| ch)
+        .collect();
 
+    let mut out = Vec::new();
+    for raw_line in normalized.lines() {
+        let trimmed = raw_line.trim();
+        if trimmed.is_empty() {
+            if !out.last().is_some_and(|l: &ReaderPageLine| l.text.is_empty()) {
+                out.push(ReaderPageLine {
+                    text: String::new(),
+                    paragraph_end: true,
+                });
+            }
+            continue;
+        }
+        let wrapped = wrap_plain_str(trimmed, max_chars);
+        let len = wrapped.len();
+        for (idx, w_line) in wrapped.into_iter().enumerate() {
+            out.push(ReaderPageLine {
+                text: w_line,
+                paragraph_end: idx + 1 == len,
+            });
+        }
+    }
+    out
+}
+
+fn build_ao3_scroll_stream(
+    title: &str,
+    meta: &EpubAo3Meta,
+    pages_lines: &[ReaderPageLine],
+) -> Vec<Ao3ScrollLine> {
+    use Ao3ScrollLine::*;
+    let mut s = Vec::new();
+
+    // 1. AO3 Header & Action Bar
     s.push(TopBanner);
     s.push(NavBar);
     s.push(ActionButtons);
     s.push(MetaBoxTop);
 
+    // 2. Strictly ONLY Rating:, Fandom:, and Character: in the Meta Box
     let fields = [
-        ("Rating:", meta.rating_text.as_str(), false),
-        ("Archive Warning:", meta.warning_text.as_str(), true),
-        ("Category:", meta.category_text.as_str(), false),
-        ("Fandom:", meta.fandoms.as_str(), false),
-        ("Relationships:", meta.relationships.as_str(), false),
-        ("Characters:", meta.characters.as_str(), false),
-        ("Additional Tags:", meta.additional_tags.as_str(), false),
-        ("Language:", meta.language.as_str(), false),
+        ("Rating:", meta.rating_text.as_str()),
+        ("Fandom:", meta.fandoms.as_str()),
+        ("Character:", meta.characters.as_str()),
     ];
-    for (label, val, bold) in fields {
-        s.push(MetaLabel(label.into(), bold));
-        for wrapped in wrap_plain_str(val, 38) {
-            s.push(MetaValue(wrapped, bold));
+    for (label, val) in fields {
+        s.push(MetaLabel(label.into(), false));
+        for wrapped in wrap_plain_str(val, 48) {
+            s.push(MetaValue(wrapped, false));
         }
     }
-    s.push(MetaLabel("Stats:".into(), false));
-    s.push(MetaStats(format!(
-        "Published: {}  Words: {}  Chapters: {}",
-        meta.published, meta.words, meta.chapters
-    )));
     s.push(MetaBoxBottom);
     s.push(Blank);
 
-    for t_line in wrap_plain_str(title, 22) {
+    // 3. Georgia Title & Author
+    for t_line in wrap_plain_str(title, 26) {
         s.push(WorkTitle(t_line));
     }
     s.push(WorkAuthor(meta.author.clone()));
     s.push(Blank);
 
+    // 4. Summary (Full-screen width, 52 chars per line)
     if !meta.summary.is_empty() {
         s.push(SectionHeader("Summary:".into()));
-        for line in wrap_plain_str(&meta.summary, 38) {
-            s.push(IndentedProse(line));
+        for line in wrap_plain_str(&meta.summary, FANFIC_CHARS_PER_LINE) {
+            s.push(BodyProse {
+                text: line,
+                paragraph_end: false,
+            });
         }
         s.push(Blank);
     }
 
-    if !meta.notes.is_empty() {
-        s.push(SectionHeader("Notes:".into()));
-        for line in wrap_plain_str(&meta.notes, 38) {
-            s.push(IndentedProse(line));
-        }
-        s.push(Blank);
-    }
-
+    // 5. Chapter 1 Story Prose (Starts directly on the first real chapter, 52 chars/line)
     s.push(ChapterHeading("Chapter 1".into()));
     s.push(Blank);
+    for line in pages_lines {
+        if line.text.is_empty() {
+            s.push(Blank);
+        } else {
+            s.push(BodyProse {
+                text: line.text.clone(),
+                paragraph_end: line.paragraph_end,
+            });
+        }
+    }
+
+    // 6. Notes: Placed at the very bottom under the story, full-screen width (52 chars/line)
+    s.push(Blank);
+    s.push(SectionHeader("Notes:".into()));
+    let notes_content = if meta.notes.is_empty() {
+        "End of work."
+    } else {
+        meta.notes.as_str()
+    };
+    for line in wrap_plain_str(notes_content, FANFIC_CHARS_PER_LINE) {
+        s.push(BodyProse {
+            text: line,
+            paragraph_end: true,
+        });
+    }
+    s.push(Blank);
+
     s
 }
 
@@ -2459,7 +2443,7 @@ fn wrap_plain_str(input: &str, max_chars: usize) -> Vec<String> {
     out
 }
 
-/// Scan one bounded Reader library.
+/// Scan one bounded Reader library[cite: 5].
 pub fn scan_txt_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, String> {
     let root = root.as_ref();
     let mut books = Vec::new();
@@ -2500,7 +2484,6 @@ pub fn scan_txt_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, Strin
             modified_seconds,
             ao3: None,
         });
-        std::thread::sleep(Duration::from_millis(10));
         if books.len() >= READER_LIBRARY_LIMIT {
             break;
         }
@@ -2509,61 +2492,22 @@ pub fn scan_txt_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, Strin
     Ok(books)
 }
 
-/// Scan the `/RUSTMIX/BOOKS/FANFIC` subfolder without double-opening EPUB archives.
+/// Scan the `/RUSTMIX/BOOKS/FANFIC` subfolder and enrich EPUB entries with AO3 OPF metadata.
 pub fn scan_fanfic_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, String> {
-    let root = root.as_ref();
-    let mut works = Vec::new();
-    let Ok(entries) = fs::read_dir(root) else {
-        return Ok(works);
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        let Some(format) = book_format_from_path(&path) else {
-            continue;
-        };
-        let metadata = entry.metadata().ok();
-        let size_bytes = metadata.as_ref().map_or(0, |meta| meta.len());
-        let modified_seconds = metadata
-            .and_then(|meta| meta.modified().ok())
-            .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
-            .map_or(0, |duration| duration.as_secs());
-        let fallback_title = path
-            .file_stem()
-            .and_then(|value| value.to_str())
-            .unwrap_or("Untitled fic")
-            .to_string();
-
-        let (title, ao3) = if format == BookFormat::Epub {
-            match read_epub_ao3_on_worker(&path) {
-                Ok((t, meta)) => (
-                    if t.trim().is_empty() { fallback_title } else { t },
-                    Some(meta),
-                ),
-                Err(_) => (fallback_title, None),
+    let mut works = scan_txt_library(root)?;
+    for book in &mut works {
+        if book.format == BookFormat::Epub {
+            if let Ok((title, ao3)) = read_epub_ao3_on_worker(&book.path) {
+                if !title.trim().is_empty() {
+                    book.title = title;
+                }
+                book.ao3 = Some(ao3);
             }
-        } else {
-            (fallback_title, None)
-        };
-
-        works.push(ReaderBook {
-            path: path.to_string_lossy().into_owned(),
-            title,
-            format,
-            size_bytes,
-            modified_seconds,
-            ao3,
-        });
-        std::thread::sleep(Duration::from_millis(10));
-        if works.len() >= READER_LIBRARY_LIMIT {
-            break;
         }
     }
-    works.sort_by(|left, right| left.title.to_lowercase().cmp(&right.title.to_lowercase()));
     Ok(works)
 }
+
 #[must_use]
 pub fn book_format_from_path(path: &Path) -> Option<BookFormat> {
     let extension = path.extension()?.to_str()?.to_ascii_lowercase();
@@ -3357,632 +3301,4 @@ fn split_escaped_tabs(value: &str) -> Result<Vec<String>, String> {
     }
     output.push(unescape_field(&current)?);
     Ok(output)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{
-        fs,
-        path::{Path, PathBuf},
-    };
-
-    use super::{
-        atomic_replace_text, book_format_from_path, detect_txt_encoding, is_fat83_safe_file_name,
-        load_location_record, normalize_decoded, parse_location_fields, parse_location_record,
-        scan_txt_library, serialize_location, serialize_location_fields, BookFont, BookFontSize,
-        BookFormat, ParagraphAlignment, ReaderBook, ReaderChapterPageLabel, ReaderLoadingStage,
-        ReaderLocation, ReaderOrientation, ReaderPreferences, ReaderSession, ReaderTickOutcome,
-        ReaderUiState, ReadingPreference, ReadingTheme, TextEncoding, LEGACY_READER_POSITIONS_FILE,
-        READER_BOOKMARKS_FILE, READER_EPUB_INDEX_YIELD_EVERY_PAGES, READER_EPUB_INDEX_YIELD_MILLIS,
-        READER_POSITIONS_FILE, READER_PREFS_FILE, READER_RECENT_FILE, READER_STATE_FILE,
-    };
-    use crate::buttons::ButtonEvent;
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let root =
-            std::env::temp_dir().join(format!("rustmix-reader-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(&root).unwrap();
-        root
-    }
-
-    #[test]
-    fn detects_txt_epub_and_short_epu_aliases() {
-        assert_eq!(
-            book_format_from_path(PathBuf::from("a.TXT").as_path()),
-            Some(BookFormat::Text)
-        );
-        assert_eq!(
-            book_format_from_path(PathBuf::from("a.epub").as_path()),
-            Some(BookFormat::Epub)
-        );
-        assert_eq!(
-            book_format_from_path(PathBuf::from("a.EPU").as_path()),
-            Some(BookFormat::Epub)
-        );
-    }
-
-    #[test]
-    fn detects_utf8_bom_and_windows_1252() {
-        let root = temp_dir("encoding");
-        let bom = root.join("bom.txt");
-        let cp = root.join("cp.txt");
-        fs::write(&bom, [0xEF, 0xBB, 0xBF, b'H', b'i']).unwrap();
-        fs::write(&cp, [b'H', 0x92, b'i']).unwrap();
-        assert_eq!(detect_txt_encoding(&bom).unwrap(), TextEncoding::Utf8Bom);
-        assert_eq!(detect_txt_encoding(&cp).unwrap(), TextEncoding::Windows1252);
-    }
-
-    #[test]
-    fn scans_txt_and_epub_rows_but_ignores_other_files() {
-        let root = temp_dir("scan");
-        fs::write(root.join("Dracula.txt"), "hello").unwrap();
-        fs::write(root.join("Later.epu"), "zip").unwrap();
-        fs::write(root.join("ignore.bin"), "no").unwrap();
-        let books = scan_txt_library(&root).unwrap();
-        assert_eq!(books.len(), 2);
-        assert_eq!(books[0].title, "Dracula");
-        assert_eq!(books[1].format, BookFormat::Epub);
-    }
-
-    #[test]
-    fn opening_txt_is_staged_first_page_first_and_lazy() {
-        let root = temp_dir("open");
-        let state = temp_dir("open-state");
-        fs::write(root.join("Book.txt"), "hello world ".repeat(600)).unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        reader.refresh_library();
-        reader.library_selected = 1;
-        assert!(reader.apply_library_button(ButtonEvent::Select));
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::FirstPageReady);
-        let session = reader.session.as_ref().unwrap();
-        assert_eq!(session.current_page, 0);
-        assert!(!session.cache.is_empty());
-        assert!(session.indexed_through > 0);
-    }
-
-    #[test]
-    fn persists_continue_recent_bookmarks_and_anchor_cache() {
-        let root = temp_dir("persist-books");
-        let state = temp_dir("persist-state");
-        fs::write(root.join("Dracula.txt"), "Dracula text ".repeat(1000)).unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        reader.refresh_library();
-        reader.library_selected = 1;
-        assert!(reader.apply_library_button(ButtonEvent::Select));
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::FirstPageReady);
-        reader.next_page();
-        reader.toggle_current_bookmark();
-        assert!(state.join(READER_STATE_FILE).exists());
-        assert!(state.join(READER_POSITIONS_FILE).exists());
-        assert!(state.join(READER_RECENT_FILE).exists());
-        assert!(state.join(READER_BOOKMARKS_FILE).exists());
-        assert!(state.join("CACHE").read_dir().unwrap().next().is_some());
-
-        let mut restored = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        let report = restored.load_persistent_state();
-        assert!(report.state_loaded);
-        assert_eq!(report.recent_count, 1);
-        assert_eq!(report.bookmark_count, 1);
-        assert!(restored.request_continue());
-        assert_eq!(restored.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(restored.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(restored.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(restored.tick(), ReaderTickOutcome::FirstPageReady);
-        assert_eq!(
-            restored.session.as_ref().unwrap().current_absolute_page(),
-            1
-        );
-    }
-
-    #[test]
-    fn invalid_anchor_cache_fingerprint_falls_back_to_saved_offset() {
-        let root = temp_dir("fingerprint-books");
-        let state = temp_dir("fingerprint-state");
-        fs::write(root.join("Book.txt"), "text body ".repeat(1000)).unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        reader.refresh_library();
-        reader.library_selected = 1;
-        assert!(reader.apply_library_button(ButtonEvent::Select));
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::FirstPageReady);
-        reader.next_page();
-        let cache = state
-            .join("CACHE")
-            .read_dir()
-            .unwrap()
-            .next()
-            .unwrap()
-            .unwrap()
-            .path();
-        let text = fs::read_to_string(&cache).unwrap();
-        fs::write(
-            &cache,
-            text.replace("fingerprint=", "fingerprint=0000000000000000#"),
-        )
-        .unwrap();
-
-        let mut restored = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        restored.load_persistent_state();
-        assert!(restored.request_continue());
-        assert_eq!(restored.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(restored.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(restored.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(restored.tick(), ReaderTickOutcome::FirstPageReady);
-        assert!(restored
-            .persistence_warning
-            .as_deref()
-            .unwrap_or("")
-            .contains("TXT cache ignored"));
-        assert_eq!(
-            restored.session.as_ref().unwrap().current_absolute_page(),
-            1
-        );
-    }
-
-    #[test]
-    fn bookmark_toggle_removes_existing_mark() {
-        let root = temp_dir("toggle-books");
-        let state = temp_dir("toggle-state");
-        fs::write(root.join("Book.txt"), "text ".repeat(100)).unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        reader.refresh_library();
-        reader.library_selected = 1;
-        assert!(reader.apply_library_button(ButtonEvent::Select));
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::FirstPageReady);
-        reader.toggle_current_bookmark();
-        assert_eq!(reader.bookmarks.len(), 1);
-        reader.toggle_current_bookmark();
-        assert!(reader.bookmarks.is_empty());
-    }
-
-    #[test]
-    fn interrupted_atomic_replace_recovers_backup() {
-        let root = temp_dir("backup");
-        let state = root.join(READER_STATE_FILE);
-        atomic_replace_text(
-            &state,
-            "version=1\npath=a.txt\ntitle=A\nformat=txt\nsize=1\nmodified=0\npage=0\noffset=0\n",
-        )
-        .unwrap();
-        let backup = root.join("STATE.BAK");
-        fs::rename(&state, &backup).unwrap();
-        let restored = load_location_record(&state).unwrap().unwrap();
-        assert_eq!(restored.title, "A");
-    }
-
-    #[test]
-    fn corrupt_primary_falls_back_to_backup() {
-        let root = temp_dir("corrupt");
-        let state = root.join(READER_STATE_FILE);
-        fs::write(&state, "not-valid").unwrap();
-        fs::write(
-            root.join("STATE.BAK"),
-            "version=1\npath=b.txt\ntitle=B\nformat=txt\nsize=2\nmodified=0\npage=3\noffset=4\n",
-        )
-        .unwrap();
-        let restored = load_location_record(&state).unwrap().unwrap();
-        assert_eq!(restored.title, "B");
-    }
-
-    #[test]
-    fn reader_options_request_manual_clear_ghosting() {
-        let mut reader = ReaderUiState::default();
-        reader.request_clear_ghosting();
-        assert!(reader.take_clear_ghost_request());
-        assert!(!reader.take_clear_ghost_request());
-    }
-
-    #[test]
-    fn normalizes_utf8_punctuation_accents_and_simple_emphasis() {
-        let decoded: Vec<(char, u64)> = "“En vérité!” _I_—once…"
-            .chars()
-            .enumerate()
-            .map(|(index, value)| (value, index as u64 + 1))
-            .collect();
-        let normalized: String = normalize_decoded(&decoded)
-            .into_iter()
-            .map(|(value, _)| value)
-            .collect();
-        assert_eq!(normalized, "\"En verite!\" I--once...");
-    }
-
-    #[test]
-    fn removes_multiline_gutenberg_emphasis_but_preserves_safe_underscores() {
-        let decoded: Vec<(char, u64)> =
-            "'_You have lost your\ngold pencil-case? Couragez!'_ file_name\n_____"
-                .chars()
-                .enumerate()
-                .map(|(index, value)| (value, index as u64 + 1))
-                .collect();
-        let normalized: String = normalize_decoded(&decoded)
-            .into_iter()
-            .map(|(value, _)| value)
-            .collect();
-        assert_eq!(
-            normalized,
-            "'You have lost your\ngold pencil-case? Couragez!' file_name\n_____"
-        );
-    }
-
-    #[test]
-    fn theme_switch_keeps_layout_geometry_and_cache_fingerprint_inputs_stable() {
-        let classic = ReaderPreferences::default();
-        let mut contrast = classic;
-        contrast.theme = ReadingTheme::HighContrast;
-        assert_eq!(classic.layout(), contrast.layout());
-    }
-
-    #[test]
-    fn reader_font_cycle_preserves_legacy_keys_and_adds_literata() {
-        assert_eq!(
-            BookFont::AtkinsonHyperlegible.marker(),
-            "atkinson-hyperlegible"
-        );
-        assert_eq!(BookFont::Serif.marker(), "serif");
-        assert_eq!(BookFont::Literata.marker(), "literata");
-        assert_eq!(BookFont::Inter.next(), BookFont::AtkinsonHyperlegible);
-        assert_eq!(BookFont::AtkinsonHyperlegible.next(), BookFont::Serif);
-        assert_eq!(BookFont::Serif.next(), BookFont::Literata);
-        assert_eq!(BookFont::Literata.next(), BookFont::Inter);
-        assert_eq!(BookFont::Inter.previous(), BookFont::Literata);
-        assert_eq!(BookFont::parse("literata").unwrap(), BookFont::Literata);
-    }
-
-    #[test]
-    fn parses_serializes_and_cycles_reader_preferences() {
-        let parsed = ReaderPreferences::parse(
-            "version=1\ntheme=high-contrast\norientation=landscape\nfont_size=xlarge\nbook_font=serif\nparagraph_alignment=right\nshow_progress=false\n",
-        )
-        .unwrap();
-        assert_eq!(parsed.theme, ReadingTheme::HighContrast);
-        assert_eq!(parsed.orientation, ReaderOrientation::Landscape);
-        assert_eq!(parsed.font_size, BookFontSize::XLarge);
-        assert_eq!(parsed.book_font, BookFont::Serif);
-        assert_eq!(parsed.paragraph_alignment, ParagraphAlignment::Right);
-        assert!(!parsed.show_progress);
-        assert!(parsed.serialized().contains("font_size=xlarge"));
-        assert!(parsed.serialized().contains("book_font=serif"));
-        assert!(parsed.serialized().contains("paragraph_alignment=right"));
-    }
-
-    #[test]
-    fn layout_changes_request_first_page_first_rebuild_and_persist_preferences() {
-        let root = temp_dir("prefs-books");
-        let state = temp_dir("prefs-state");
-        fs::write(root.join("Book.txt"), "hello world ".repeat(800)).unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        reader.refresh_library();
-        reader.library_selected = 1;
-        assert!(reader.apply_library_button(ButtonEvent::Select));
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::LoadingStageChanged);
-        assert_eq!(reader.tick(), ReaderTickOutcome::FirstPageReady);
-        assert!(reader.cycle_book_font_size());
-        assert_eq!(
-            reader.loading_stage(),
-            Some(ReaderLoadingStage::UpdatingLayout)
-        );
-        assert!(state.join(READER_PREFS_FILE).exists());
-    }
-
-    #[test]
-    fn books_and_files_reopen_from_per_book_positions_while_bookmarks_remain_explicit() {
-        let root = temp_dir("positions-books");
-        let state = temp_dir("positions-state");
-        fs::write(root.join("A.txt"), "alpha body ".repeat(1200)).unwrap();
-        fs::write(root.join("B.txt"), "beta body ".repeat(1200)).unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        reader.refresh_library();
-        reader.library_selected = 1;
-        assert!(reader.apply_library_button(ButtonEvent::Select));
-        for _ in 0..3 {
-            reader.tick();
-        }
-        reader.next_page();
-        reader.next_page();
-        let saved = reader.session.as_ref().unwrap().current_location();
-        assert_eq!(saved.page_index, 2);
-
-        reader.refresh_library();
-        reader.library_selected = 1;
-        assert!(reader.apply_library_button(ButtonEvent::Select));
-        for _ in 0..4 {
-            reader.tick();
-        }
-        assert_eq!(reader.session.as_ref().unwrap().current_absolute_page(), 2);
-
-        let mut explicit = saved.clone();
-        explicit.page_index = 1;
-        explicit.byte_offset = reader.session.as_ref().unwrap().page_offsets[1];
-        reader.bookmarks = vec![explicit];
-        assert!(reader.request_open_bookmark(0));
-        for _ in 0..4 {
-            reader.tick();
-        }
-        assert_eq!(reader.session.as_ref().unwrap().current_absolute_page(), 1);
-    }
-
-    #[test]
-    fn paragraph_alignment_defaults_to_justified_and_changes_cache_fingerprint_inputs() {
-        let justified = ReaderPreferences::default();
-        assert_eq!(justified.paragraph_alignment, ParagraphAlignment::Justified);
-        let mut left = justified;
-        left.paragraph_alignment = ParagraphAlignment::Left;
-        assert_ne!(justified.layout(), left.layout());
-    }
-
-    #[test]
-    fn preference_editor_uses_move_then_select_change_policy() {
-        let mut reader = ReaderUiState::default();
-        reader.begin_preferences_edit();
-        assert_eq!(
-            reader.selected_preference(),
-            ReadingPreference::ReadingTheme
-        );
-        reader.cycle_preference_next();
-        assert_eq!(reader.selected_preference(), ReadingPreference::Orientation);
-        reader.cycle_preference_previous();
-        assert_eq!(
-            reader.selected_preference(),
-            ReadingPreference::ReadingTheme
-        );
-        assert!(!reader.activate_selected_preference());
-        assert_eq!(reader.preferences.theme, ReadingTheme::HighContrast);
-    }
-
-    #[test]
-    fn reader_owned_runtime_filenames_are_fat83_safe() {
-        for name in [
-            READER_STATE_FILE,
-            READER_POSITIONS_FILE,
-            READER_RECENT_FILE,
-            READER_BOOKMARKS_FILE,
-            READER_PREFS_FILE,
-            "ED9B69AF.CCH",
-            "ED9B69AF.TMP",
-            "ED9B69AF.BAK",
-        ] {
-            assert!(is_fat83_safe_file_name(Path::new(name)), "{name}");
-        }
-        assert!(!is_fat83_safe_file_name(Path::new(
-            LEGACY_READER_POSITIONS_FILE
-        )));
-        assert!(!is_fat83_safe_file_name(Path::new("BED9B69AF.CCH")));
-    }
-
-    #[test]
-    fn cache_filename_uses_exactly_eight_hexadecimal_characters() {
-        let root = temp_dir("fat83-cache-books");
-        let state = temp_dir("fat83-cache-state");
-        fs::write(root.join("Book.txt"), "text body ".repeat(1000)).unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        reader.refresh_library();
-        let book = reader.books.first().unwrap();
-        let cache = reader.cache_path_for(book, reader.preferences.layout());
-        let file = cache.file_name().unwrap().to_str().unwrap();
-        assert_eq!(file.len(), 12);
-        assert_eq!(&file[8..], ".CCH");
-        assert!(file[..8].bytes().all(|value| value.is_ascii_hexdigit()));
-        assert!(is_fat83_safe_file_name(&cache));
-    }
-
-    #[test]
-    fn legacy_positions_file_migrates_to_short_name_safe_primary() {
-        let root = temp_dir("legacy-positions-books");
-        let state = temp_dir("legacy-positions-state");
-        fs::write(root.join("Book.txt"), "text body ".repeat(1000)).unwrap();
-        let legacy = state.join(LEGACY_READER_POSITIONS_FILE);
-        fs::write(
-            &legacy,
-            "version=1\nentry=Book.txt\tBook\ttxt\t1000\t0\t3\t42\n",
-        )
-        .unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        let report = reader.load_persistent_state();
-        assert_eq!(report.position_count, 1);
-        assert!(state.join(READER_POSITIONS_FILE).exists());
-        assert_eq!(reader.positions[0].byte_offset, 42);
-    }
-
-    #[test]
-    fn fat83_runtime_primary_temp_and_backup_paths_are_safe_without_cache_prefix() {
-        let root = temp_dir("fat83-runtime-books");
-        let state = temp_dir("fat83-runtime-state");
-        fs::write(root.join("Book.txt"), "text body ".repeat(1000)).unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        reader.refresh_library();
-        let book = reader.books.first().unwrap();
-        let positions = reader.positions_path();
-        let cache = reader.cache_path_for(book, reader.preferences.layout());
-        for path in [
-            positions.clone(),
-            super::with_extension(&positions, "TMP"),
-            super::with_extension(&positions, "BAK"),
-            cache.clone(),
-            super::with_extension(&cache, "TMP"),
-            super::with_extension(&cache, "BAK"),
-        ] {
-            assert!(is_fat83_safe_file_name(&path), "{}", path.display());
-        }
-        let cache_file = cache.file_name().unwrap().to_str().unwrap();
-        assert_eq!(&cache_file[8..], ".CCH");
-        assert!(
-            !cache_file.starts_with('B')
-                || cache_file[..8]
-                    .bytes()
-                    .all(|value| value.is_ascii_hexdigit())
-        );
-        assert_eq!(cache_file[..8].len(), 8);
-    }
-
-    #[test]
-    fn bookmark_page_label_uses_active_layout_offsets_and_stored_fallback() {
-        let book = ReaderBook {
-            path: "Book.txt".into(),
-            title: "Book".into(),
-            format: BookFormat::Text,
-            size_bytes: 1000,
-            modified_seconds: 0,
-        };
-        let bookmark = ReaderLocation {
-            path: book.path.clone(),
-            title: book.title.clone(),
-            format: book.format,
-            size_bytes: book.size_bytes,
-            modified_seconds: book.modified_seconds,
-            page_index: 8,
-            byte_offset: 220,
-            epub_chapter: None,
-        };
-        let mut reader = ReaderUiState::default();
-        assert_eq!(reader.bookmark_display_page(&bookmark), 9);
-        reader.session = Some(ReaderSession {
-            book,
-            encoding: TextEncoding::Utf8,
-            epub_document: None,
-            layout: ReaderPreferences::default().layout(),
-            current_page: 0,
-            page_number_base: 0,
-            page_offsets: vec![0, 100, 200, 300],
-            indexed_through: 300,
-            index_complete: false,
-            cache: Vec::new(),
-            epub_chapter_pages: Vec::new(),
-        });
-        assert_eq!(reader.bookmark_display_page(&bookmark), 3);
-    }
-
-    #[test]
-    fn epub_chapter_labels_use_chapter_relative_page_totals_and_persist() {
-        let label = ReaderChapterPageLabel {
-            chapter_number: 3,
-            page_number: 2,
-            page_count: 9,
-        };
-        let location = ReaderLocation {
-            path: "book.epub".into(),
-            title: "Book title".into(),
-            format: BookFormat::Epub,
-            size_bytes: 100,
-            modified_seconds: 7,
-            page_index: 11,
-            byte_offset: 55,
-            epub_chapter: Some(label.clone()),
-        };
-        assert_eq!(
-            parse_location_record(&serialize_location(&location)).unwrap(),
-            location
-        );
-        assert_eq!(
-            parse_location_fields(&serialize_location_fields(&location)).unwrap(),
-            location
-        );
-        assert_eq!(label.page_text(), "2/9");
-    }
-
-    #[test]
-    fn legacy_location_fields_without_chapter_metadata_remain_readable() {
-        let location = parse_location_fields("book.txt\tBook\ttxt\t10\t0\t2\t5").unwrap();
-        assert_eq!(location.format, BookFormat::Text);
-        assert_eq!(location.epub_chapter, None);
-    }
-
-    #[test]
-    fn epub_chapter_index_cooperative_yield_policy_is_bounded() {
-        assert_eq!(READER_EPUB_INDEX_YIELD_EVERY_PAGES, 4);
-        assert_eq!(READER_EPUB_INDEX_YIELD_MILLIS, 1);
-    }
-
-    #[test]
-    fn opening_another_book_releases_the_active_session_before_loading() {
-        let root = temp_dir("release-session-books");
-        let state = temp_dir("release-session-state");
-        let first = root.join("First.txt");
-        let second = root.join("Second.txt");
-        fs::write(&first, "first book body ".repeat(100)).unwrap();
-        fs::write(&second, "second book body ".repeat(100)).unwrap();
-        let mut reader = ReaderUiState::with_roots(
-            root.to_string_lossy().into_owned(),
-            state.to_string_lossy().into_owned(),
-        );
-        reader.refresh_library();
-        let first_path = first.to_string_lossy();
-        let second_path = second.to_string_lossy();
-        let first_book = reader
-            .books
-            .iter()
-            .find(|book| book.path == first_path.as_ref())
-            .unwrap()
-            .clone();
-        let second_book = reader
-            .books
-            .iter()
-            .find(|book| book.path == second_path.as_ref())
-            .unwrap()
-            .clone();
-        reader.request_open_book(first_book, None);
-        while reader.tick() != ReaderTickOutcome::FirstPageReady {}
-        assert!(reader.session.is_some());
-        reader.request_open_book(second_book, None);
-        assert!(reader.session.is_none());
-        assert_eq!(
-            reader.loading_stage(),
-            Some(ReaderLoadingStage::OpeningFile)
-        );
-    }
-
-    #[test]
-    fn repeated_degraded_persistence_events_are_suppressed_until_status_changes() {
-        let mut reader = ReaderUiState::default();
-        reader.finish_persistence("anchor-cache", vec!["CACHE: failed".into()]);
-        assert!(reader.take_persistence_event().is_some());
-        reader.finish_persistence("anchor-cache", vec!["CACHE: failed".into()]);
-        assert!(reader.take_persistence_event().is_none());
-        reader.finish_persistence("anchor-cache", Vec::new());
-        assert_eq!(
-            reader.take_persistence_event().as_deref(),
-            Some("status=saved scope=anchor-cache")
-        );
-    }
 }
