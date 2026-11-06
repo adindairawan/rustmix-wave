@@ -463,13 +463,9 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
     })
 }
 
-fn parse_ao3_opf_metadata(
-    package: &str,
-    preface_source: &str,
-    word_count: usize,
-    chapter_count: usize,
-) -> EpubAo3Meta {
+fn parse_ao3_opf_metadata(package: &str, flattened_text: &str, chapter_count: usize) -> EpubAo3Meta {
     let mut meta = EpubAo3Meta::default();
+    let word_count = flattened_text.split_whitespace().count();
     if word_count > 0 {
         meta.words = word_count.to_string();
     }
@@ -479,17 +475,28 @@ fn parse_ao3_opf_metadata(
     if let Some(creator) = first_element_text(package, "creator").filter(|s| !s.trim().is_empty()) {
         meta.author = creator.trim().to_string();
     }
+    if let Some(lang) = first_element_text(package, "language").filter(|s| !s.trim().is_empty()) {
+        meta.language = if lang.trim().eq_ignore_ascii_case("en") {
+            "English".into()
+        } else {
+            lang.trim().to_string()
+        };
+    }
+    if let Some(date) = first_element_text(package, "date").filter(|s| !s.trim().is_empty()) {
+        meta.published = date.trim().chars().take(10).collect();
+    }
     if let Some(desc) = first_element_text(package, "description").filter(|s| !s.trim().is_empty()) {
-        meta.summary = desc.replace('\n', " ").trim().to_string();
+        let clean_desc: String = desc.replace('\n', " ");
+        meta.summary = clean_desc.trim().to_string();
     }
 
-    // Parse OPF <dc:subject> tags for Rating, Fandom, and Character fallbacks
-    let subjects = all_element_texts(package, "subject");
+    let subjects: Vec<String> = all_element_texts(package, "subject");
     let mut fandoms = Vec::new();
-    let mut chars = Vec::new();
+    let mut ships = Vec::new();
+    let mut freeform = Vec::new();
 
     for subj in subjects {
-        let lower = subj.to_ascii_lowercase();
+        let lower: String = subj.to_ascii_lowercase();
         if lower.contains("explicit")
             || lower.contains("mature")
             || lower.contains("teen and up")
@@ -497,22 +504,33 @@ fn parse_ao3_opf_metadata(
             || lower.contains("not rated")
         {
             meta.rating_text = subj;
-        } else if lower != "fanfiction"
-            && !lower.starts_with("ao3")
-            && !lower.contains("archive warning")
-            && !matches!(subj.as_str(), "Gen" | "F/F" | "F/M" | "M/M" | "Multi" | "Other")
-            && !subj.contains('/')
-            && !subj.contains(" & ")
+        } else if lower.contains("archive warning")
+            || lower.contains("depictions of violence")
+            || lower.contains("character death")
+            || lower.contains("underage")
+            || lower.contains("non-con")
         {
+            meta.warning_text = subj;
+        } else if matches!(subj.as_str(), "Gen" | "F/F" | "F/M" | "M/M" | "Multi" | "Other") {
+            meta.category_text = subj;
+        } else if subj.contains('/') || subj.contains(" & ") {
+            ships.push(subj);
+        } else if lower != "fanfiction" && !lower.starts_with("ao3") {
             if fandoms.is_empty() {
                 fandoms.push(subj);
-            } else if chars.len() < 6 {
-                chars.push(subj);
+            } else {
+                freeform.push(subj);
             }
         }
     }
     if !fandoms.is_empty() {
         meta.fandoms = fandoms.join(", ");
+    }
+    if !ships.is_empty() {
+        meta.relationships = ships.join(", ");
+    }
+    if !freeform.is_empty() {
+        meta.additional_tags = freeform.join(", ");
     }
     if !chars.is_empty() {
         meta.characters = chars.join(", ");
@@ -669,6 +687,36 @@ fn decode_entity(entity: &str) -> String {
             .map_or_else(|| "?".into(), |character| character.to_string()),
         _ => "?".into(),
     }
+}
+
+fn all_element_texts(xml: &str, local_name: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    let mut cursor = 0;
+    while cursor < xml.len() {
+        let Some(start_rel) = xml[cursor..].find('<') else { break };
+        let start = cursor + start_rel;
+        let Some(end_rel) = xml[start + 1..].find('>') else { break };
+        let end = start + 1 + end_rel;
+        let tag = &xml[start + 1..end];
+        let trimmed = tag.trim_start();
+        let name = trimmed
+            .split(|c: char| c.is_whitespace() || c == '/')
+            .next()
+            .unwrap_or("");
+        if !trimmed.starts_with('/') && name.rsplit(':').next() == Some(local_name) {
+            let close = format!("</{name}>");
+            if let Some(close_rel) = xml[end + 1..].find(&close) {
+                let text = html_to_text(&xml[end + 1..end + 1 + close_rel]);
+                if !text.trim().is_empty() {
+                    results.push(text.trim().to_string());
+                }
+                cursor = end + 1 + close_rel + close.len();
+                continue;
+            }
+        }
+        cursor = end + 1;
+    }
+    results
 }
 
 #[cfg(test)]
