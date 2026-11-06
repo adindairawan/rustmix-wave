@@ -692,7 +692,7 @@ fn render_ao3_continuous_scroll_page(
     let mut y: i32 = 18;
     let bottom_limit: i32 = 744;
 
-    for line in &visible_lines {
+    for line in visible_lines {
         if y >= bottom_limit {
             break;
         }
@@ -743,7 +743,7 @@ fn render_ao3_continuous_scroll_page(
                     .draw(display)?;
                 y += 14;
             }
-            Ao3ScrollLine::MetaValue(val, bold) => {
+            Ao3ScrollLine::MetaLabel(label, bold) => {
                 Rectangle::new(Point::new(12, y - 10), Size::new(2, 24))
                     .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                     .draw(display)?;
