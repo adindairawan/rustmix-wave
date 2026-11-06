@@ -74,6 +74,8 @@ pub const READER_EPUB_INDEX_YIELD_MILLIS: u64 = 1;
 pub const FANFIC_SCROLL_STEP: usize = 5;
 /// Approximate number of virtual lines visible in the portrait Fanfic viewport.
 pub const FANFIC_VIEWPORT_LINES: usize = 22;
+/// Maximum virtual scroll lines retained in RAM for continuous Fanfic scrolling (~120 KB max).
+pub const MAX_FANFIC_SCROLL_LINES: usize = 2500;
 
 const READER_PERSISTENCE_VERSION: &str = "1";
 const READER_CACHE_VERSION: &str = "3";
@@ -2305,17 +2307,14 @@ impl ReaderUiState {
     }
 }
 
-/// Word-wraps multi-paragraph story prose to full 480px screen width (52 chars/line for Inter)
-/// without splitting words mid-character.
+/// Word-wraps multi-paragraph story prose directly from `&str` without allocating
+/// 16-byte `(char, u64)` offset tuples.
 fn wrap_story_paragraphs(raw_text: &str, max_chars: usize) -> Vec<ReaderPageLine> {
-    let decoded = decode_with_offsets(raw_text.as_bytes(), TextEncoding::Utf8, 0);
-    let normalized: String = normalize_decoded(&decoded)
-        .into_iter()
-        .map(|(ch, _)| ch)
-        .collect();
-
     let mut out = Vec::new();
-    for raw_line in normalized.lines() {
+    for raw_line in raw_text.lines() {
+        if out.len() >= MAX_FANFIC_SCROLL_LINES {
+            break;
+        }
         let trimmed = raw_line.trim();
         if trimmed.is_empty() {
             if !out.last().is_some_and(|l: &ReaderPageLine| l.text.is_empty()) {
@@ -2326,13 +2325,42 @@ fn wrap_story_paragraphs(raw_text: &str, max_chars: usize) -> Vec<ReaderPageLine
             }
             continue;
         }
-        let wrapped = wrap_plain_str(trimmed, max_chars);
+        let cleaned = sanitize_ascii_line(trimmed);
+        let wrapped = wrap_plain_str(&cleaned, max_chars);
         let len = wrapped.len();
         for (idx, w_line) in wrapped.into_iter().enumerate() {
             out.push(ReaderPageLine {
                 text: w_line,
                 paragraph_end: idx + 1 == len,
             });
+            if out.len() >= MAX_FANFIC_SCROLL_LINES {
+                break;
+            }
+        }
+    }
+    out
+}
+
+/// Lightweight inline normalizer for smart quotes and dashes without Vec<(char, u64)> allocation.
+fn sanitize_ascii_line(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for ch in input.chars() {
+        match ch {
+            '\u{201C}' | '\u{201D}' | '\u{201E}' | '\u{00AB}' | '\u{00BB}' => out.push('"'),
+            '\u{2018}' | '\u{2019}' | '\u{201A}' => out.push('\''),
+            '\u{2014}' => out.push_str("--"),
+            '\u{2013}' => out.push('-'),
+            '\u{2026}' => out.push_str("..."),
+            '\u{00A0}' | '\t' => out.push(' '),
+            'é' | 'è' | 'ê' | 'ë' | 'É' | 'È' | 'Ê' | 'Ë' => out.push('e'),
+            'à' | 'á' | 'â' | 'ä' | 'À' | 'Á' | 'Â' | 'Ä' => out.push('a'),
+            'ç' | 'Ç' => out.push('c'),
+            'ï' | 'î' | 'í' | 'ì' | 'Ï' | 'Î' | 'Í' | 'Ì' => out.push('i'),
+            'ô' | 'ö' | 'ó' | 'ò' | 'Ô' | 'Ö' | 'Ó' | 'Ò' => out.push('o'),
+            'ù' | 'û' | 'ü' | 'ú' | 'Ù' | 'Û' | 'Ü' | 'Ú' => out.push('u'),
+            'ñ' | 'Ñ' => out.push('n'),
+            c if c.is_ascii_graphic() || c == ' ' => out.push(c),
+            _ => {}
         }
     }
     out
@@ -2467,7 +2495,7 @@ pub fn scan_txt_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, Strin
             .and_then(|value| value.to_str())
             .unwrap_or("Untitled book")
             .to_string();
-        let title = if format == BookFormat::Epub {
+        let title = if format == BookFormat::Epub && size_bytes <= 512 * 1024 {
             read_epub_title_on_worker(&path)
                 .ok()
                 .filter(|value| !value.trim().is_empty())
@@ -2491,18 +2519,13 @@ pub fn scan_txt_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, Strin
     Ok(books)
 }
 
-/// Scan the `/RUSTMIX/BOOKS/FANFIC` subfolder and enrich EPUB entries with AO3 OPF metadata.
+/// Scan the `/RUSTMIX/BOOKS/FANFIC` subfolder without double-loading multi-MB EPUBs during directory listing.
 pub fn scan_fanfic_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, String> {
     let mut works = scan_txt_library(root)?;
     for book in &mut works {
-        if book.format == BookFormat::Epub {
-            if let Ok((title, ao3)) = read_epub_ao3_on_worker(&book.path) {
-                if !title.trim().is_empty() {
-                    book.title = title;
-                }
-                book.ao3 = Some(ao3);
-            }
-        }
+        // Mark as a fanfic entry using lightweight default metadata during folder scan;
+        // full OPF + split_000 metadata is parsed on the 64KB worker when the work is opened.
+        book.ao3 = Some(EpubAo3Meta::default());
     }
     Ok(works)
 }
