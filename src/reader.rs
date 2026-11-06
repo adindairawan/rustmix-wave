@@ -2610,7 +2610,7 @@ pub fn scan_fanfic_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, St
     }
     works.sort_by(|left, right| left.title.to_lowercase().cmp(&right.title.to_lowercase()));
     Ok(works)
-
+}
 #[must_use]
 pub fn book_format_from_path(path: &Path) -> Option<BookFormat> {
     let extension = path.extension()?.to_str()?.to_ascii_lowercase();
