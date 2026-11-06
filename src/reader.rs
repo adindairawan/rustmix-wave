@@ -9,14 +9,13 @@ use std::{
     fs::{self, File},
     io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
-    time::{Duration, UNIX_EPOCH},
+    time::UNIX_EPOCH,
 };
 
 use crate::{
     buttons::ButtonEvent,
     epub::{
-        open_epub_on_worker, read_epub_ao3_on_worker, read_epub_title_on_worker, EpubAo3Meta,
-        EpubDocument, EpubTocEntry,
+        open_epub_on_worker, read_epub_title_on_worker, EpubAo3Meta, EpubDocument, EpubTocEntry,
     },
 };
 
@@ -820,6 +819,7 @@ pub struct ReaderSession {
     pub is_fanfic: bool,
     pub scroll_line: usize,
     pub ao3_scroll_lines: Vec<Ao3ScrollLine>,
+    pub current_chapter_idx: usize,
 }
 
 impl ReaderSession {
@@ -930,7 +930,7 @@ impl ReaderSession {
         let end = (start + viewport_height_lines).min(self.ao3_scroll_lines.len());
         &self.ao3_scroll_lines[start..end]
     }
-    
+
     #[must_use]
     pub fn epub_chapter_page_label_for_offset(
         &self,
@@ -1066,6 +1066,7 @@ impl ReaderSession {
             complete: self.index_complete,
         })
     }
+
     /// Builds `ao3_scroll_lines` for ONLY the active chapter (`self.current_chapter_idx`),
     /// keeping RAM usage under ~15 KB regardless of how many chapters the EPUB has.
     pub fn load_fanfic_chapter(&mut self, chapter_idx: usize, scroll_to_bottom: bool) {
@@ -2190,7 +2191,18 @@ impl ReaderUiState {
             let raw = fs::read_to_string(&book.path).unwrap_or_default();
             let story_lines = wrap_story_paragraphs(&raw, FANFIC_CHARS_PER_LINE);
             let meta = book.ao3.clone().unwrap_or_default();
-            build_ao3_scroll_stream(&book.title, &meta, &story_lines)
+            // A TXT work has no chapters: render it as chapter 1 of 1 so the
+            // header, meta box and closing notes all appear.
+            build_ao3_chapter_scroll_stream(
+                &book.title,
+                &meta,
+                "",
+                1,
+                1,
+                &story_lines,
+                true,
+                true,
+            )
         } else {
             Vec::new()
         };
@@ -2215,6 +2227,7 @@ impl ReaderUiState {
             is_fanfic,
             scroll_line,
             ao3_scroll_lines,
+            current_chapter_idx: 0,
         })
     }
 
@@ -2231,7 +2244,18 @@ impl ReaderUiState {
             .iter()
             .map(|chapter| chapter.text_offset)
             .collect();
-        let current_page = 0;
+        if page_offsets.is_empty() {
+            return Err("EPUB contains no readable chapters".into());
+        }
+
+        // Resume at the top of the chapter containing the saved byte offset.
+        let requested_offset = requested
+            .filter(|location| location.matches_book(book))
+            .map_or(0, |location| location.byte_offset.min(source_size));
+        let current_page = page_offsets
+            .partition_point(|anchor| *anchor <= requested_offset)
+            .saturating_sub(1);
+
         let offset = page_offsets[current_page];
         let page = read_epub_page(&document, layout, offset, current_page)?;
         let mut session_book = book.clone();
@@ -2239,17 +2263,9 @@ impl ReaderUiState {
             session_book.title = document.title.clone();
         }
         session_book.ao3 = Some(document.ao3.clone());
-
         let is_fanfic = session_book.path.contains("FANFIC") || book.ao3.is_some();
-        let ao3_scroll_lines = if is_fanfic {
-            let story_lines = wrap_story_paragraphs(&document.text, FANFIC_CHARS_PER_LINE);
-            build_ao3_scroll_stream(&session_book.title, &document.ao3, &story_lines)
-        } else {
-            Vec::new()
-        };
-        let scroll_line = 0;
 
-        Ok(ReaderSession {
+        let mut session = ReaderSession {
             book: session_book,
             encoding: TextEncoding::Utf8,
             epub_document: Some(document),
@@ -2262,9 +2278,14 @@ impl ReaderUiState {
             cache: vec![page],
             epub_chapter_pages,
             is_fanfic,
-            scroll_line,
-            ao3_scroll_lines,
-        })
+            scroll_line: 0,
+            ao3_scroll_lines: Vec::new(),
+            current_chapter_idx: current_page,
+        };
+        if is_fanfic {
+            session.load_fanfic_chapter(current_page, false);
+        }
+        Ok(session)
     }
 
     fn persist_current_session_best_effort(&mut self) {
