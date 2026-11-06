@@ -918,6 +918,18 @@ impl ReaderSession {
     }
 
     #[must_use]
+    pub fn total_fanfic_virtual_lines(&self) -> usize {
+        self.ao3_scroll_lines.len()
+    }
+
+    #[must_use]
+    pub fn visible_fanfic_lines(&self, viewport_height_lines: usize) -> &[Ao3ScrollLine] {
+        let start = self.scroll_line.min(self.ao3_scroll_lines.len());
+        let end = (start + viewport_height_lines).min(self.ao3_scroll_lines.len());
+        &self.ao3_scroll_lines[start..end]
+    }
+    
+    #[must_use]
     pub fn epub_chapter_page_label_for_offset(
         &self,
         offset: u64,
