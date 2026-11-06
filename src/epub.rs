@@ -3,44 +3,74 @@
 // rustmix-wave=epub-parser-stack-isolation-ready
 // rustmix-wave=epub-chapter-aware-presentation-ready
 // rustmix-wave=epub-watchdog-memory-pressure-repair-ready
-//! Bounded reflowable EPUB reader foundation.
-//!
-//! The embedded target keeps EPUB processing deliberately small and explicit:
-//! ZIP central-directory parsing is bounded, `META-INF/container.xml` selects
-//! one OPF package, the manifest and spine are parsed without a general XML DOM,
-//! XHTML is flattened into reflowable UTF-8 text, and EPUB3 navigation or EPUB2
-//! NCX records become a compact table of contents. Images, CSS layout and
-//! interactive links remain deferred.
+//! Bounded reflowable EPUB reader foundation[cite: 15].
 
 use std::{collections::BTreeMap, fs, path::Path};
 
 use miniz_oxide::inflate::decompress_to_vec;
 
-/// Maximum EPUB archive bytes accepted from removable storage.
+/// Maximum EPUB archive bytes accepted from removable storage[cite: 15].
 pub const EPUB_ARCHIVE_BYTES_LIMIT: usize = 16 * 1024 * 1024;
-/// Maximum central-directory records accepted from one EPUB.
+/// Maximum central-directory records accepted from one EPUB[cite: 15].
 pub const EPUB_ARCHIVE_ENTRY_LIMIT: usize = 512;
-/// Maximum compressed bytes extracted for one EPUB member.
+/// Maximum compressed bytes extracted for one EPUB member[cite: 15].
 pub const EPUB_MEMBER_COMPRESSED_LIMIT: usize = 2 * 1024 * 1024;
-/// Maximum decompressed bytes extracted for one EPUB member.
+/// Maximum decompressed bytes extracted for one EPUB member[cite: 15].
 pub const EPUB_MEMBER_UNCOMPRESSED_LIMIT: usize = 4 * 1024 * 1024;
-/// Maximum flattened reflowable text retained in RAM for one EPUB.
+/// Maximum flattened reflowable text retained in RAM for one EPUB[cite: 15].
 pub const EPUB_REFLOW_TEXT_LIMIT: usize = 2 * 1024 * 1024;
-/// Maximum manifest records retained from one OPF package.
+/// Maximum manifest records retained from one OPF package[cite: 15].
 pub const EPUB_MANIFEST_LIMIT: usize = 256;
-/// Maximum spine records retained from one OPF package.
+/// Maximum spine records retained from one OPF package[cite: 15].
 pub const EPUB_SPINE_LIMIT: usize = 128;
-/// Maximum TOC records rendered by the Reader UI.
+/// Maximum TOC records rendered by the Reader UI[cite: 15].
 pub const EPUB_TOC_LIMIT: usize = 128;
-/// Dedicated parser-worker stack budget. Real EPUB DEFLATE and XHTML work
-/// must not run on the 16 KB firmware main task.
+/// Dedicated parser-worker stack budget[cite: 15].
 pub const EPUB_PARSER_WORKER_STACK_BYTES: usize = 64 * 1024;
-/// Lightweight OPF-title worker stack budget. Library scans only read bounded
-/// ZIP metadata and must not reserve the full parser stack for each title.
+/// Lightweight OPF-title worker stack budget[cite: 15].
 pub const EPUB_TITLE_WORKER_STACK_BYTES: usize = 32 * 1024;
 
-/// One reflowable EPUB TOC destination. `text_offset` is an offset into the
-/// flattened UTF-8 text buffer retained by [`EpubDocument`].
+/// AO3 work metadata for the mobile AO3 Meta Box & Preface layout.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpubAo3Meta {
+    pub author: String,
+    pub rating_text: String,
+    pub warning_text: String,
+    pub category_text: String,
+    pub fandoms: String,
+    pub relationships: String,
+    pub characters: String,
+    pub additional_tags: String,
+    pub language: String,
+    pub published: String,
+    pub words: String,
+    pub chapters: String,
+    pub summary: String,
+    pub notes: String,
+}
+
+impl Default for EpubAo3Meta {
+    fn default() -> Self {
+        Self {
+            author: "Anonymous".into(),
+            rating_text: "Not Rated".into(),
+            warning_text: "No Archive Warnings Apply".into(),
+            category_text: "Gen".into(),
+            fandoms: "Original Work".into(),
+            relationships: "None".into(),
+            characters: "Original Characters".into(),
+            additional_tags: "AO3, Fanfiction".into(),
+            language: "English".into(),
+            published: "2025-01-01".into(),
+            words: "0".into(),
+            chapters: "1/1".into(),
+            summary: String::new(),
+            notes: String::new(),
+        }
+    }
+}
+
+/// One reflowable EPUB TOC destination[cite: 15].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EpubTocEntry {
     pub label: String,
@@ -48,10 +78,9 @@ pub struct EpubTocEntry {
     pub spine_index: usize,
 }
 
-/// One readable spine chapter retained alongside flattened EPUB text.
+/// One readable spine chapter retained alongside flattened EPUB text[cite: 15].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EpubChapter {
-    /// Sequential readable chapter number exposed by the Reader UI.
     pub number: usize,
     pub label: String,
     pub text_offset: u64,
@@ -59,37 +88,7 @@ pub struct EpubChapter {
     pub spine_index: usize,
 }
 
-/// AO3 metadata extracted from OPF `<dc:creator>`, `<dc:description>`, and `<dc:subject>` tags.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EpubAo3Meta {
-    pub author: String,
-    pub fandom: String,
-    pub rating: char,   // 'G', 'T', 'M', 'E'
-    pub category: char, // '/', 'F', 'O', '+'
-    pub warning: char,  // '!', '?', '-'
-    pub status: char,   // '=', '?'
-    pub tags: Vec<String>,
-    pub summary: String,
-    pub words: String,
-}
-
-impl Default for EpubAo3Meta {
-    fn default() -> Self {
-        Self {
-            author: "Anonymous".into(),
-            fandom: "Archive of Our Own".into(),
-            rating: 'T',
-            category: '/',
-            warning: '-',
-            status: '=',
-            tags: Vec::new(),
-            summary: String::new(),
-            words: String::new(),
-        }
-    }
-}
-
-/// One bounded, reflowable EPUB book retained while the Reader session is open.
+/// One bounded, reflowable EPUB book retained while the Reader session is open[cite: 15].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EpubDocument {
     pub title: String,
@@ -106,7 +105,6 @@ impl EpubDocument {
         self.text.len() as u64
     }
 
-    /// Resolve the readable chapter containing one flattened UTF-8 byte offset.
     #[must_use]
     pub fn chapter_for_offset(&self, offset: u64) -> Option<&EpubChapter> {
         self.chapters.iter().find(|chapter| {
@@ -278,10 +276,6 @@ struct ManifestItem {
     properties: String,
 }
 
-/// Parse one EPUB on a short-lived dedicated worker stack. The Reader keeps
-/// its existing synchronous staged-loading contract, while archive parsing,
-/// DEFLATE expansion and XHTML flattening no longer consume the firmware main
-/// task's 16 KB stack budget.
 pub fn open_epub_on_worker(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
     let path = path.as_ref().to_path_buf();
     log::info!(
@@ -314,9 +308,6 @@ pub fn open_epub_on_worker(path: impl AsRef<Path>) -> Result<EpubDocument, Strin
     result
 }
 
-/// Read only the OPF title on a lightweight bounded worker stack. Library scans
-/// remain safe on the firmware main task and fall back to the FAT filename when
-/// metadata cannot be read.
 pub fn read_epub_title_on_worker(path: impl AsRef<Path>) -> Result<String, String> {
     let path = path.as_ref().to_path_buf();
     let worker = std::thread::Builder::new()
@@ -329,7 +320,24 @@ pub fn read_epub_title_on_worker(path: impl AsRef<Path>) -> Result<String, Strin
         .map_err(|_| "EPUB title worker panicked".to_string())?
 }
 
-/// Read one OPF metadata title without flattening the spine.
+pub fn read_epub_ao3_on_worker(path: impl AsRef<Path>) -> Result<(String, EpubAo3Meta), String> {
+    let path = path.as_ref().to_path_buf();
+    let worker = std::thread::Builder::new()
+        .name("epub-ao3".into())
+        .stack_size(EPUB_TITLE_WORKER_STACK_BYTES)
+        .spawn(move || {
+            let archive = ZipArchive::open(path)?;
+            let (_, package, _) = epub_package(&archive)?;
+            let title = package_title(&package);
+            let ao3 = parse_ao3_opf_metadata(&package, "", 1);
+            Ok((title, ao3))
+        })
+        .map_err(|error| format!("EPUB AO3 worker start failed: {error}"))?;
+    worker
+        .join()
+        .map_err(|_| "EPUB AO3 worker panicked".to_string())?
+}
+
 #[inline(never)]
 pub fn read_epub_title(path: impl AsRef<Path>) -> Result<String, String> {
     let archive = ZipArchive::open(path)?;
@@ -354,109 +362,6 @@ fn package_title(package: &str) -> String {
         .unwrap_or_else(|| "Untitled EPUB".into())
 }
 
-/// Lightweight worker to read both title and AO3 OPF metadata during Library scans.
-pub fn read_epub_ao3_on_worker(path: impl AsRef<Path>) -> Result<(String, EpubAo3Meta), String> {
-    let path = path.as_ref().to_path_buf();
-    let worker = std::thread::Builder::new()
-        .name("epub-ao3".into())
-        .stack_size(EPUB_TITLE_WORKER_STACK_BYTES)
-        .spawn(move || {
-            let archive = ZipArchive::open(path)?;
-            let (_, package, _) = epub_package(&archive)?;
-            let title = package_title(&package);
-            let ao3 = parse_ao3_opf_metadata(&package, 0);
-            Ok((title, ao3))
-        })
-        .map_err(|error| format!("EPUB AO3 worker start failed: {error}"))?;
-    worker
-        .join()
-        .map_err(|_| "EPUB AO3 worker panicked".to_string())?
-}
-
-fn all_element_texts(xml: &str, local_name: &str) -> Vec<String> {
-    let mut results = Vec::new();
-    let mut cursor = 0;
-    while cursor < xml.len() {
-        let Some(start_rel) = xml[cursor..].find('<') else { break };
-        let start = cursor + start_rel;
-        let Some(end_rel) = xml[start + 1..].find('>') else { break };
-        let end = start + 1 + end_rel;
-        let tag = &xml[start + 1..end];
-        let trimmed = tag.trim_start();
-        let name = trimmed
-            .split(|c: char| c.is_whitespace() || c == '/')
-            .next()
-            .unwrap_or("");
-        if !trimmed.starts_with('/') && name.rsplit(':').next() == Some(local_name) {
-            let close = format!("</{name}>");
-            if let Some(close_rel) = xml[end + 1..].find(&close) {
-                let text = html_to_text(&xml[end + 1..end + 1 + close_rel]);
-                if !text.trim().is_empty() {
-                    results.push(text.trim().to_string());
-                }
-                cursor = end + 1 + close_rel + close.len();
-                continue;
-            }
-        }
-        cursor = end + 1;
-    }
-    results
-}
-
-fn parse_ao3_opf_metadata(package: &str, word_count: usize) -> EpubAo3Meta {
-    let mut meta = EpubAo3Meta::default();
-    if let Some(creator) = first_element_text(package, "creator").filter(|s| !s.trim().is_empty()) {
-        meta.author = creator.trim().to_string();
-    }
-    if let Some(desc) = first_element_text(package, "description").filter(|s| !s.trim().is_empty()) {
-        meta.summary = desc.replace('\n', " ").trim().to_string();
-    }
-    let subjects = all_element_texts(package, "subject");
-    let mut custom_tags = Vec::new();
-    for subj in subjects {
-        let lower = subj.to_ascii_lowercase();
-        if lower.contains("explicit") {
-            meta.rating = 'E';
-        } else if lower.contains("mature") {
-            meta.rating = 'M';
-        } else if lower.contains("teen") {
-            meta.rating = 'T';
-        } else if lower.contains("general audiences") {
-            meta.rating = 'G';
-        } else if subj == "M/M" || subj == "F/F" {
-            meta.category = '/';
-        } else if subj == "F/M" || subj == "M/F" {
-            meta.category = 'F';
-        } else if subj == "Gen" {
-            meta.category = 'O';
-        } else if subj == "Multi" {
-            meta.category = '+';
-        } else if lower.contains("no archive warnings apply") {
-            meta.warning = '-';
-        } else if lower.contains("chose not to use archive warnings") {
-            meta.warning = '?';
-        } else if lower.contains("warning") || lower.contains("violence") || lower.contains("death") {
-            meta.warning = '!';
-        } else if lower != "fanfiction" && !lower.starts_with("ao3") {
-            if meta.fandom == "Archive of Our Own" {
-                meta.fandom = subj;
-            } else if custom_tags.len() < 6 {
-                custom_tags.push(subj);
-            }
-        }
-    }
-    if custom_tags.is_empty() {
-        custom_tags.push("AO3 Work".into());
-        custom_tags.push("Fanfiction".into());
-    }
-    meta.tags = custom_tags;
-    if word_count > 0 {
-        meta.words = word_count.to_string();
-    }
-    meta
-}
-
-/// Open one EPUB archive and produce a bounded reflowable document.
 #[inline(never)]
 pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
     let archive = ZipArchive::open(path)?;
@@ -510,6 +415,8 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
         return Err("EPUB spine did not contain readable text".into());
     }
 
+    let ao3 = parse_ao3_opf_metadata(&package, &text, chapters.len());
+
     let mut toc = parse_navigation_toc(
         &archive,
         &package,
@@ -530,7 +437,6 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
     }
     dedupe_toc(&mut toc);
     toc.truncate(EPUB_TOC_LIMIT);
-    let ao3 = parse_ao3_opf_metadata(&package, text.split_whitespace().count());
     Ok(EpubDocument {
         title,
         ao3,
@@ -846,9 +752,6 @@ fn attribute(tag: &str, key: &str) -> Option<String> {
     let bytes = tag.as_bytes();
     let mut cursor = 0;
 
-    // Skip the opening element name before scanning attribute tokens. Without
-    // this boundary, `<rootfile full-path='...'>` consumes `full-path` while
-    // recovering from the non-attribute `rootfile` token.
     while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
         cursor += 1;
     }
@@ -946,7 +849,136 @@ fn first_element_text(xml: &str, local_name: &str) -> Option<String> {
     None
 }
 
-/// Convert XHTML into bounded, paragraph-aware reflowable UTF-8 text.
+fn all_element_texts(xml: &str, local_name: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    let mut cursor = 0;
+    while cursor < xml.len() {
+        let Some(start_rel) = xml[cursor..].find('<') else { break };
+        let start = cursor + start_rel;
+        let Some(end_rel) = xml[start + 1..].find('>') else { break };
+        let end = start + 1 + end_rel;
+        let tag = &xml[start + 1..end];
+        let trimmed = tag.trim_start();
+        let name = trimmed
+            .split(|c: char| c.is_whitespace() || c == '/')
+            .next()
+            .unwrap_or("");
+        if !trimmed.starts_with('/') && name.rsplit(':').next() == Some(local_name) {
+            let close = format!("</{name}>");
+            if let Some(close_rel) = xml[end + 1..].find(&close) {
+                let text = html_to_text(&xml[end + 1..end + 1 + close_rel]);
+                if !text.trim().is_empty() {
+                    results.push(text.trim().to_string());
+                }
+                cursor = end + 1 + close_rel + close.len();
+                continue;
+            }
+        }
+        cursor = end + 1;
+    }
+    results
+}
+
+fn parse_ao3_opf_metadata(package: &str, flattened_text: &str, chapter_count: usize) -> EpubAo3Meta {
+    let mut meta = EpubAo3Meta::default();
+    let word_count = flattened_text.split_whitespace().count();
+    if word_count > 0 {
+        meta.words = word_count.to_string();
+    }
+    let ch_total = chapter_count.max(1);
+    meta.chapters = format!("{ch_total}/{ch_total}");
+
+    if let Some(creator) = first_element_text(package, "creator").filter(|s| !s.trim().is_empty()) {
+        meta.author = creator.trim().to_string();
+    }
+    if let Some(lang) = first_element_text(package, "language").filter(|s| !s.trim().is_empty()) {
+        meta.language = if lang.trim().eq_ignore_ascii_case("en") {
+            "English".into()
+        } else {
+            lang.trim().to_string()
+        };
+    }
+    if let Some(date) = first_element_text(package, "date").filter(|s| !s.trim().is_empty()) {
+        meta.published = date.trim().chars().take(10).collect();
+    }
+    if let Some(desc) = first_element_text(package, "description").filter(|s| !s.trim().is_empty()) {
+        meta.summary = desc.replace('\n', " ").trim().to_string();
+    }
+
+    let subjects = all_element_texts(package, "subject");
+    let mut fandoms = Vec::new();
+    let mut ships = Vec::new();
+    let mut freeform = Vec::new();
+
+    for subj in subjects {
+        let lower = subj.to_ascii_lowercase();
+        if lower.contains("explicit")
+            || lower.contains("mature")
+            || lower.contains("teen and up")
+            || lower.contains("general audiences")
+            || lower.contains("not rated")
+        {
+            meta.rating_text = subj;
+        } else if lower.contains("archive warning")
+            || lower.contains("depictions of violence")
+            || lower.contains("character death")
+            || lower.contains("underage")
+            || lower.contains("non-con")
+        {
+            meta.warning_text = subj;
+        } else if matches!(subj.as_str(), "Gen" | "F/F" | "F/M" | "M/M" | "Multi" | "Other") {
+            meta.category_text = subj;
+        } else if subj.contains('/') || subj.contains(" & ") {
+            ships.push(subj);
+        } else if lower != "fanfiction" && !lower.starts_with("ao3") {
+            if fandoms.is_empty() {
+                fandoms.push(subj);
+            } else {
+                freeform.push(subj);
+            }
+        }
+    }
+    if !fandoms.is_empty() {
+        meta.fandoms = fandoms.join(", ");
+    }
+    if !ships.is_empty() {
+        meta.relationships = ships.join(", ");
+    }
+    if !freeform.is_empty() {
+        meta.additional_tags = freeform.join(", ");
+    }
+
+    let preface: String = flattened_text.chars().take(2500).collect();
+    let lines: Vec<&str> = preface.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    for (i, line) in lines.iter().enumerate() {
+        let next = lines.get(i + 1).copied().unwrap_or("");
+        if let Some(v) = line.strip_prefix("Rating:") {
+            meta.rating_text = if v.trim().is_empty() { next.into() } else { v.trim().into() };
+        } else if let Some(v) = line.strip_prefix("Archive Warning:") {
+            meta.warning_text = if v.trim().is_empty() { next.into() } else { v.trim().into() };
+        } else if let Some(v) = line.strip_prefix("Category:") {
+            meta.category_text = if v.trim().is_empty() { next.into() } else { v.trim().into() };
+        } else if let Some(v) = line.strip_prefix("Fandom:").or_else(|| line.strip_prefix("Fandoms:")) {
+            meta.fandoms = if v.trim().is_empty() { next.into() } else { v.trim().into() };
+        } else if let Some(v) = line.strip_prefix("Relationship:").or_else(|| line.strip_prefix("Relationships:")) {
+            meta.relationships = if v.trim().is_empty() { next.into() } else { v.trim().into() };
+        } else if let Some(v) = line.strip_prefix("Character:").or_else(|| line.strip_prefix("Characters:")) {
+            meta.characters = if v.trim().is_empty() { next.into() } else { v.trim().into() };
+        } else if let Some(v) = line.strip_prefix("Additional Tags:") {
+            meta.additional_tags = if v.trim().is_empty() { next.into() } else { v.trim().into() };
+        } else if *line == "Summary" || *line == "Summary:" {
+            if !next.is_empty() {
+                meta.summary = next.into();
+            }
+        } else if *line == "Notes" || *line == "Notes:" {
+            if !next.is_empty() {
+                meta.notes = next.into();
+            }
+        }
+    }
+    meta
+}
+
 pub fn html_to_text(html: &str) -> String {
     let mut output = String::new();
     let mut cursor = 0;
