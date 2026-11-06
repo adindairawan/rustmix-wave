@@ -743,18 +743,20 @@ fn render_ao3_continuous_scroll_page(
                     .draw(display)?;
                 y += 14;
             }
-            Ao3ScrollLine::MetaLabel(label, bold) => {
+            Ao3ScrollLine::MetaValue(val, bold) => {
                 Rectangle::new(Point::new(12, y - 10), Size::new(2, 24))
                     .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                     .draw(display)?;
                 Rectangle::new(Point::new(464, y - 10), Size::new(2, 24))
                     .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                     .draw(display)?;
-                Text::new(label, Point::new(24, y), detail).draw(display)?;
+                Text::new(&val, Point::new(36, y), lucida_sm).draw(display)?;
                 if *bold {
-                    Text::new(label, Point::new(25, y), detail).draw(display)?;
+                    Text::new(&val, Point::new(37, y), lucida_sm).draw(display)?;
                 }
-                y += 20;
+                let w = lucida_sm.text_width(&val).max(20);
+                draw_dotted_underline(display, 36, y + 3, w)?;
+                y += 24;
             }
             Ao3ScrollLine::MetaValue(val, bold) => {
                 Rectangle::new(Point::new(12, y - 10), Size::new(2, 24))
@@ -817,14 +819,14 @@ fn render_ao3_continuous_scroll_page(
                 y += i32::from(lucida_body.line_height()) + 2;
             }
             Ao3ScrollLine::ChapterHeading(ch) => {
-                let w = georgia_lg.text_width(ch);
+                let w = georgia_lg.text_width(&ch);
                 let cx = ((480 - w) / 2).max(24);
-                Text::new(ch, Point::new(cx, y + 6), georgia_lg).draw(display)?;
+                Text::new(&ch, Point::new(cx, y + 6), georgia_lg).draw(display)?;
                 y += 32;
             }
             Ao3ScrollLine::BodyProse { text, .. } => {
                 let bounds = TextBounds::new(14, y - 20, 466, bottom_limit);
-                Text::new(text, Point::new(14, y + 2), lucida_body)
+                Text::new(&text, Point::new(14, y + 2), lucida_body)
                     .draw_clipped(display, bounds)?;
                 y += i32::from(lucida_body.line_height()) + 2;
             }
