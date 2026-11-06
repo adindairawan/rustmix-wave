@@ -689,12 +689,13 @@ fn render_ao3_continuous_scroll_page(
     let detail = state.display.detail_style();
     let inv_detail = state.display.text_style(UiTextRole::Detail, BinaryColor::Off);
 
-    let total_lines = session.ao3_scroll_lines.len().max(1);
+    let total_lines = session.total_fanfic_virtual_lines().max(1);
     let start = session.scroll_line.min(total_lines.saturating_sub(1));
+    let visible_lines = session.visible_fanfic_lines(28);
     let mut y: i32 = 18;
     let bottom_limit: i32 = 744;
 
-    for line in session.ao3_scroll_lines.iter().skip(start) {
+    for line in &visible_lines {
         if y >= bottom_limit {
             break;
         }
