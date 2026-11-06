@@ -2479,7 +2479,7 @@ fn build_ao3_header_stream(title: &str, meta: &EpubAo3Meta) -> Vec<Ao3ScrollLine
         });
     }
     s.push(Blank);
-}
+
 
 fn wrap_plain_str(input: &str, max_chars: usize) -> Vec<String> {
     let mut out = Vec::new();
