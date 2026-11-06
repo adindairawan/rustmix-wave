@@ -655,16 +655,39 @@ pub fn read_epub_ao3_on_worker(path: impl AsRef<Path>) -> Result<(String, EpubAo
 }
 
 /// Detect whether spine item 0 is AO3's auto-generated preface page (`*_split_000.xhtml`).
-fn is_ao3_preface_spine(member: &str, chapter_text: &str, total_spine_items: usize) -> bool {
-    if total_spine_items <= 1 {
+/// Detect whether an initial AO3 spine item (`split_000.xhtml` or `split_001.xhtml`)
+/// is part of AO3's auto-generated Preface (tags table or Title/Byline/Summary page)
+/// so we extract metadata from it without repeating it inside Chapter 1.
+fn is_ao3_preface_spine(
+    spine_index: usize,
+    member: &str,
+    chapter_text: &str,
+    total_spine_items: usize,
+) -> bool {
+    if total_spine_items <= 1 || spine_index > 1 {
         return false;
     }
     let lower_member = member.to_ascii_lowercase();
-    if lower_member.ends_with("split_000.xhtml") || lower_member.ends_with("split_000.html") {
+    // Spine 0: AO3 metadata table (split_000.xhtml)
+    if spine_index == 0
+        && (lower_member.ends_with("split_000.xhtml")
+            || lower_member.ends_with("split_000.html")
+            || ((chapter_text.contains("Archive Warning:") || chapter_text.contains("Rating:"))
+                && (chapter_text.contains("Fandom:") || chapter_text.contains("Fandoms:"))))
+    {
         return true;
     }
-    (chapter_text.contains("Archive Warning:") || chapter_text.contains("Rating:"))
-        && (chapter_text.contains("Fandom:") || chapter_text.contains("Fandoms:"))
+    // Spine 1: AO3 title/summary/notes preface sheet (split_001.xhtml) when short (< 2500 chars)
+    if spine_index == 1
+        && chapter_text.len() < 2500
+        && (lower_member.ends_with("split_001.xhtml")
+            || lower_member.ends_with("split_001.html")
+            || chapter_text.contains("Summary")
+            || chapter_text.contains("\nby "))
+    {
+        return true;
+    }
+    false
 }
 
 #[inline(never)]
@@ -681,7 +704,7 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
 
     let mut preface_text = String::new();
     let mut text = String::new();
-    let mut chapter_offsets: BTreeMap<String, (usize, u64)> = BTreeMap::new();
+    let mut chapter_offsets = BTreeMap::new();
     let mut chapter_labels = Vec::new();
     let mut chapters = Vec::new();
 
@@ -696,11 +719,17 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
             continue;
         }
 
-        // AO3 preface page: harvest metadata, keep it out of the readable text.
-        if spine_index == 0 && is_ao3_preface_spine(&member, &chapter, spine_ids.len()) {
-            preface_text = chapter;
+        // Route AO3 preface spine items (split_000 and split_001) into preface_text only!
+        if is_ao3_preface_spine(spine_index, &member, &chapter, spine_ids.len()) {
+            if !preface_text.is_empty() {
+                preface_text.push_str("\n\n");
+            }
+            preface_text.push_str(chapter.trim());
             continue;
         }
+
+        // Also strip duplicate leading Chapter Title header if the chapter starts with it
+        let cleaned_chapter = strip_leading_duplicate_preface(&chapter, &title);
 
         if !text.is_empty() {
             text.push_str("\n\n");
@@ -709,7 +738,7 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
         let label = fallback_chapter_label(&xhtml, chapters.len());
         chapter_offsets.insert(member.clone(), (spine_index, offset));
         chapter_labels.push((spine_index, offset, label.clone()));
-        text.push_str(chapter.trim());
+        text.push_str(cleaned_chapter.trim());
         let text_end_offset = text.len() as u64;
         chapters.push(EpubChapter {
             number: chapters.len() + 1,
@@ -765,6 +794,22 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
         chapters,
         spine_count: spine_ids.len(),
     })
+}
+
+/// Removes repeated title/author/chapter-notes lines at the top of the first story chapter.
+fn strip_leading_duplicate_preface<'a>(chapter: &'a str, title: &str) -> &'a str {
+    let mut rest = chapter.trim();
+    if let Some(after_title) = rest.strip_prefix(title) {
+        rest = after_title.trim_start();
+    }
+    if let Some(notes_end) = rest.find("(See the end of the chapter for notes.)") {
+        rest = rest[notes_end + "(See the end of the chapter for notes.)".len()..].trim_start();
+    } else if let Some(notes_end) = rest.find("(See the end of the work for") {
+        if let Some(close_paren) = rest[notes_end..].find(')') {
+            rest = rest[notes_end + close_paren + 1..].trim_start();
+        }
+    }
+    rest
 }
 
 // ---------------------------------------------------------------------------
