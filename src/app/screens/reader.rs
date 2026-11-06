@@ -40,19 +40,23 @@ pub fn render_continue_reading(
     let heading = state.display.heading_style();
     let body = state.display.body_style();
     if let Some(session) = state.reader.session.as_ref() {
+        // 3. Only Rating, Fandom, and Character inside the Library Blurb Card
         Text::new(
-            &truncate(&session.book.title, 38),
-            Point::new(24, 190),
-            heading,
+            &truncate(&format!("Rating: {}", meta.rating_text), 44),
+            Point::new(24, top + 90),
+            lucida_body,
         )
         .draw(display)?;
         Text::new(
-            &format!(
-                "Runtime page {} is ready.",
-                session.current_absolute_page() + 1
-            ),
-            Point::new(24, 240),
-            body,
+            &truncate(&format!("Fandom: {}", meta.fandoms), 44),
+            Point::new(24, top + 114),
+            lucida_body,
+        )
+        .draw(display)?;
+        Text::new(
+            &truncate(&format!("Character: {}", meta.characters), 44),
+            Point::new(24, top + 138),
+            lucida_body,
         )
         .draw(display)?;
         Text::new("SELECT resumes the open page.", Point::new(24, 284), body).draw(display)?;
@@ -805,14 +809,16 @@ fn render_ao3_continuous_scroll_page(
                 y += 30;
             }
             Ao3ScrollLine::SectionHeader(hdr) => {
-                Text::new(hdr, Point::new(24, y + 6), georgia_lg).draw(display)?;
-                Rectangle::new(Point::new(24, y + 12), Size::new(432, 1))
+                Text::new(hdr, Point::new(14, y + 6), georgia_lg).draw(display)?;
+                Rectangle::new(Point::new(14, y + 12), Size::new(452, 1))
                     .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                     .draw(display)?;
                 y += 30;
             }
             Ao3ScrollLine::IndentedProse(text) => {
-                Text::new(text, Point::new(36, y + 2), lucida_body).draw(display)?;
+                let bounds = TextBounds::new(14, y - 20, 466, bottom_limit);
+                Text::new(text, Point::new(14, y + 2), lucida_body)
+                    .draw_clipped(display, bounds)?;
                 y += i32::from(lucida_body.line_height()) + 2;
             }
             Ao3ScrollLine::ChapterHeading(ch) => {
@@ -822,8 +828,8 @@ fn render_ao3_continuous_scroll_page(
                 y += 32;
             }
             Ao3ScrollLine::BodyProse { text, .. } => {
-                let bounds = TextBounds::new(24, y - 20, 456, bottom_limit);
-                Text::new(text, Point::new(24, y + 2), lucida_body)
+                let bounds = TextBounds::new(14, y - 20, 466, bottom_limit);
+                Text::new(text, Point::new(14, y + 2), lucida_body)
                     .draw_clipped(display, bounds)?;
                 y += i32::from(lucida_body.line_height()) + 2;
             }
