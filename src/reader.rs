@@ -1066,6 +1066,49 @@ impl ReaderSession {
             complete: self.index_complete,
         })
     }
+    /// Builds `ao3_scroll_lines` for ONLY the active chapter (`self.current_chapter_idx`),
+    /// keeping RAM usage under ~15 KB regardless of how many chapters the EPUB has.
+    pub fn load_fanfic_chapter(&mut self, chapter_idx: usize, scroll_to_bottom: bool) {
+        let Some(doc) = self.epub_document.as_ref() else {
+            return;
+        };
+        if doc.chapters.is_empty() {
+            return;
+        }
+        let idx = chapter_idx.min(doc.chapters.len() - 1);
+        self.current_chapter_idx = idx;
+
+        let ch = &doc.chapters[idx];
+        let start = (ch.text_offset as usize).min(doc.text.len());
+        let end = (ch.text_end_offset as usize).min(doc.text.len()).max(start);
+        let chapter_slice = &doc.text[start..end];
+
+        let story_lines = wrap_story_paragraphs(chapter_slice, FANFIC_CHARS_PER_LINE);
+        let is_first_chapter = idx == 0;
+        let is_last_chapter = idx + 1 == doc.chapters.len();
+
+        self.ao3_scroll_lines = build_ao3_chapter_scroll_stream(
+            &self.book.title,
+            &doc.ao3,
+            &ch.label,
+            ch.number,
+            doc.chapters.len(),
+            &story_lines,
+            is_first_chapter,
+            is_last_chapter,
+        );
+
+        if scroll_to_bottom {
+            self.scroll_line = self
+                .ao3_scroll_lines
+                .len()
+                .saturating_sub(FANFIC_VIEWPORT_LINES);
+        } else {
+            self.scroll_line = 0;
+        }
+        // Keep bookmark/resume byte_offset synced to the start of the active chapter
+        self.current_page = idx.min(self.page_offsets.len().saturating_sub(1));
+    }
 }
 
 /// Reader Options action rows[cite: 5].
