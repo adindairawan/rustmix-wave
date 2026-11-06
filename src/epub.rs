@@ -463,7 +463,12 @@ pub fn open_epub(path: impl AsRef<Path>) -> Result<EpubDocument, String> {
     })
 }
 
-fn parse_ao3_opf_metadata(package: &str, flattened_text: &str, chapter_count: usize) -> EpubAo3Meta {
+fn parse_ao3_opf_metadata(
+    package: &str,
+    flattened_text: &str,
+    word_count: usize,
+    chapter_count: usize,
+) -> EpubAo3Meta {
     let mut meta = EpubAo3Meta::default();
     let word_count = flattened_text.split_whitespace().count();
     if word_count > 0 {
@@ -687,6 +692,10 @@ fn decode_entity(entity: &str) -> String {
             .map_or_else(|| "?".into(), |character| character.to_string()),
         _ => "?".into(),
     }
+}
+
+fn first_element_text(xml: &str, local_name: &str) -> Option<String> {
+    all_element_texts(xml, local_name).into_iter().next()
 }
 
 fn all_element_texts(xml: &str, local_name: &str) -> Vec<String> {
