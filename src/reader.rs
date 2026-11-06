@@ -2174,18 +2174,9 @@ impl ReaderUiState {
         let epub_chapter_pages = index_epub_chapter_pages(&document, layout)?;
         let page_offsets: Vec<u64> = epub_chapter_pages
             .iter()
-            .flat_map(|chapter| chapter.page_offsets.iter().copied())
+            .map(|chapter| chapter.text_offset)
             .collect();
-        if page_offsets.is_empty() {
-            return Err("EPUB chapter pagination produced no readable pages".into());
-        }
-        let requested = requested.filter(|location| location.matches_book(book));
-        let requested_offset =
-            requested.map_or(0, |location| location.byte_offset.min(source_size));
-        let current_page = page_offsets
-            .partition_point(|anchor| *anchor <= requested_offset)
-            .saturating_sub(1)
-            .min(page_offsets.len().saturating_sub(1));
+        let current_page = 0;
         let offset = page_offsets[current_page];
         let page = read_epub_page(&document, layout, offset, current_page)?;
         let mut session_book = book.clone();
@@ -2201,11 +2192,7 @@ impl ReaderUiState {
         } else {
             Vec::new()
         };
-        let scroll_line = if is_fanfic {
-            current_page * FANFIC_VIEWPORT_LINES
-        } else {
-            0
-        };
+        let scroll_line = 0;
 
         Ok(ReaderSession {
             book: session_book,
@@ -2216,7 +2203,7 @@ impl ReaderUiState {
             page_number_base: 0,
             page_offsets,
             indexed_through: source_size,
-            index_complete: true,
+            index_complete: false,
             cache: vec![page],
             epub_chapter_pages,
             is_fanfic,
@@ -2568,55 +2555,21 @@ fn read_reader_page(
 
 fn index_epub_chapter_pages(
     document: &EpubDocument,
-    layout: ReaderLayout,
+    _layout: ReaderLayout,
 ) -> Result<Vec<ReaderEpubChapterPages>, String> {
     let mut indexed = Vec::new();
-    let mut total_pages = 0_usize;
     for chapter in &document.chapters {
-        let mut page_offsets = Vec::new();
-        let mut offset = chapter.text_offset;
-        while offset < chapter.text_end_offset {
-            if total_pages >= READER_EPUB_PAGE_ANCHOR_LIMIT {
-                return Err(format!(
-                    "EPUB pagination exceeds {} page anchor limit",
-                    READER_EPUB_PAGE_ANCHOR_LIMIT
-                ));
-            }
-            page_offsets.push(offset);
-            total_pages += 1;
-            let page = read_epub_page_until(
-                document,
-                layout,
-                offset,
-                total_pages - 1,
-                chapter.text_end_offset,
-            )?;
-            if page.next_byte_offset <= offset {
-                return Err(format!(
-                    "EPUB chapter {} pagination did not advance",
-                    chapter.number
-                ));
-            }
-            offset = page.next_byte_offset.min(chapter.text_end_offset);
-            if total_pages % READER_EPUB_INDEX_YIELD_EVERY_PAGES == 0 {
-                std::thread::sleep(Duration::from_millis(READER_EPUB_INDEX_YIELD_MILLIS));
-            }
-        }
-        if !page_offsets.is_empty() {
-            indexed.push(ReaderEpubChapterPages {
-                chapter_number: chapter.number,
-                text_offset: chapter.text_offset,
-                text_end_offset: chapter.text_end_offset,
-                page_offsets,
-            });
-        }
+        // Index only the chapter start anchor initially; pages within the chapter are paginated lazily
+        indexed.push(ReaderEpubChapterPages {
+            chapter_number: chapter.number,
+            text_offset: chapter.text_offset,
+            text_end_offset: chapter.text_end_offset,
+            page_offsets: vec![chapter.text_offset],
+        });
     }
     log::info!(
-        "rustmix-wave=epub-chapter-index status=completed chapters={} pages={} yield-every-pages={} yield-ms={}",
-        indexed.len(),
-        total_pages,
-        READER_EPUB_INDEX_YIELD_EVERY_PAGES,
-        READER_EPUB_INDEX_YIELD_MILLIS
+        "rustmix-wave=epub-chapter-index status=lazy-initialized chapters={}",
+        indexed.len()
     );
     Ok(indexed)
 }
