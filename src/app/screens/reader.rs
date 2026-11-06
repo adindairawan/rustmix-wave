@@ -743,7 +743,7 @@ fn render_ao3_continuous_scroll_page(
                     .draw(display)?;
                 y += 14;
             }
-            Ao3ScrollLine::MetaLabel(label, bold) => {
+            Ao3ScrollLine::MetaLabel(val, bold) => {
                 Rectangle::new(Point::new(12, y - 10), Size::new(2, 24))
                     .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
                     .draw(display)?;
