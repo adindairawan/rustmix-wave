@@ -67,7 +67,7 @@ pub const READER_EPUB_PAGE_ANCHOR_LIMIT: usize = 4096;
 /// chapters are indexed for chapter-relative totals.
 pub const READER_EPUB_INDEX_YIELD_EVERY_PAGES: usize = 4;
 /// Cooperative pause used during bounded EPUB chapter pagination.
-pub const READER_EPUB_INDEX_YIELD_MILLIS: u64 = 1;
+pub const READER_EPUB_INDEX_YIELD_MILLIS: u64 = 10;
 /// Number of virtual lines scrolled per UP/DOWN button press in Fanfic mode.
 pub const FANFIC_SCROLL_STEP: usize = 5;
 /// Approximate number of virtual lines visible in the portrait Fanfic viewport.
@@ -1050,6 +1050,74 @@ impl ReaderSession {
             complete: self.index_complete,
         })
     }
+    /// Total virtual lines = AO3 Header/Preface lines + (Total Pages * lines_per_page).
+    #[must_use]
+    pub fn total_fanfic_virtual_lines(&self) -> usize {
+        let prose_pages = self.page_offsets.len().max(1);
+        self.ao3_scroll_lines
+            .len()
+            .saturating_add(prose_pages.saturating_mul(self.layout.lines_per_page))
+    }
+
+    /// Ensure the 2-3 pages overlapping the current `scroll_line` viewport are in `self.cache`.
+    pub fn ensure_fanfic_scroll_window_cached(&mut self) -> Result<(), String> {
+        let header_len = self.ao3_scroll_lines.len();
+        let end_line = self.scroll_line.saturating_add(FANFIC_VIEWPORT_LINES);
+        if end_line <= header_len {
+            return Ok(());
+        }
+        let first_prose_line = self.scroll_line.saturating_sub(header_len);
+        let last_prose_line = end_line.saturating_sub(header_len);
+        let start_page = first_prose_line / self.layout.lines_per_page;
+        let end_page = (last_prose_line / self.layout.lines_per_page)
+            .min(self.page_offsets.len().saturating_sub(1));
+
+        for page_idx in start_page..=end_page {
+            while page_idx >= self.page_offsets.len() && !self.index_complete {
+                self.index_one_page()?;
+            }
+            if page_idx < self.page_offsets.len() {
+                self.ensure_page_cached(page_idx)?;
+            }
+        }
+        self.current_page = start_page.min(self.page_offsets.len().saturating_sub(1));
+        Ok(())
+    }
+
+    /// Returns up to `count` virtual lines starting at `self.scroll_line` without full-book allocation.
+    #[must_use]
+    pub fn visible_fanfic_lines(&self, count: usize) -> Vec<Ao3ScrollLine> {
+        let mut out = Vec::with_capacity(count);
+        let header_len = self.ao3_scroll_lines.len();
+        let lpp = self.layout.lines_per_page.max(1);
+
+        for v_idx in self.scroll_line..self.scroll_line.saturating_add(count) {
+            if v_idx < header_len {
+                out.push(self.ao3_scroll_lines[v_idx].clone());
+            } else {
+                let prose_idx = v_idx - header_len;
+                let local_page = prose_idx / lpp;
+                let line_in_page = prose_idx % lpp;
+                let abs_page = self.page_number_base.saturating_add(local_page);
+
+                if let Some(cached) = self.cache.iter().find(|p| p.page_index == abs_page) {
+                    if let Some(line) = cached.lines.get(line_in_page) {
+                        out.push(Ao3ScrollLine::BodyProse {
+                            text: line.text.clone(),
+                            paragraph_end: line.paragraph_end,
+                        });
+                    } else if local_page + 1 >= self.page_offsets.len() && self.index_complete {
+                        break;
+                    } else {
+                        out.push(Ao3ScrollLine::Blank);
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+        out
+    }
 }
 
 /// Reader Options action rows.
@@ -1650,8 +1718,10 @@ impl ReaderUiState {
         if let Some(session) = self.session.as_mut() {
             if session.is_fanfic {
                 session.scroll_line = session.scroll_line.saturating_sub(FANFIC_SCROLL_STEP);
-                session.current_page =
-                    (session.scroll_line / FANFIC_VIEWPORT_LINES).min(session.page_offsets.len().saturating_sub(1));
+                if let Err(error) = session.ensure_fanfic_scroll_window_cached() {
+                    self.last_message = Some(error);
+                    return;
+                }
                 self.persist_current_session_best_effort();
                 return;
             }
@@ -1667,12 +1737,13 @@ impl ReaderUiState {
         if let Some(session) = self.session.as_mut() {
             if session.is_fanfic {
                 let max_scroll = session
-                    .ao3_scroll_lines
-                    .len()
+                    .total_fanfic_virtual_lines()
                     .saturating_sub(FANFIC_VIEWPORT_LINES);
                 session.scroll_line = (session.scroll_line + FANFIC_SCROLL_STEP).min(max_scroll);
-                session.current_page =
-                    (session.scroll_line / FANFIC_VIEWPORT_LINES).min(session.page_offsets.len().saturating_sub(1));
+                if let Err(error) = session.ensure_fanfic_scroll_window_cached() {
+                    self.last_message = Some(error);
+                    return;
+                }
                 self.persist_current_session_best_effort();
                 return;
             }
@@ -2118,19 +2189,13 @@ impl ReaderUiState {
 
         let is_fanfic = book.path.contains("FANFIC") || book.ao3.is_some();
         let ao3_scroll_lines = if is_fanfic {
-            let raw = fs::read_to_string(&book.path).unwrap_or_default();
-            let decoded = decode_with_offsets(raw.as_bytes(), encoding, 0);
-            let normalized = normalize_decoded(&decoded);
-            let mut full_layout = layout;
-            full_layout.lines_per_page = usize::MAX / 2;
-            let (all_lines, _) = paginate_decoded(&normalized, full_layout);
             let meta = book.ao3.clone().unwrap_or_default();
-            build_ao3_scroll_stream(&book.title, &meta, &all_lines)
+            build_ao3_header_stream(&book.title, &meta)
         } else {
             Vec::new()
         };
-        let scroll_line = if is_fanfic {
-            current_page * FANFIC_VIEWPORT_LINES
+        let scroll_line = if is_fanfic && current_page > 0 {
+            ao3_scroll_lines.len() + current_page * layout.lines_per_page
         } else {
             0
         };
@@ -2186,17 +2251,12 @@ impl ReaderUiState {
 
         let is_fanfic = session_book.path.contains("FANFIC") || book.ao3.is_some();
         let ao3_scroll_lines = if is_fanfic {
-            let decoded = decode_with_offsets(document.text.as_bytes(), TextEncoding::Utf8, 0);
-            let normalized = normalize_decoded(&decoded);
-            let mut full_layout = layout;
-            full_layout.lines_per_page = usize::MAX / 2;
-            let (all_lines, _) = paginate_decoded(&normalized, full_layout);
-            build_ao3_scroll_stream(&session_book.title, &document.ao3, &all_lines)
+            build_ao3_header_stream(&session_book.title, &document.ao3)
         } else {
             Vec::new()
         };
-        let scroll_line = if is_fanfic {
-            current_page * FANFIC_VIEWPORT_LINES
+        let scroll_line = if is_fanfic && current_page > 0 {
+            ao3_scroll_lines.len() + current_page * layout.lines_per_page
         } else {
             0
         };
@@ -2312,13 +2372,9 @@ impl ReaderUiState {
     }
 }
 
-fn build_ao3_scroll_stream(
-    title: &str,
-    meta: &EpubAo3Meta,
-    pages_lines: &[ReaderPageLine],
-) -> Vec<Ao3ScrollLine> {
+fn build_ao3_header_stream(title: &str, meta: &EpubAo3Meta) -> Vec<Ao3ScrollLine> {
     use Ao3ScrollLine::*;
-    let mut s = Vec::new();
+    let mut s = Vec::with_capacity(48);
 
     s.push(TopBanner);
     s.push(NavBar);
@@ -2373,44 +2429,16 @@ fn build_ao3_scroll_stream(
 
     s.push(ChapterHeading("Chapter 1".into()));
     s.push(Blank);
-    for line in pages_lines {
-        s.push(BodyProse {
-            text: line.text.clone(),
-            paragraph_end: line.paragraph_end,
-        });
-    }
     s
 }
 
-fn wrap_plain_str(input: &str, max_chars: usize) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut current = String::new();
-    for word in input.split_whitespace() {
-        if current.is_empty() {
-            current.push_str(word);
-        } else if current.chars().count() + 1 + word.chars().count() <= max_chars {
-            current.push(' ');
-            current.push_str(word);
-        } else {
-            out.push(current);
-            current = word.to_string();
-        }
-    }
-    if !current.is_empty() {
-        out.push(current);
-    }
-    if out.is_empty() {
-        out.push("-".into());
-    }
-    out
-}
-
-/// Scan one bounded Reader library.
-pub fn scan_txt_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, String> {
+/// Scan the `/RUSTMIX/BOOKS/FANFIC` subfolder without double-opening EPUB archives.
+pub fn scan_fanfic_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, String> {
     let root = root.as_ref();
-    let mut books = Vec::new();
-    let entries =
-        fs::read_dir(root).map_err(|error| format!("Books folder unavailable: {error}"))?;
+    let mut works = Vec::new();
+    let Ok(entries) = fs::read_dir(root) else {
+        return Ok(works);
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if !path.is_file() {
@@ -2428,30 +2456,37 @@ pub fn scan_txt_library(root: impl AsRef<Path>) -> Result<Vec<ReaderBook>, Strin
         let fallback_title = path
             .file_stem()
             .and_then(|value| value.to_str())
-            .unwrap_or("Untitled book")
+            .unwrap_or("Untitled fic")
             .to_string();
-        let title = if format == BookFormat::Epub {
-            read_epub_title_on_worker(&path)
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-                .unwrap_or(fallback_title)
+
+        let (title, ao3) = if format == BookFormat::Epub {
+            match read_epub_ao3_on_worker(&path) {
+                Ok((t, meta)) => (
+                    if t.trim().is_empty() { fallback_title } else { t },
+                    Some(meta),
+                ),
+                Err(_) => (fallback_title, None),
+            }
         } else {
-            fallback_title
+            (fallback_title, None)
         };
-        books.push(ReaderBook {
+
+        works.push(ReaderBook {
             path: path.to_string_lossy().into_owned(),
             title,
             format,
             size_bytes,
             modified_seconds,
-            ao3: None,
+            ao3,
         });
-        if books.len() >= READER_LIBRARY_LIMIT {
+        // Yield 10ms (1 RTOS tick) between EPUB metadata reads so IDLE0 never triggers task_wdt
+        std::thread::sleep(Duration::from_millis(10));
+        if works.len() >= READER_LIBRARY_LIMIT {
             break;
         }
     }
-    books.sort_by(|left, right| left.title.to_lowercase().cmp(&right.title.to_lowercase()));
-    Ok(books)
+    works.sort_by(|left, right| left.title.to_lowercase().cmp(&right.title.to_lowercase()));
+    Ok(works)
 }
 
 /// Scan the `/RUSTMIX/BOOKS/FANFIC` subfolder and enrich EPUB entries with AO3 OPF metadata.
