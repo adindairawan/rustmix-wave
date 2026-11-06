@@ -1665,9 +1665,13 @@ impl ReaderUiState {
     pub fn previous_page(&mut self) {
         if let Some(session) = self.session.as_mut() {
             if session.is_fanfic {
-                session.scroll_line = session.scroll_line.saturating_sub(FANFIC_SCROLL_STEP);
-                session.current_page = (session.scroll_line / FANFIC_VIEWPORT_LINES)
-                    .min(session.page_offsets.len().saturating_sub(1));
+                if session.scroll_line > 0 {
+                    session.scroll_line = session.scroll_line.saturating_sub(FANFIC_SCROLL_STEP);
+                } else if session.current_chapter_idx > 0 {
+                    // At top of chapter -> turn back to the bottom of the previous chapter!
+                    let prev_ch = session.current_chapter_idx - 1;
+                    session.load_fanfic_chapter(prev_ch, true);
+                }
                 self.persist_current_session_best_effort();
                 return;
             }
@@ -1686,9 +1690,15 @@ impl ReaderUiState {
                     .ao3_scroll_lines
                     .len()
                     .saturating_sub(FANFIC_VIEWPORT_LINES);
-                session.scroll_line = (session.scroll_line + FANFIC_SCROLL_STEP).min(max_scroll);
-                session.current_page = (session.scroll_line / FANFIC_VIEWPORT_LINES)
-                    .min(session.page_offsets.len().saturating_sub(1));
+                if session.scroll_line < max_scroll {
+                    session.scroll_line = (session.scroll_line + FANFIC_SCROLL_STEP).min(max_scroll);
+                } else if let Some(doc) = session.epub_document.as_ref() {
+                    // At bottom of chapter -> turn page to the top of the next chapter!
+                    if session.current_chapter_idx + 1 < doc.chapters.len() {
+                        let next_ch = session.current_chapter_idx + 1;
+                        session.load_fanfic_chapter(next_ch, false);
+                    }
+                }
                 self.persist_current_session_best_effort();
                 return;
             }
@@ -2366,56 +2376,69 @@ fn sanitize_ascii_line(input: &str) -> String {
     out
 }
 
-fn build_ao3_scroll_stream(
+#[allow(clippy::too_many_arguments)]
+fn build_ao3_chapter_scroll_stream(
     title: &str,
     meta: &EpubAo3Meta,
+    chapter_label: &str,
+    chapter_num: usize,
+    total_chapters: usize,
     pages_lines: &[ReaderPageLine],
+    is_first_chapter: bool,
+    is_last_chapter: bool,
 ) -> Vec<Ao3ScrollLine> {
     use Ao3ScrollLine::*;
     let mut s = Vec::new();
 
-    // 1. AO3 Header & Action Bar
-    s.push(TopBanner);
-    s.push(NavBar);
-    s.push(ActionButtons);
-    s.push(MetaBoxTop);
+    if is_first_chapter {
+        // 1. AO3 Header & Action Bar (Only on Chapter 1)
+        s.push(TopBanner);
+        s.push(NavBar);
+        s.push(ActionButtons);
+        s.push(MetaBoxTop);
 
-    // 2. Strictly ONLY Rating:, Fandom:, and Character: in the Meta Box
-    let fields = [
-        ("Rating:", meta.rating_text.as_str()),
-        ("Fandom:", meta.fandoms.as_str()),
-        ("Character:", meta.characters.as_str()),
-    ];
-    for (label, val) in fields {
-        s.push(MetaLabel(label.into(), false));
-        for wrapped in wrap_plain_str(val, 48) {
-            s.push(MetaValue(wrapped, false));
+        // 2. Strictly ONLY Rating:, Fandom:, and Character: in the Meta Box
+        let fields = [
+            ("Rating:", meta.rating_text.as_str()),
+            ("Fandom:", meta.fandoms.as_str()),
+            ("Character:", meta.characters.as_str()),
+        ];
+        for (label, val) in fields {
+            s.push(MetaLabel(label.into(), false));
+            for wrapped in wrap_plain_str(val, 48) {
+                s.push(MetaValue(wrapped, false));
+            }
         }
-    }
-    s.push(MetaBoxBottom);
-    s.push(Blank);
-
-    // 3. Georgia Title & Author
-    for t_line in wrap_plain_str(title, 26) {
-        s.push(WorkTitle(t_line));
-    }
-    s.push(WorkAuthor(meta.author.clone()));
-    s.push(Blank);
-
-    // 4. Summary (Full-screen width, 52 chars per line)
-    if !meta.summary.is_empty() {
-        s.push(SectionHeader("Summary:".into()));
-        for line in wrap_plain_str(&meta.summary, FANFIC_CHARS_PER_LINE) {
-            s.push(BodyProse {
-                text: line,
-                paragraph_end: false,
-            });
-        }
+        s.push(MetaBoxBottom);
         s.push(Blank);
+
+        // 3. Georgia Title & Author
+        for t_line in wrap_plain_str(title, 26) {
+            s.push(WorkTitle(t_line));
+        }
+        s.push(WorkAuthor(meta.author.clone()));
+        s.push(Blank);
+
+        // 4. Summary (Full-screen width, 52 chars per line)
+        if !meta.summary.is_empty() {
+            s.push(SectionHeader("Summary:".into()));
+            for line in wrap_plain_str(&meta.summary, FANFIC_CHARS_PER_LINE) {
+                s.push(BodyProse {
+                    text: line,
+                    paragraph_end: false,
+                });
+            }
+            s.push(Blank);
+        }
     }
 
-    // 5. Chapter 1 Story Prose (Starts directly on the first real chapter, 52 chars/line)
-    s.push(ChapterHeading("Chapter 1".into()));
+    // 5. Chapter Heading + Current Chapter Prose
+    let heading = if chapter_label.trim().is_empty() {
+        format!("Chapter {chapter_num}/{total_chapters}")
+    } else {
+        format!("Ch {chapter_num}/{total_chapters}: {chapter_label}")
+    };
+    s.push(ChapterHeading(heading));
     s.push(Blank);
     for line in pages_lines {
         if line.text.is_empty() {
@@ -2428,19 +2451,26 @@ fn build_ao3_scroll_stream(
         }
     }
 
-    // 6. Notes: Placed at the very bottom under the story, full-screen width (52 chars/line)
+    // 6. Notes: Placed at the bottom of the final chapter (or a next-chapter prompt on earlier chapters)
     s.push(Blank);
-    s.push(SectionHeader("Notes:".into()));
-    let notes_content = if meta.notes.is_empty() {
-        "End of work."
+    if is_last_chapter {
+        s.push(SectionHeader("Notes:".into()));
+        let notes_content = if meta.notes.is_empty() {
+            "End of work."
+        } else {
+            meta.notes.as_str()
+        };
+        for line in wrap_plain_str(notes_content, FANFIC_CHARS_PER_LINE) {
+            s.push(BodyProse {
+                text: line,
+                paragraph_end: true,
+            });
+        }
     } else {
-        meta.notes.as_str()
-    };
-    for line in wrap_plain_str(notes_content, FANFIC_CHARS_PER_LINE) {
-        s.push(BodyProse {
-            text: line,
-            paragraph_end: true,
-        });
+        s.push(SectionHeader(format!(
+            "--- End of Chapter {chapter_num} (Press DOWN for Chapter {}) ---",
+            chapter_num + 1
+        )));
     }
     s.push(Blank);
 
