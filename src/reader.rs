@@ -2435,52 +2435,6 @@ fn build_ao3_header_stream(title: &str, meta: &EpubAo3Meta) -> Vec<Ao3ScrollLine
     s.push(Blank);
 }
 
-    // 3. Georgia Title & Author
-    for t_line in wrap_plain_str(title, 22) {
-        s.push(WorkTitle(t_line));
-    }
-    s.push(WorkAuthor(meta.author.clone()));
-    s.push(Blank);
-
-    // 4. Summary (if present)
-    if !meta.summary.is_empty() {
-        s.push(SectionHeader("Summary:".into()));
-        for line in wrap_plain_str(&meta.summary, 42) {
-            s.push(BodyProse {
-                text: line,
-                paragraph_end: false,
-            });
-        }
-        s.push(Blank);
-    }
-
-    // 5. Main Story Prose
-    s.push(ChapterHeading("Chapter 1".into()));
-    s.push(Blank);
-    for line in pages_lines {
-        s.push(BodyProse {
-            text: line.text.clone(),
-            paragraph_end: line.paragraph_end,
-        });
-    }
-
-    // 6. Notes: Placed UNDER the story and formatted full-screen width
-    s.push(Blank);
-    s.push(SectionHeader("Notes:".into()));
-    let notes_content = if meta.notes.is_empty() {
-        "End of work."
-    } else {
-        meta.notes.as_str()
-    };
-    for line in wrap_plain_str(notes_content, READER_CHARS_PER_LINE) {
-        s.push(BodyProse {
-            text: line,
-            paragraph_end: true,
-        });
-    }
-    s.push(Blank);
-
-
 fn wrap_plain_str(input: &str, max_chars: usize) -> Vec<String> {
     let mut out = Vec::new();
     let mut current = String::new();
