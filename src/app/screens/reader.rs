@@ -46,12 +46,22 @@ pub fn render_continue_reading(
         Text::new("SELECT resumes the open page.", Point::new(24, 284), body).draw(display)?;
     } else if let Some(resume) = state.reader.resume.as_ref() {
         Text::new(&truncate(&resume.title, 38), Point::new(24, 190), heading).draw(display)?;
-        Text::new(
-            &format!("Saved page {} is ready to restore.", resume.page_index + 1),
-            Point::new(24, 240),
-            body,
-        )
-        .draw(display)?;
+        let resume_detail = if resume.path.contains("FANFIC") {
+            if let Some(ch) = resume.epub_chapter.as_ref() {
+                let pct = ((ch.page_number.saturating_add(FANFIC_VIEWPORT_LINES).min(ch.page_count) * 100)
+                    / ch.page_count.max(1))
+                    .min(100);
+                format!(
+                    "Saved Ch {} Line {} ({pct}%) ready to restore.",
+                    ch.chapter_number, ch.page_number
+                )
+            } else {
+                format!("Saved Line {} is ready to restore.", resume.page_index + 1)
+            }
+        } else {
+            format!("Saved page {} is ready to restore.", resume.page_index + 1)
+        };
+        Text::new(&resume_detail, Point::new(24, 240), body).draw(display)?;
         Text::new(
             "SELECT loads the saved position.",
             Point::new(24, 284),
@@ -143,13 +153,23 @@ pub fn render_library(
         for (slot, index) in (page_start..(page_start + 2).min(visible.len())).enumerate() {
             let selected = reader.library_selected == index + 1;
             let card_top = 240 + (slot as i32) * 246;
+            let saved_badge = visible[index].location.as_ref().map(|loc| {
+                if let Some(ch) = loc.epub_chapter.as_ref() {
+                    let pct = ((ch.page_number.saturating_add(FANFIC_VIEWPORT_LINES).min(ch.page_count) * 100)
+                        / ch.page_count.max(1))
+                        .min(100);
+                    format!("Saved: Ch {} ({pct}%)", ch.chapter_number)
+                } else {
+                    format!("Saved: Line {}", loc.page_index + 1)
+                }
+            });
             draw_ao3_blurb_card(
                 display,
                 state,
                 card_top,
                 &visible[index].book,
                 selected,
-                None,
+                saved_badge.as_deref(),
             )?;
         }
         return draw_footer(
