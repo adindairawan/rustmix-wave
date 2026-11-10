@@ -855,6 +855,34 @@ impl ReaderSession {
 
     #[must_use]
     pub fn current_location(&self) -> ReaderLocation {
+        if self.is_fanfic {
+            let chapter_base_offset = self
+                .page_offsets
+                .get(self.current_chapter_idx)
+                .copied()
+                .unwrap_or(0);
+            let total_lines = self.ao3_scroll_lines.len().max(1);
+            let clamped_scroll = self.scroll_line.min(total_lines.saturating_sub(1));
+            let chapter_number = self
+                .epub_chapter_pages
+                .get(self.current_chapter_idx)
+                .map_or(self.current_chapter_idx + 1, |ch| ch.chapter_number);
+            return ReaderLocation {
+                path: self.book.path.clone(),
+                title: self.book.title.clone(),
+                format: self.book.format,
+                size_bytes: self.book.size_bytes,
+                modified_seconds: self.book.modified_seconds,
+                page_index: clamped_scroll,
+                byte_offset: chapter_base_offset.saturating_add(clamped_scroll as u64),
+                epub_chapter: Some(ReaderChapterPageLabel {
+                    chapter_number,
+                    page_number: clamped_scroll + 1,
+                    page_count: total_lines,
+                }),
+            };
+        }
+
         let byte_offset = self
             .page_offsets
             .get(self.current_page)
@@ -875,6 +903,14 @@ impl ReaderSession {
 
     #[must_use]
     pub fn progress_percent(&self) -> u8 {
+        if self.is_fanfic {
+            let total_lines = self.total_fanfic_virtual_lines().max(1);
+            let current = self
+                .scroll_line
+                .saturating_add(FANFIC_VIEWPORT_LINES)
+                .min(total_lines);
+            return ((current * 100) / total_lines).min(100) as u8;
+        }
         let source_size = self.source_size_bytes();
         if source_size == 0 {
             return 100;
@@ -897,6 +933,18 @@ impl ReaderSession {
 
     #[must_use]
     pub fn display_page_label(&self) -> String {
+        if self.is_fanfic {
+            let ch_num = self
+                .epub_chapter_pages
+                .get(self.current_chapter_idx)
+                .map_or(self.current_chapter_idx + 1, |ch| ch.chapter_number);
+            let total_ch = self.epub_chapter_pages.len().max(1);
+            let pct = self.progress_percent();
+            return format!(
+                "CH {ch_num}/{total_ch}  LINE {} ({pct}%)",
+                self.scroll_line + 1
+            );
+        }
         self.current_epub_chapter_page_label().map_or_else(
             || format!("PAGE {}", self.page_label()),
             |chapter| {
@@ -1055,7 +1103,7 @@ impl ReaderSession {
 
     #[must_use]
     fn anchor_cache(&self) -> Option<ReaderAnchorCache> {
-        if self.book.format != BookFormat::Text {
+        if self.book.format != BookFormat::Text || self.is_fanfic {
             return None;
         }
         Some(ReaderAnchorCache {
@@ -1851,6 +1899,16 @@ impl ReaderUiState {
         else {
             return false;
         };
+        if session.is_fanfic {
+            let target_ch = session
+                .page_offsets
+                .partition_point(|anchor| *anchor <= entry.text_offset)
+                .saturating_sub(1);
+            session.load_fanfic_chapter(target_ch, false);
+            self.last_message = Some(format!("TOC: {}", entry.label));
+            self.persist_current_session_best_effort();
+            return true;
+        }
         let page = {
             let Some(document) = session.epub_document.as_ref() else {
                 return false;
@@ -2207,7 +2265,19 @@ impl ReaderUiState {
             Vec::new()
         };
         let scroll_line = if is_fanfic {
-            current_page * FANFIC_VIEWPORT_LINES
+            let max_scroll = ao3_scroll_lines
+                .len()
+                .saturating_sub(FANFIC_VIEWPORT_LINES);
+            requested
+                .filter(|location| location.matches_book(book))
+                .map_or(0, |location| {
+                    let saved_line = location
+                        .epub_chapter
+                        .as_ref()
+                        .map(|ch| ch.page_number.saturating_sub(1))
+                        .unwrap_or(location.page_index);
+                    saved_line.min(max_scroll)
+                })
         } else {
             0
         };
@@ -2284,6 +2354,24 @@ impl ReaderUiState {
         };
         if is_fanfic {
             session.load_fanfic_chapter(current_page, false);
+            if let Some(saved) = requested.filter(|location| location.matches_book(book)) {
+                let max_scroll = session
+                    .ao3_scroll_lines
+                    .len()
+                    .saturating_sub(FANFIC_VIEWPORT_LINES);
+                let saved_line = saved
+                    .epub_chapter
+                    .as_ref()
+                    .map(|ch| ch.page_number.saturating_sub(1))
+                    .unwrap_or_else(|| {
+                        if saved.byte_offset >= offset {
+                            (saved.byte_offset - offset) as usize
+                        } else {
+                            saved.page_index
+                        }
+                    });
+                session.scroll_line = saved_line.min(max_scroll);
+            }
         }
         Ok(session)
     }
