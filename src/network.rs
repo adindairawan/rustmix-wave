@@ -194,6 +194,7 @@ pub mod espidf {
         snapshot: NetworkSnapshot,
         ntp_reported: bool,
         suspended: bool,
+        max_ps_active: bool,
     }
 
     impl NetworkRuntime {
@@ -205,6 +206,7 @@ pub mod espidf {
                 snapshot: NetworkSnapshot::default(),
                 ntp_reported: false,
                 suspended: false,
+                max_ps_active: false,
             }
         }
 
@@ -224,6 +226,7 @@ pub mod espidf {
                 },
                 ntp_reported: false,
                 suspended: false,
+                max_ps_active: false,
             }
         }
 
@@ -279,6 +282,7 @@ pub mod espidf {
                 },
                 ntp_reported: false,
                 suspended: false,
+                max_ps_active: false,
             })
         }
 
@@ -290,6 +294,24 @@ pub mod espidf {
         #[must_use]
         pub const fn is_suspended(&self) -> bool {
             self.suspended
+        }
+
+        /// Switch Wi-Fi modem power-saving between maximum modem sleep (when
+        /// connected and idle) and minimum modem sleep (during active file transfers).
+        pub fn set_modem_power_save(&mut self, max_power_save: bool) {
+            if self.wifi.is_none() || self.suspended || self.max_ps_active == max_power_save {
+                return;
+            }
+            let ps_mode = if max_power_save {
+                esp_idf_svc::sys::wifi_ps_type_t_WIFI_PS_MAX_MODEM
+            } else {
+                esp_idf_svc::sys::wifi_ps_type_t_WIFI_PS_MIN_MODEM
+            };
+            unsafe {
+                if esp_idf_svc::sys::esp_wifi_set_ps(ps_mode) == esp_idf_svc::sys::ESP_OK {
+                    self.max_ps_active = max_power_save;
+                }
+            }
         }
 
         /// Stop optional network services while retaining station ownership so
@@ -308,6 +330,7 @@ pub mod espidf {
             self.snapshot.error = None;
             self.ntp_reported = false;
             self.suspended = true;
+            self.max_ps_active = false;
             Ok(())
         }
 
@@ -333,6 +356,7 @@ pub mod espidf {
             self.snapshot.error = None;
             self.ntp_reported = false;
             self.suspended = false;
+            self.max_ps_active = false;
             Ok(())
         }
 
@@ -343,12 +367,14 @@ pub mod espidf {
             self.snapshot.rssi_dbm = None;
             self.snapshot.error = Some(error.into());
             self.suspended = false;
+            self.max_ps_active = false;
         }
 
         pub fn record_configuration_missing(&mut self) {
             self.snapshot = NetworkSnapshot::default();
             self.ntp_reported = false;
             self.suspended = false;
+            self.max_ps_active = false;
         }
 
         /// Poll for an SNTP-populated system clock. The official wrapper keeps

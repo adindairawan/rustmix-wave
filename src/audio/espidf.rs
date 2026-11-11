@@ -31,6 +31,8 @@ pub struct AudioRuntime<'d, I2C> {
     amplifier: PinDriver<'d, Output>,
     snapshot: AudioSnapshot,
     chime: ChimeGenerator,
+    tx_enabled: bool,
+    rx_enabled: bool,
 }
 
 impl<'d, I2C> AudioRuntime<'d, I2C>
@@ -88,7 +90,7 @@ where
             .mute(&mut bus, true)
             .map_err(|error| anyhow!("failed to mute ES8311: {error:?}"))?;
 
-        Ok(Self {
+        let mut runtime = Self {
             bus,
             codec,
             profile,
@@ -106,7 +108,12 @@ where
                 error: None,
             },
             chime: ChimeGenerator::default(),
-        })
+            tx_enabled: true,
+            rx_enabled: true,
+        };
+        // Stop I2S clocks and release the ESP-IDF APB/light-sleep lock until audio is used.
+        runtime.set_i2s_active(false, false)?;
+        Ok(runtime)
     }
 
     #[must_use]
@@ -184,6 +191,7 @@ where
 
     pub fn begin_voice_note_playback(&mut self) -> Result<()> {
         self.chime.stop();
+        self.set_i2s_active(true, false)?;
         self.codec
             .mute(&mut self.bus, false)
             .map_err(|error| anyhow!("failed to unmute ES8311 for voice note: {error:?}"))?;
@@ -214,6 +222,7 @@ where
 
     pub fn begin_voice_recording(&mut self) -> Result<()> {
         self.chime.stop();
+        self.set_i2s_active(true, true)?;
         self.amplifier
             .set_low()
             .map_err(|error| anyhow!("failed to disable audio amplifier: {error:?}"))?;
@@ -228,6 +237,7 @@ where
     }
 
     pub fn finish_voice_recording(&mut self) -> Result<()> {
+        let _ = self.set_i2s_active(false, false);
         self.snapshot.playback_state = AudioPlaybackState::Muted;
         self.snapshot.muted = true;
         self.snapshot.amplifier_enabled = false;
@@ -278,23 +288,68 @@ where
         self.codec
             .mute(&mut self.bus, true)
             .map_err(|error| anyhow!("failed to mute ES8311: {error:?}"))?;
+        let _ = self.set_i2s_active(false, false);
         self.snapshot.amplifier_enabled = false;
         self.snapshot.muted = true;
         self.snapshot.playback_state = AudioPlaybackState::Muted;
         Ok(())
     }
 
+    /// Disable the external speaker amplifier and put the ES8311 codec into
+    /// low-power standby before dropping the I2S and I2C drivers for deep sleep.
+    pub fn shutdown_for_sleep(&mut self) {
+        self.chime.stop();
+        let _ = self.amplifier.set_low();
+        let _ = self.set_i2s_active(false, false);
+        if let Err(error) = self.codec.power_down(&mut self.bus) {
+            log::warn!("rustmix-wave=audio-sleep-power-down status=failed error={error:#}");
+        }
+        self.snapshot.amplifier_enabled = false;
+        self.snapshot.muted = true;
+        self.snapshot.playback_state = AudioPlaybackState::Muted;
+    }
+
     pub fn record_failure(&mut self, error: impl Into<String>) {
         let _ = self.amplifier.set_low();
         let _ = self.codec.mute(&mut self.bus, true);
         self.chime.stop();
+        let _ = self.set_i2s_active(false, false);
         self.snapshot.amplifier_enabled = false;
         self.snapshot.muted = true;
         self.snapshot.playback_state = AudioPlaybackState::Error;
         self.snapshot.error = Some(error.into());
     }
 
+    fn set_i2s_active(&mut self, tx_active: bool, rx_active: bool) -> Result<()> {
+        if tx_active != self.tx_enabled {
+            if tx_active {
+                self.tx
+                    .tx_enable()
+                    .map_err(|error| anyhow!("I2S TX enable failed: {error:?}"))?;
+            } else {
+                self.tx
+                    .tx_disable()
+                    .map_err(|error| anyhow!("I2S TX disable failed: {error:?}"))?;
+            }
+            self.tx_enabled = tx_active;
+        }
+        if rx_active != self.rx_enabled {
+            if rx_active {
+                self.tx
+                    .rx_enable()
+                    .map_err(|error| anyhow!("I2S RX enable failed: {error:?}"))?;
+            } else {
+                self.tx
+                    .rx_disable()
+                    .map_err(|error| anyhow!("I2S RX disable failed: {error:?}"))?;
+            }
+            self.rx_enabled = rx_active;
+        }
+        Ok(())
+    }
+
     fn begin_playback(&mut self, mode: ChimeMode) -> Result<()> {
+        self.set_i2s_active(true, false)?;
         match mode {
             ChimeMode::TestOnce => self.chime.start_test_once(),
             ChimeMode::AlarmRepeat => self.chime.start_alarm_repeat(),

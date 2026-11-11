@@ -15,6 +15,8 @@ use super::{
     BSP_ES8311_GPIO_IDLE_REG44, BSP_ES8311_GP_REG45, BSP_ES8311_SYSTEM_REG14,
 };
 
+const SYSTEM_REG00: u8 = 0x00;
+const SYSTEM_REG01: u8 = 0x01;
 const SYSTEM_REG0B: u8 = 0x0B;
 const SYSTEM_REG0C: u8 = 0x0C;
 const SYSTEM_REG0D: u8 = 0x0D;
@@ -127,6 +129,27 @@ impl BoardEs8311 {
         self.codec
             .mute(i2c, muted)
             .map_err(|error| anyhow!("ES8311 mute update failed: {error:?}"))
+    }
+
+    /// Power down the ES8311 DAC, ADC, analog bias, and clock state machine
+    /// before MCU deep sleep so the codec enters low-power standby.
+    pub fn power_down<I2C>(&self, i2c: &mut I2C) -> Result<()>
+    where
+        I2C: I2c,
+        I2C::Error: core::fmt::Debug,
+    {
+        let _ = self.mute(i2c, true);
+        for (register, value) in [
+            (GPIO_REG44, BSP_ES8311_GPIO_IDLE_REG44),
+            (SYSTEM_REG12, 0x02),
+            (SYSTEM_REG0E, 0x6A),
+            (SYSTEM_REG0D, 0xFC),
+            (SYSTEM_REG01, 0x00),
+            (SYSTEM_REG00, 0x00),
+        ] {
+            self.write_reg(i2c, register, value)?;
+        }
+        Ok(())
     }
 
     fn apply_waveshare_profile<I2C>(&self, i2c: &mut I2C) -> Result<()>

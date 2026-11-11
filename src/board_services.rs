@@ -206,6 +206,33 @@ where
         self.imu.read_motion()
     }
 
+    /// Wake or sleep the QMI8658 IMU so it only draws sampling current while
+    /// a motion diagnostic screen or motion-controlled game is active.
+    pub fn set_imu_active(&mut self, active: bool) {
+        if !self.init_report.imu_available {
+            return;
+        }
+        if active {
+            if let Err(error) = self.imu.wake() {
+                warn!("sample-services: QMI8658 wake failed: {error:#}");
+            }
+        } else if let Err(error) = self.imu.enter_sleep() {
+            warn!("sample-services: QMI8658 sleep failed: {error:#}");
+        }
+    }
+
+    /// Place optional I2C board peripherals (QMI8658 IMU and AXP2101 ADC/panel
+    /// rail) into low-power standby before MCU deep sleep. SHTC3 already sleeps
+    /// after each measurement and the PCF85063 RTC stays active for alarms.
+    pub fn prepare_for_deep_sleep(&mut self) {
+        if let Err(error) = self.imu.enter_sleep() {
+            warn!("sample-services: QMI8658 sleep entry failed: {error:#}");
+        }
+        if let Err(error) = self.power.prepare_for_deep_sleep() {
+            warn!("sample-services: AXP2101 sleep prep failed: {error:#}");
+        }
+    }
+
     /// Capture a best-effort status snapshot. Each optional field remains
     /// independent so one absent sensor cannot blank unrelated status values.
     pub fn read_snapshot<D: DelayNs>(&mut self, delay: &mut D) -> BoardSnapshot {
@@ -230,7 +257,7 @@ where
                 None
             }
         };
-        let imu = if self.init_report.imu_available {
+        let imu = if self.init_report.imu_available && self.imu.is_awake() {
             match self.imu.read_motion() {
                 Ok(value) => Some(value),
                 Err(error) => {

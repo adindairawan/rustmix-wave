@@ -55,12 +55,16 @@ pub trait PanelPower {
 /// Narrow AXP2101 register-level driver.
 pub struct Axp2101<I2C> {
     i2c: I2C,
+    verified: bool,
 }
 
 impl<I2C> Axp2101<I2C> {
     #[must_use]
     pub fn new(i2c: I2C) -> Self {
-        Self { i2c }
+        Self {
+            i2c,
+            verified: false,
+        }
     }
 }
 
@@ -90,12 +94,16 @@ where
     }
 
     fn verify_present(&mut self) -> Result<()> {
+        if self.verified {
+            return Ok(());
+        }
         let chip_id = self.read_register(IC_TYPE)?;
         if chip_id != AXP2101_CHIP_ID {
             bail!(
                 "unexpected PMIC chip ID: got 0x{chip_id:02X}, expected AXP2101 0x{AXP2101_CHIP_ID:02X}"
             );
         }
+        self.verified = true;
         Ok(())
     }
 
@@ -135,6 +143,15 @@ where
             self.write_register(INTSTS2, latched_key_bits)?;
         }
         Ok(event)
+    }
+
+    /// Disable optional PMIC peripherals and clear latched power-key flags
+    /// before MCU deep sleep while leaving system power rails and battery
+    /// detection intact.
+    pub fn prepare_for_deep_sleep(&mut self) -> Result<()> {
+        self.update_bits(LDO_ONOFF_CTRL0, ALDO3_ENABLE_BIT, false)?;
+        self.update_bits(ADC_CHANNEL_CTRL, 1 << 0, false)?;
+        self.write_register(INTSTS2, POWER_KEY_EVENT_MASK)
     }
 
     /// Read battery and VBUS state using the same AXP2101 register meanings as
@@ -216,6 +233,67 @@ mod tests {
     fn rejects_out_of_range_voltage() {
         assert!(encode_aldo3_voltage_mv(400).is_err());
         assert!(encode_aldo3_voltage_mv(3_600).is_err());
+    }
+
+    struct MockAxpI2c {
+        regs: [u8; 256],
+        writes: Vec<(u8, u8)>,
+    }
+
+    impl embedded_hal::i2c::ErrorType for MockAxpI2c {
+        type Error = core::convert::Infallible;
+    }
+
+    impl embedded_hal::i2c::I2c for MockAxpI2c {
+        fn transaction(
+            &mut self,
+            address: u8,
+            operations: &mut [embedded_hal::i2c::Operation<'_>],
+        ) -> Result<(), Self::Error> {
+            assert_eq!(address, super::AXP2101_ADDRESS);
+            let mut active_reg = 0_usize;
+            for op in operations {
+                match op {
+                    embedded_hal::i2c::Operation::Write(bytes) => {
+                        if let Some((&reg, rest)) = bytes.split_first() {
+                            active_reg = usize::from(reg);
+                            for (offset, &val) in rest.iter().enumerate() {
+                                let target = ((active_reg + offset) & 0xFF) as u8;
+                                self.regs[usize::from(target)] = val;
+                                self.writes.push((target, val));
+                            }
+                        }
+                    }
+                    embedded_hal::i2c::Operation::Read(buf) => {
+                        for (offset, slot) in buf.iter_mut().enumerate() {
+                            *slot = self.regs[(active_reg + offset) & 0xFF];
+                        }
+                    }
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn prepare_for_deep_sleep_disables_aldo3_and_battery_adc_and_clears_pek_irq() {
+        let mut regs = [0_u8; 256];
+        regs[usize::from(super::LDO_ONOFF_CTRL0)] = 0xFF;
+        regs[usize::from(super::ADC_CHANNEL_CTRL)] = 0x05;
+        let mut pmic = super::Axp2101::new(MockAxpI2c {
+            regs,
+            writes: Vec::new(),
+        });
+        pmic.prepare_for_deep_sleep().unwrap();
+        assert_eq!(
+            pmic.i2c.regs[usize::from(super::LDO_ONOFF_CTRL0)] & super::ALDO3_ENABLE_BIT,
+            0
+        );
+        assert_eq!(pmic.i2c.regs[usize::from(super::ADC_CHANNEL_CTRL)], 0x04);
+        assert!(pmic
+            .i2c
+            .writes
+            .contains(&(super::INTSTS2, crate::power_key::POWER_KEY_EVENT_MASK)));
     }
 
     #[test]

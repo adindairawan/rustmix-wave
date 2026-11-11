@@ -31,10 +31,11 @@ const TEMPERATURE_L: u8 = 0x33;
 // +/-512 dps at 1000 Hz, ACC + GYR enabled. The sample clears CTRL5 after
 // configuration, so this focused port preserves that reviewed behavior.
 const SAMPLE_CTRL1: u8 = 0x60;
-const SAMPLE_CTRL2_ACC_8G_1000HZ: u8 = 0x23;
-const SAMPLE_CTRL3_GYR_512DPS_1000HZ: u8 = 0x43;
+const SAMPLE_CTRL2_ACC_8G_250HZ: u8 = 0x25;
+const SAMPLE_CTRL3_GYR_512DPS_250HZ: u8 = 0x45;
 const SAMPLE_CTRL5: u8 = 0x00;
 const SAMPLE_CTRL7_ACC_GYR_ENABLE: u8 = 0x03;
+const CTRL7_DISABLE_ALL: u8 = 0x00;
 const ACCEL_LSB_PER_G: i32 = 1 << 12;
 const GYRO_LSB_PER_DPS: i32 = 64;
 
@@ -131,12 +132,22 @@ pub struct ImuInitReport {
 pub struct Qmi8658<I2C> {
     i2c: I2C,
     address: Option<u8>,
+    awake: bool,
 }
 
 impl<I2C> Qmi8658<I2C> {
     #[must_use]
     pub fn new(i2c: I2C) -> Self {
-        Self { i2c, address: None }
+        Self {
+            i2c,
+            address: None,
+            awake: false,
+        }
+    }
+
+    #[must_use]
+    pub const fn is_awake(&self) -> bool {
+        self.awake
     }
 }
 
@@ -153,8 +164,8 @@ where
         let revision = self.read_register(address, REVISION)?;
 
         self.write_register(address, CTRL1, SAMPLE_CTRL1)?;
-        self.write_register(address, CTRL2, SAMPLE_CTRL2_ACC_8G_1000HZ)?;
-        self.write_register(address, CTRL3, SAMPLE_CTRL3_GYR_512DPS_1000HZ)?;
+        self.write_register(address, CTRL2, SAMPLE_CTRL2_ACC_8G_250HZ)?;
+        self.write_register(address, CTRL3, SAMPLE_CTRL3_GYR_512DPS_250HZ)?;
         self.write_register(address, CTRL5, SAMPLE_CTRL5)?;
         self.write_register(address, CTRL7, SAMPLE_CTRL7_ACC_GYR_ENABLE)?;
 
@@ -163,6 +174,7 @@ where
             bail!("QMI8658 CTRL7 verification failed: read 0x{enabled:02X}");
         }
 
+        self.awake = true;
         Ok(ImuInitReport {
             address,
             who_am_i: QMI8658_WHO_AM_I_VALUE,
@@ -173,6 +185,9 @@ where
     /// Read STATUS0 and one contiguous temperature + accelerometer +
     /// gyroscope frame. The contiguous read keeps shared-I2C ownership small.
     pub fn read_motion(&mut self) -> Result<ImuReading> {
+        if !self.awake {
+            self.wake()?;
+        }
         let address = self
             .address
             .ok_or_else(|| anyhow!("QMI8658 read requested before initialization"))?;
@@ -182,6 +197,42 @@ where
             .write_read(address, &[TEMPERATURE_L], &mut frame)
             .map_err(|error| anyhow!("QMI8658 motion frame read failed: {error:?}"))?;
         Ok(decode_motion_frame(frame, status0))
+    }
+
+    /// Re-enable the accelerometer and gyroscope after standby.
+    pub fn wake(&mut self) -> Result<()> {
+        if self.awake {
+            return Ok(());
+        }
+        let address = self
+            .address
+            .ok_or_else(|| anyhow!("QMI8658 wake requested before initialization"))?;
+        self.write_register(address, CTRL7, SAMPLE_CTRL7_ACC_GYR_ENABLE)?;
+        let enabled = self.read_register(address, CTRL7)?;
+        if enabled & SAMPLE_CTRL7_ACC_GYR_ENABLE != SAMPLE_CTRL7_ACC_GYR_ENABLE {
+            bail!("QMI8658 CTRL7 wake failed: read 0x{enabled:02X}");
+        }
+        self.awake = true;
+        Ok(())
+    }
+
+    /// Disable the accelerometer and gyroscope so the QMI8658 enters low-power
+    /// standby when idle or before MCU deep sleep.
+    pub fn enter_sleep(&mut self) -> Result<()> {
+        if !self.awake {
+            return Ok(());
+        }
+        let Some(address) = self.address else {
+            self.awake = false;
+            return Ok(());
+        };
+        self.write_register(address, CTRL7, CTRL7_DISABLE_ALL)?;
+        let ctrl7 = self.read_register(address, CTRL7)?;
+        if ctrl7 & SAMPLE_CTRL7_ACC_GYR_ENABLE != 0 {
+            bail!("QMI8658 CTRL7 power-down failed: read 0x{ctrl7:02X}");
+        }
+        self.awake = false;
+        Ok(())
     }
 
     fn probe_address(&mut self) -> Result<u8> {
@@ -341,6 +392,71 @@ mod tests {
         assert_eq!(integer_sqrt(0), 0);
         assert_eq!(integer_sqrt(1_000_000), 1_000);
         assert_eq!(integer_sqrt(2_000_000), 1_414);
+    }
+
+    struct MockImuI2c {
+        regs: [u8; 256],
+    }
+
+    impl embedded_hal::i2c::ErrorType for MockImuI2c {
+        type Error = core::convert::Infallible;
+    }
+
+    impl embedded_hal::i2c::I2c for MockImuI2c {
+        fn transaction(
+            &mut self,
+            address: u8,
+            operations: &mut [embedded_hal::i2c::Operation<'_>],
+        ) -> Result<(), Self::Error> {
+            assert_eq!(address, super::QMI8658_ADDRESS_LOW);
+            let mut active_reg = 0_usize;
+            for op in operations {
+                match op {
+                    embedded_hal::i2c::Operation::Write(bytes) => {
+                        if let Some((&reg, rest)) = bytes.split_first() {
+                            active_reg = usize::from(reg);
+                            for (offset, &val) in rest.iter().enumerate() {
+                                self.regs[(active_reg + offset) & 0xFF] = val;
+                            }
+                        }
+                    }
+                    embedded_hal::i2c::Operation::Read(buf) => {
+                        for (offset, slot) in buf.iter_mut().enumerate() {
+                            *slot = self.regs[(active_reg + offset) & 0xFF];
+                        }
+                    }
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn enter_sleep_disables_accel_and_gyro_after_init() {
+        let mut regs = [0_u8; 256];
+        regs[usize::from(super::WHO_AM_I)] = super::QMI8658_WHO_AM_I_VALUE;
+        let mut imu = super::Qmi8658::new(MockImuI2c { regs });
+        assert!(imu.enter_sleep().is_ok());
+
+        imu.initialize().unwrap();
+        assert_eq!(
+            imu.i2c.regs[usize::from(super::CTRL7)],
+            super::SAMPLE_CTRL7_ACC_GYR_ENABLE
+        );
+
+        imu.enter_sleep().unwrap();
+        assert_eq!(
+            imu.i2c.regs[usize::from(super::CTRL7)],
+            super::CTRL7_DISABLE_ALL
+        );
+        assert!(!imu.is_awake());
+
+        imu.wake().unwrap();
+        assert!(imu.is_awake());
+        assert_eq!(
+            imu.i2c.regs[usize::from(super::CTRL7)],
+            super::SAMPLE_CTRL7_ACC_GYR_ENABLE
+        );
     }
 
     #[test]

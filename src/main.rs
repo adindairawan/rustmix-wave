@@ -112,6 +112,19 @@ mod firmware {
     pub fn run() -> Result<()> {
         sys::link_patches();
         EspLogger::initialize_default();
+        unsafe {
+            let pm_config = sys::esp_pm_config_t {
+                max_freq_mhz: 160,
+                min_freq_mhz: 40,
+                light_sleep_enable: true,
+            };
+            let err = sys::esp_pm_configure((&pm_config as *const sys::esp_pm_config_t).cast());
+            if err == sys::ESP_OK {
+                info!("rustmix-wave=power-management status=enabled max-mhz=160 min-mhz=40 light-sleep=true");
+            } else {
+                warn!("rustmix-wave=power-management status=unavailable err={err}");
+            }
+        }
         info!("rustmix-wave=epd397-rust-app-start");
         info!(
             "rustmix-wave=product-ui-shell-start product={PRODUCT_SLUG} version={FIRMWARE_VERSION} milestone={UI_SHELL_MILESTONE}"
@@ -466,6 +479,7 @@ mod firmware {
         };
         state.update_board_snapshot(board_services.read_snapshot(&mut service_delay));
         log_board_snapshot(state.board, state.regional);
+        board_services.set_imu_active(false);
         if let Some(rtc) = state.board.rtc {
             alarm_engine.recompute_next(state.regional.localize_rtc(rtc));
         }
@@ -962,6 +976,7 @@ mod firmware {
                         &mut last_network_log,
                     );
                 } else {
+                    network_runtime.set_modem_power_save(wifi_transfer_server.is_none());
                     let latest_fingerprint = state.network.log_fingerprint();
                     if latest_fingerprint != last_network_fingerprint
                         || last_network_log.elapsed()
@@ -1267,21 +1282,37 @@ mod firmware {
                             // 1. Wait 900ms so you can release the physical PWR button cleanly
                             FreeRtos::delay_ms(POWER_KEY_WAKE_GUARD_QUIET_MS as u32);
 
-                            // 2. Unmount SD card & release Audio/I2S and GPIO drivers so external chips power down
+                            // 2. Power down ES8311 codec, QMI8658 IMU, and AXP2101 ADC before releasing I2C/SPI/SDMMC drivers
+                            if let Some(runtime) = audio_runtime.as_mut() {
+                                runtime.shutdown_for_sleep();
+                            }
+                            board_services.prepare_for_deep_sleep();
                             drop(wifi_transfer_server);
                             drop(voice_recording);
                             drop(voice_playback);
                             drop(audio_runtime);
+                            drop(panel);
+                            drop(board_services);
+                            drop(shared_i2c);
+                            drop(network_runtime);
                             drop(_mounted_sd);
                             drop(buttons);
                             drop(back_button);
                             drop(rtc_alarm_interrupt);
 
                             unsafe {
-                                // 3. Isolate/reset SDMMC and I2S GPIOs so they don't leak current into the SD card or ES8311 codec
+                                // 3. Isolate/reset all non-wake peripheral GPIOs (SDMMC, I2S, SPI/EPD, I2C, buttons) so they don't leak current
                                 for gpio in [
+                                    sys::gpio_num_t_GPIO_NUM_3,
+                                    sys::gpio_num_t_GPIO_NUM_4,
+                                    sys::gpio_num_t_GPIO_NUM_5,
+                                    sys::gpio_num_t_GPIO_NUM_6,
                                     sys::gpio_num_t_GPIO_NUM_7,
                                     sys::gpio_num_t_GPIO_NUM_8,
+                                    sys::gpio_num_t_GPIO_NUM_9,
+                                    sys::gpio_num_t_GPIO_NUM_10,
+                                    sys::gpio_num_t_GPIO_NUM_11,
+                                    sys::gpio_num_t_GPIO_NUM_12,
                                     sys::gpio_num_t_GPIO_NUM_13,
                                     sys::gpio_num_t_GPIO_NUM_14,
                                     sys::gpio_num_t_GPIO_NUM_15,
@@ -1290,6 +1321,9 @@ mod firmware {
                                     sys::gpio_num_t_GPIO_NUM_18,
                                     sys::gpio_num_t_GPIO_NUM_21,
                                     sys::gpio_num_t_GPIO_NUM_39,
+                                    sys::gpio_num_t_GPIO_NUM_41,
+                                    sys::gpio_num_t_GPIO_NUM_42,
+                                    sys::gpio_num_t_GPIO_NUM_46,
                                     sys::gpio_num_t_GPIO_NUM_47,
                                     sys::gpio_num_t_GPIO_NUM_48,
                                 ] {
@@ -1305,13 +1339,22 @@ mod firmware {
                                 sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_45);
                                 sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_45);
 
-                                // 6. Wake when EITHER GPIO0 (BOOT) OR GPIO45 (RTC Alarm) goes LOW (0)
+                                // 6. Power down RC_FAST oscillator and arm EXT1 low-level wake (fallback to GPIO0 if GPIO45 is rejected as non-RTC IO)
+                                let _ = sys::esp_sleep_pd_config(
+                                    sys::esp_sleep_pd_domain_t_ESP_PD_DOMAIN_RC_FAST,
+                                    sys::esp_sleep_pd_option_t_ESP_PD_OPTION_OFF,
+                                );
                                 let wake_mask: u64 = (1u64 << 0) | (1u64 << 45);
-                                sys::esp_sleep_enable_ext1_wakeup(
+                                if sys::esp_sleep_enable_ext1_wakeup(
                                     wake_mask,
                                     sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
-                                );
-
+                                ) != sys::ESP_OK
+                                {
+                                    let _ = sys::esp_sleep_enable_ext1_wakeup(
+                                        1u64 << 0,
+                                        sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
+                                    );
+                                }
                                 sys::esp_deep_sleep_disable_rom_logging();
                                 FreeRtos::delay_ms(50);
                                 sys::esp_deep_sleep_start();
@@ -1488,6 +1531,14 @@ mod firmware {
                 last_reader_tick = Instant::now();
             }
 
+            let imu_needed = !sleep_mode.is_sleeping()
+                && state.panel_awake
+                && (matches!(
+                    state.active_route(),
+                    ScreenRoute::Motion | ScreenRoute::MotionDetails | ScreenRoute::MotionEvents
+                ) || state.lua_game_needs_imu_events());
+            board_services.set_imu_active(imu_needed);
+
             if !sleep_mode.is_sleeping()
                 && state.panel_awake
                 && (state.active_route() == ScreenRoute::MotionEvents
@@ -1585,7 +1636,9 @@ mod firmware {
                                 | ScreenRoute::ClockDetails
                         )
                     {
-                        state.update_board_snapshot(board_services.read_snapshot(&mut service_delay));
+                        state.update_board_snapshot(
+                            board_services.read_snapshot(&mut service_delay),
+                        );
                         log_board_snapshot(state.board, state.regional);
                     }
                     let previous_route = state.active_route();
