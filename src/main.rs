@@ -1311,7 +1311,6 @@ mod firmware {
                             info!("rustmix-wave=panel-refresh plan=global-base reason=sleep-image transport=global-base");
                             sleep_mode.enter(restore_route, selection.file_name.clone());
                             sleep_wake_guard.begin_sleep_entry();
-                            sleep_wake_guard_started_at = Some(Instant::now());
                             info!(
                                 "rustmix-wave=sleep-wake-guard status=waiting-for-quiet-window minimum-quiet-ms={POWER_KEY_WAKE_GUARD_QUIET_MS} policy=suppress-stale-power-key"
                             );
@@ -3000,10 +2999,6 @@ mod firmware {
         );
     }
 
-    /// FreeRTOS-backed delays are sufficient for the millisecond timings used
-    /// by the panel and sample-board reference sequences. Round sub-millisecond
-    /// requests up so short sensor waits remain conservative.
-    #[derive(Clone, Copy, Debug, Default)]
     const NVS_SLEEP_NAMESPACE: &str = "rustmix_pm";
     const NVS_SLEEP_KEY: &str = "sleeping";
 
@@ -3122,6 +3117,10 @@ mod firmware {
         }
     }
 
+    /// FreeRTOS-backed delays are sufficient for the millisecond timings used
+    /// by the panel and sample-board reference sequences. Round sub-millisecond
+    /// requests up so short sensor waits remain conservative.
+    #[derive(Clone, Copy, Debug, Default)]
     struct FreeRtosDelay;
 
     impl DelayNs for FreeRtosDelay {
