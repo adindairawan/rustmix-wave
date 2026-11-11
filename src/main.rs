@@ -130,6 +130,11 @@ mod firmware {
             "rustmix-wave=product-ui-shell-start product={PRODUCT_SLUG} version={FIRMWARE_VERSION} milestone={UI_SHELL_MILESTONE}"
         );
 
+        unsafe {
+            let _ = sys::rtc_gpio_hold_dis(sys::gpio_num_t_GPIO_NUM_0);
+            let _ = sys::rtc_gpio_deinit(sys::gpio_num_t_GPIO_NUM_0);
+        }
+
         let peripherals = Peripherals::take()?;
 
         let i2c_config = I2cConfig::new().baudrate(400.kHz().into());
@@ -3100,26 +3105,28 @@ mod firmware {
                 sys::gpio_reset_pin(gpio);
             }
 
-            // Isolate any floating RTC GPIOs
+            // Clear any prior wake sources and isolate floating RTC GPIOs
+            let _ =
+                sys::esp_sleep_disable_wakeup_source(sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_ALL);
             sys::esp_sleep_config_gpio_isolate();
 
-            // Enable RTC pull-ups on GPIO0 (BOOT) and GPIO45 (RTC Alarm)
-            sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_0);
-            sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_0);
-            sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_45);
-            sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_45);
-
-            // Power down RC_FAST oscillator and arm EXT1 low-level wake (fallback to GPIO0 if GPIO45 is rejected as non-RTC IO)
+            // Power down RC_FAST oscillator during deep sleep
             let _ = sys::esp_sleep_pd_config(
                 sys::esp_sleep_pd_domain_t_ESP_PD_DOMAIN_RC_FAST,
                 sys::esp_sleep_pd_option_t_ESP_PD_OPTION_OFF,
             );
-            let wake_mask: u64 = (1u64 << 0) | (1u64 << 45);
-            if sys::esp_sleep_enable_ext1_wakeup(
-                wake_mask,
-                sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
-            ) != sys::ESP_OK
-            {
+
+            // Configure GPIO0 (BOOT) as RTC input with held pull-up so it cannot float low and wake immediately
+            let _ = sys::rtc_gpio_init(sys::gpio_num_t_GPIO_NUM_0);
+            let _ = sys::rtc_gpio_set_direction(
+                sys::gpio_num_t_GPIO_NUM_0,
+                sys::rtc_gpio_mode_t_RTC_GPIO_MODE_INPUT_ONLY,
+            );
+            let _ = sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_0);
+            let _ = sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_0);
+            FreeRtos::delay_ms(10);
+            if sys::rtc_gpio_get_level(sys::gpio_num_t_GPIO_NUM_0) == 1 {
+                let _ = sys::rtc_gpio_hold_en(sys::gpio_num_t_GPIO_NUM_0);
                 let _ = sys::esp_sleep_enable_ext1_wakeup(
                     1u64 << 0,
                     sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
