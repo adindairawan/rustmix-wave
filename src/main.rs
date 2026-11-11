@@ -148,28 +148,29 @@ mod firmware {
         let reset_reason = unsafe { sys::esp_reset_reason() };
         let wakeup_cause = unsafe { sys::esp_sleep_get_wakeup_cause() };
         let _ = panel_power.initialize_sample_monitoring();
-        if let (Ok(snapshot), Ok(source)) = (
-            panel_power.read_power_snapshot(),
+        if persisted_sleep || reset_reason == sys::esp_reset_reason_t_ESP_RST_POWERON {
+            // Allow AXP2101 VBUS_GOOD and BAT_PRESENT flags to finish debouncing after plug-in.
+            FreeRtos::delay_ms(50);
+        }
+        if let (Ok((vbus_good, battery_connected)), Ok(source)) = (
+            panel_power.read_boot_charge_probe(),
             panel_power.read_power_on_source(),
         ) {
-            let pending_power_key = panel_power.take_power_key_event().ok().flatten().is_some();
             let stay_asleep = should_stay_asleep_on_boot(BootSleepDecisionInput {
                 persisted_sleep,
                 woke_by_ext_pin: wakeup_cause == sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_EXT1
                     || wakeup_cause == sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_EXT0,
                 woke_by_timer: wakeup_cause == sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_TIMER,
                 reset_is_poweron: reset_reason == sys::esp_reset_reason_t_ESP_RST_POWERON,
-                vbus_present: snapshot.vbus_present,
-                battery_connected: snapshot.battery_percent.is_some(),
+                vbus_present: vbus_good,
+                battery_connected,
                 power_on_source: source,
-                pending_power_key,
             });
+            info!(
+                "rustmix-wave=boot-power-probe persisted-sleep={persisted_sleep} reset-reason={reset_reason} wakeup-cause={wakeup_cause} vbus-good={vbus_good} bat-present={battery_connected} pwron-raw=0x{:02X} stay-asleep={stay_asleep}",
+                source.raw
+            );
             if stay_asleep {
-                info!(
-                    "rustmix-wave=charge-only-boot status=staying-in-deep-sleep persisted-sleep={persisted_sleep} pwron-raw=0x{:02X} vbus={}",
-                    source.raw,
-                    snapshot.vbus_present
-                );
                 let mut imu = waveshare_epd397_rust_app::imu::Qmi8658::new(shared_i2c.clone());
                 if imu.initialize().is_ok() {
                     let _ = imu.enter_sleep();
@@ -3002,6 +3003,19 @@ mod firmware {
     const NVS_SLEEP_NAMESPACE: &str = "rustmix_pm";
     const NVS_SLEEP_KEY: &str = "sleeping";
 
+    fn init_nvs_default_partition() -> bool {
+        unsafe {
+            let mut err = sys::nvs_flash_init();
+            if err == sys::ESP_ERR_NVS_NO_FREE_PAGES || err == sys::ESP_ERR_NVS_NEW_VERSION_FOUND {
+                if sys::nvs_flash_erase() != sys::ESP_OK {
+                    return false;
+                }
+                err = sys::nvs_flash_init();
+            }
+            err == sys::ESP_OK
+        }
+    }
+
     fn read_persisted_sleep_flag() -> bool {
         let Ok(namespace) = CString::new(NVS_SLEEP_NAMESPACE) else {
             return false;
@@ -3009,10 +3023,10 @@ mod firmware {
         let Ok(key) = CString::new(NVS_SLEEP_KEY) else {
             return false;
         };
+        if !init_nvs_default_partition() {
+            return false;
+        }
         unsafe {
-            if sys::nvs_flash_init() != sys::ESP_OK {
-                return false;
-            }
             let mut handle: sys::nvs_handle_t = 0;
             if sys::nvs_open(
                 namespace.as_ptr(),
@@ -3036,10 +3050,10 @@ mod firmware {
         let Ok(key) = CString::new(NVS_SLEEP_KEY) else {
             return;
         };
+        if !init_nvs_default_partition() {
+            return;
+        }
         unsafe {
-            if sys::nvs_flash_init() != sys::ESP_OK {
-                return;
-            }
             let mut handle: sys::nvs_handle_t = 0;
             if sys::nvs_open(
                 namespace.as_ptr(),

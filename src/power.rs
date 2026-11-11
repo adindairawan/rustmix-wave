@@ -17,8 +17,8 @@ const STATUS2: u8 = 0x01;
 const IC_TYPE: u8 = 0x03;
 const AXP2101_CHIP_ID: u8 = 0x4A;
 const PWRON_STATUS: u8 = 0x20;
-const PWRON_SOURCE_VBUS_BIT: u8 = 1 << 0;
-const PWRON_SOURCE_PWRON_PIN_BIT: u8 = 1 << 1;
+const PWRON_SOURCE_PWRON_PIN_BIT: u8 = 1 << 0;
+const PWRON_SOURCE_VBUS_BIT: u8 = 1 << 2;
 const ADC_CHANNEL_CTRL: u8 = 0x30;
 const ADC_BAT_VOLTAGE_HIGH: u8 = 0x34;
 const ADC_BAT_VOLTAGE_LOW: u8 = 0x35;
@@ -66,23 +66,25 @@ pub struct BootSleepDecisionInput {
     pub vbus_present: bool,
     pub battery_connected: bool,
     pub power_on_source: PowerOnSource,
-    pub pending_power_key: bool,
 }
 
 /// Return `true` when boot was triggered by USB/VBUS charging while the device
 /// was turned off/asleep (without an intentional BOOT/PWR button or timer wake).
 #[must_use]
 pub const fn should_stay_asleep_on_boot(input: BootSleepDecisionInput) -> bool {
-    if input.woke_by_ext_pin || input.woke_by_timer || input.pending_power_key {
+    if input.woke_by_ext_pin || input.woke_by_timer {
         return false;
     }
     if !input.vbus_present || !input.battery_connected {
         return false;
     }
+    if input.reset_is_poweron && input.power_on_source.power_key {
+        return false;
+    }
     if input.persisted_sleep {
         return true;
     }
-    input.reset_is_poweron && input.power_on_source.vbus_insert && !input.power_on_source.power_key
+    input.reset_is_poweron && input.power_on_source.vbus_insert
 }
 
 /// Power contract consumed by the panel driver.
@@ -192,7 +194,16 @@ where
     pub fn prepare_for_deep_sleep(&mut self) -> Result<()> {
         self.update_bits(LDO_ONOFF_CTRL0, ALDO3_ENABLE_BIT, false)?;
         self.update_bits(ADC_CHANNEL_CTRL, 1 << 0, false)?;
+        self.update_bits(INTEN2, POWER_KEY_EVENT_MASK, false)?;
         self.write_register(INTSTS2, POWER_KEY_EVENT_MASK)
+    }
+
+    /// Read `(vbus_good, battery_connected)` directly from `STATUS1` (`0x00`)
+    /// without being masked by transient `VINDPM` flags on charger plug-in.
+    pub fn read_boot_charge_probe(&mut self) -> Result<(bool, bool)> {
+        self.verify_present()?;
+        let status1 = self.read_register(STATUS1)?;
+        Ok((status1 & (1 << 5) != 0, status1 & (1 << 3) != 0))
     }
 
     /// Read the latched AXP2101 power-on source (`PWRON_STATUS`, register `0x20`).
@@ -360,6 +371,11 @@ mod tests {
         let source = pmic.read_power_on_source().unwrap();
         assert!(source.vbus_insert);
         assert!(!source.power_key);
+
+        pmic.i2c.regs[usize::from(super::PWRON_STATUS)] = super::PWRON_SOURCE_PWRON_PIN_BIT;
+        let key_source = pmic.read_power_on_source().unwrap();
+        assert!(!key_source.vbus_insert);
+        assert!(key_source.power_key);
     }
 
     #[test]
@@ -380,7 +396,7 @@ mod tests {
             vbus_present: true,
             battery_connected: true,
             power_on_source: PowerOnSource {
-                raw: 0x01,
+                raw: 0x04,
                 vbus_insert: true,
                 power_key: false,
             },
