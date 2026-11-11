@@ -16,6 +16,9 @@ const STATUS1: u8 = 0x00;
 const STATUS2: u8 = 0x01;
 const IC_TYPE: u8 = 0x03;
 const AXP2101_CHIP_ID: u8 = 0x4A;
+const PWRON_STATUS: u8 = 0x20;
+const PWRON_SOURCE_VBUS_BIT: u8 = 1 << 0;
+const PWRON_SOURCE_PWRON_PIN_BIT: u8 = 1 << 1;
 const ADC_CHANNEL_CTRL: u8 = 0x30;
 const ADC_BAT_VOLTAGE_HIGH: u8 = 0x34;
 const ADC_BAT_VOLTAGE_LOW: u8 = 0x35;
@@ -42,6 +45,44 @@ pub struct PowerSnapshot {
     pub vbus_present: bool,
     /// PMIC charge state reports active charging.
     pub charging: bool,
+}
+
+/// Hardware power-on source reported by AXP2101 register `0x20` (`PWRON_STATUS`).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct PowerOnSource {
+    pub raw: u8,
+    pub vbus_insert: bool,
+    pub power_key: bool,
+}
+
+/// Signals evaluated at boot to decide whether the device should stay in deep
+/// sleep and silently charge instead of waking the e-paper UI.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct BootSleepDecisionInput {
+    pub persisted_sleep: bool,
+    pub woke_by_ext_pin: bool,
+    pub woke_by_timer: bool,
+    pub reset_is_poweron: bool,
+    pub vbus_present: bool,
+    pub battery_connected: bool,
+    pub power_on_source: PowerOnSource,
+    pub pending_power_key: bool,
+}
+
+/// Return `true` when boot was triggered by USB/VBUS charging while the device
+/// was turned off/asleep (without an intentional BOOT/PWR button or timer wake).
+#[must_use]
+pub const fn should_stay_asleep_on_boot(input: BootSleepDecisionInput) -> bool {
+    if input.woke_by_ext_pin || input.woke_by_timer || input.pending_power_key {
+        return false;
+    }
+    if !input.vbus_present || !input.battery_connected {
+        return false;
+    }
+    if input.persisted_sleep {
+        return true;
+    }
+    input.reset_is_poweron && input.power_on_source.vbus_insert && !input.power_on_source.power_key
 }
 
 /// Power contract consumed by the panel driver.
@@ -152,6 +193,17 @@ where
         self.update_bits(LDO_ONOFF_CTRL0, ALDO3_ENABLE_BIT, false)?;
         self.update_bits(ADC_CHANNEL_CTRL, 1 << 0, false)?;
         self.write_register(INTSTS2, POWER_KEY_EVENT_MASK)
+    }
+
+    /// Read the latched AXP2101 power-on source (`PWRON_STATUS`, register `0x20`).
+    pub fn read_power_on_source(&mut self) -> Result<PowerOnSource> {
+        self.verify_present()?;
+        let raw = self.read_register(PWRON_STATUS)?;
+        Ok(PowerOnSource {
+            raw,
+            vbus_insert: raw & PWRON_SOURCE_VBUS_BIT != 0,
+            power_key: raw & PWRON_SOURCE_PWRON_PIN_BIT != 0,
+        })
     }
 
     /// Read battery and VBUS state using the same AXP2101 register meanings as
@@ -294,6 +346,85 @@ mod tests {
             .i2c
             .writes
             .contains(&(super::INTSTS2, crate::power_key::POWER_KEY_EVENT_MASK)));
+    }
+
+    #[test]
+    fn reads_power_on_source_bits_from_pwron_status_register() {
+        let mut regs = [0_u8; 256];
+        regs[usize::from(super::IC_TYPE)] = super::AXP2101_CHIP_ID;
+        regs[usize::from(super::PWRON_STATUS)] = super::PWRON_SOURCE_VBUS_BIT;
+        let mut pmic = super::Axp2101::new(MockAxpI2c {
+            regs,
+            writes: Vec::new(),
+        });
+        let source = pmic.read_power_on_source().unwrap();
+        assert!(source.vbus_insert);
+        assert!(!source.power_key);
+    }
+
+    #[test]
+    fn stays_asleep_only_for_unrequested_vbus_charge_boots() {
+        use super::{should_stay_asleep_on_boot, BootSleepDecisionInput, PowerOnSource};
+
+        // 1. Sleeping + USB charger plugged in (no button wake) -> stay asleep
+        assert!(should_stay_asleep_on_boot(BootSleepDecisionInput {
+            persisted_sleep: true,
+            vbus_present: true,
+            battery_connected: true,
+            ..BootSleepDecisionInput::default()
+        }));
+
+        // 2. Cold PMIC power-on purely from VBUS insertion with battery -> stay asleep
+        assert!(should_stay_asleep_on_boot(BootSleepDecisionInput {
+            reset_is_poweron: true,
+            vbus_present: true,
+            battery_connected: true,
+            power_on_source: PowerOnSource {
+                raw: 0x01,
+                vbus_insert: true,
+                power_key: false,
+            },
+            ..BootSleepDecisionInput::default()
+        }));
+
+        // 3. User pressed BOOT (EXT1) while charging -> wake up
+        assert!(!should_stay_asleep_on_boot(BootSleepDecisionInput {
+            persisted_sleep: true,
+            woke_by_ext_pin: true,
+            vbus_present: true,
+            battery_connected: true,
+            ..BootSleepDecisionInput::default()
+        }));
+
+        // 4. User pressed PWR key to turn on -> wake up
+        assert!(!should_stay_asleep_on_boot(BootSleepDecisionInput {
+            reset_is_poweron: true,
+            vbus_present: true,
+            battery_connected: true,
+            power_on_source: PowerOnSource {
+                raw: 0x03,
+                vbus_insert: true,
+                power_key: true,
+            },
+            ..BootSleepDecisionInput::default()
+        }));
+
+        // 5. USB powered without battery -> wake up
+        assert!(!should_stay_asleep_on_boot(BootSleepDecisionInput {
+            persisted_sleep: true,
+            vbus_present: true,
+            battery_connected: false,
+            ..BootSleepDecisionInput::default()
+        }));
+
+        // 6. Normal awake reset while plugged into PC -> wake up
+        assert!(!should_stay_asleep_on_boot(BootSleepDecisionInput {
+            persisted_sleep: false,
+            reset_is_poweron: false,
+            vbus_present: true,
+            battery_connected: true,
+            ..BootSleepDecisionInput::default()
+        }));
     }
 
     #[test]

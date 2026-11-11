@@ -69,7 +69,7 @@ mod firmware {
             PanelGlobalReason, PanelRefreshCoordinator, PanelRefreshPlan, PanelRefreshRequest,
             PANEL_PARTIAL_REFRESH_LIMIT,
         },
-        power::Axp2101,
+        power::{should_stay_asleep_on_boot, Axp2101, BootSleepDecisionInput},
         power_key::{
             PowerKeyEvent, SleepWakeGuard, SleepWakeGuardDecision, POWER_KEY_POLL_MS,
             POWER_KEY_WAKE_GUARD_QUIET_MS,
@@ -131,6 +131,59 @@ mod firmware {
         );
 
         let peripherals = Peripherals::take()?;
+
+        let i2c_config = I2cConfig::new().baudrate(400.kHz().into());
+        let i2c = I2cDriver::new(
+            peripherals.i2c0,
+            peripherals.pins.gpio41,
+            peripherals.pins.gpio42,
+            &i2c_config,
+        )?;
+        let shared_i2c = SharedI2cBus::new(i2c);
+        let mut panel_power = Axp2101::new(shared_i2c.clone());
+
+        // Check early—before touching the e-paper panel, SDMMC, audio, or Wi-Fi—
+        // whether this boot was caused solely by plugging in a USB charger while turned off.
+        let persisted_sleep = read_persisted_sleep_flag();
+        let reset_reason = unsafe { sys::esp_reset_reason() };
+        let wakeup_cause = unsafe { sys::esp_sleep_get_wakeup_cause() };
+        let _ = panel_power.initialize_sample_monitoring();
+        if let (Ok(snapshot), Ok(source)) = (
+            panel_power.read_power_snapshot(),
+            panel_power.read_power_on_source(),
+        ) {
+            let pending_power_key = panel_power.take_power_key_event().ok().flatten().is_some();
+            let stay_asleep = should_stay_asleep_on_boot(BootSleepDecisionInput {
+                persisted_sleep,
+                woke_by_ext_pin: wakeup_cause == sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_EXT1
+                    || wakeup_cause == sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_EXT0,
+                woke_by_timer: wakeup_cause == sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_TIMER,
+                reset_is_poweron: reset_reason == sys::esp_reset_reason_t_ESP_RST_POWERON,
+                vbus_present: snapshot.vbus_present,
+                battery_connected: snapshot.battery_percent.is_some(),
+                power_on_source: source,
+                pending_power_key,
+            });
+            if stay_asleep {
+                info!(
+                    "rustmix-wave=charge-only-boot status=staying-in-deep-sleep persisted-sleep={persisted_sleep} pwron-raw=0x{:02X} vbus={}",
+                    source.raw,
+                    snapshot.vbus_present
+                );
+                let mut imu = waveshare_epd397_rust_app::imu::Qmi8658::new(shared_i2c.clone());
+                if imu.initialize().is_ok() {
+                    let _ = imu.enter_sleep();
+                }
+                let _ = panel_power.prepare_for_deep_sleep();
+                drop(imu);
+                drop(panel_power);
+                drop(shared_i2c);
+                enter_deep_sleep_isolated();
+            }
+        }
+        if persisted_sleep {
+            write_persisted_sleep_flag(false);
+        }
 
         // The uploaded Waveshare sample uses SDMMC in 4-bit mode:
         // CMD GPIO17, CLK GPIO16, D0 GPIO15, D1 GPIO7, D2 GPIO8, D3 GPIO18.
@@ -267,15 +320,6 @@ mod firmware {
             }
         };
 
-        let i2c_config = I2cConfig::new().baudrate(400.kHz().into());
-        let i2c = I2cDriver::new(
-            peripherals.i2c0,
-            peripherals.pins.gpio41,
-            peripherals.pins.gpio42,
-            &i2c_config,
-        )?;
-        let shared_i2c = SharedI2cBus::new(i2c);
-        let panel_power = Axp2101::new(shared_i2c.clone());
         let mut board_services = BoardServices::new(shared_i2c.clone());
 
         // Bidirectional ES8311 Voice Notes milestone. The uploaded BSP uses I2S0 with
@@ -1299,66 +1343,8 @@ mod firmware {
                             drop(buttons);
                             drop(back_button);
                             drop(rtc_alarm_interrupt);
-
-                            unsafe {
-                                // 3. Isolate/reset all non-wake peripheral GPIOs (SDMMC, I2S, SPI/EPD, I2C, buttons) so they don't leak current
-                                for gpio in [
-                                    sys::gpio_num_t_GPIO_NUM_3,
-                                    sys::gpio_num_t_GPIO_NUM_4,
-                                    sys::gpio_num_t_GPIO_NUM_5,
-                                    sys::gpio_num_t_GPIO_NUM_6,
-                                    sys::gpio_num_t_GPIO_NUM_7,
-                                    sys::gpio_num_t_GPIO_NUM_8,
-                                    sys::gpio_num_t_GPIO_NUM_9,
-                                    sys::gpio_num_t_GPIO_NUM_10,
-                                    sys::gpio_num_t_GPIO_NUM_11,
-                                    sys::gpio_num_t_GPIO_NUM_12,
-                                    sys::gpio_num_t_GPIO_NUM_13,
-                                    sys::gpio_num_t_GPIO_NUM_14,
-                                    sys::gpio_num_t_GPIO_NUM_15,
-                                    sys::gpio_num_t_GPIO_NUM_16,
-                                    sys::gpio_num_t_GPIO_NUM_17,
-                                    sys::gpio_num_t_GPIO_NUM_18,
-                                    sys::gpio_num_t_GPIO_NUM_21,
-                                    sys::gpio_num_t_GPIO_NUM_39,
-                                    sys::gpio_num_t_GPIO_NUM_41,
-                                    sys::gpio_num_t_GPIO_NUM_42,
-                                    sys::gpio_num_t_GPIO_NUM_46,
-                                    sys::gpio_num_t_GPIO_NUM_47,
-                                    sys::gpio_num_t_GPIO_NUM_48,
-                                ] {
-                                    sys::gpio_reset_pin(gpio);
-                                }
-
-                                // 4. Isolate any floating RTC GPIOs
-                                sys::esp_sleep_config_gpio_isolate();
-
-                                // 5. Enable RTC pull-ups on GPIO0 (BOOT) and GPIO45 (RTC Alarm)
-                                sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_0);
-                                sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_0);
-                                sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_45);
-                                sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_45);
-
-                                // 6. Power down RC_FAST oscillator and arm EXT1 low-level wake (fallback to GPIO0 if GPIO45 is rejected as non-RTC IO)
-                                let _ = sys::esp_sleep_pd_config(
-                                    sys::esp_sleep_pd_domain_t_ESP_PD_DOMAIN_RC_FAST,
-                                    sys::esp_sleep_pd_option_t_ESP_PD_OPTION_OFF,
-                                );
-                                let wake_mask: u64 = (1u64 << 0) | (1u64 << 45);
-                                if sys::esp_sleep_enable_ext1_wakeup(
-                                    wake_mask,
-                                    sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
-                                ) != sys::ESP_OK
-                                {
-                                    let _ = sys::esp_sleep_enable_ext1_wakeup(
-                                        1u64 << 0,
-                                        sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
-                                    );
-                                }
-                                sys::esp_deep_sleep_disable_rom_logging();
-                                FreeRtos::delay_ms(50);
-                                sys::esp_deep_sleep_start();
-                            }
+                            write_persisted_sleep_flag(true);
+                            enter_deep_sleep_isolated();
                         }
                     }
                     Ok(None) => {}
@@ -3018,6 +3004,124 @@ mod firmware {
     /// by the panel and sample-board reference sequences. Round sub-millisecond
     /// requests up so short sensor waits remain conservative.
     #[derive(Clone, Copy, Debug, Default)]
+    const NVS_SLEEP_NAMESPACE: &str = "rustmix_pm";
+    const NVS_SLEEP_KEY: &str = "sleeping";
+
+    fn read_persisted_sleep_flag() -> bool {
+        let Ok(namespace) = CString::new(NVS_SLEEP_NAMESPACE) else {
+            return false;
+        };
+        let Ok(key) = CString::new(NVS_SLEEP_KEY) else {
+            return false;
+        };
+        unsafe {
+            if sys::nvs_flash_init() != sys::ESP_OK {
+                return false;
+            }
+            let mut handle: sys::nvs_handle_t = 0;
+            if sys::nvs_open(
+                namespace.as_ptr(),
+                sys::nvs_open_mode_t_NVS_READONLY,
+                &mut handle,
+            ) != sys::ESP_OK
+            {
+                return false;
+            }
+            let mut value: u8 = 0;
+            let ok = sys::nvs_get_u8(handle, key.as_ptr(), &mut value) == sys::ESP_OK;
+            sys::nvs_close(handle);
+            ok && value == 1
+        }
+    }
+
+    fn write_persisted_sleep_flag(sleeping: bool) {
+        let Ok(namespace) = CString::new(NVS_SLEEP_NAMESPACE) else {
+            return;
+        };
+        let Ok(key) = CString::new(NVS_SLEEP_KEY) else {
+            return;
+        };
+        unsafe {
+            if sys::nvs_flash_init() != sys::ESP_OK {
+                return;
+            }
+            let mut handle: sys::nvs_handle_t = 0;
+            if sys::nvs_open(
+                namespace.as_ptr(),
+                sys::nvs_open_mode_t_NVS_READWRITE,
+                &mut handle,
+            ) != sys::ESP_OK
+            {
+                return;
+            }
+            let _ = sys::nvs_set_u8(handle, key.as_ptr(), u8::from(sleeping));
+            let _ = sys::nvs_commit(handle);
+            sys::nvs_close(handle);
+        }
+    }
+
+    fn enter_deep_sleep_isolated() -> ! {
+        unsafe {
+            // Isolate/reset all non-wake peripheral GPIOs (SDMMC, I2S, SPI/EPD, I2C, buttons) so they don't leak current
+            for gpio in [
+                sys::gpio_num_t_GPIO_NUM_3,
+                sys::gpio_num_t_GPIO_NUM_4,
+                sys::gpio_num_t_GPIO_NUM_5,
+                sys::gpio_num_t_GPIO_NUM_6,
+                sys::gpio_num_t_GPIO_NUM_7,
+                sys::gpio_num_t_GPIO_NUM_8,
+                sys::gpio_num_t_GPIO_NUM_9,
+                sys::gpio_num_t_GPIO_NUM_10,
+                sys::gpio_num_t_GPIO_NUM_11,
+                sys::gpio_num_t_GPIO_NUM_12,
+                sys::gpio_num_t_GPIO_NUM_13,
+                sys::gpio_num_t_GPIO_NUM_14,
+                sys::gpio_num_t_GPIO_NUM_15,
+                sys::gpio_num_t_GPIO_NUM_16,
+                sys::gpio_num_t_GPIO_NUM_17,
+                sys::gpio_num_t_GPIO_NUM_18,
+                sys::gpio_num_t_GPIO_NUM_21,
+                sys::gpio_num_t_GPIO_NUM_39,
+                sys::gpio_num_t_GPIO_NUM_41,
+                sys::gpio_num_t_GPIO_NUM_42,
+                sys::gpio_num_t_GPIO_NUM_46,
+                sys::gpio_num_t_GPIO_NUM_47,
+                sys::gpio_num_t_GPIO_NUM_48,
+            ] {
+                sys::gpio_reset_pin(gpio);
+            }
+
+            // Isolate any floating RTC GPIOs
+            sys::esp_sleep_config_gpio_isolate();
+
+            // Enable RTC pull-ups on GPIO0 (BOOT) and GPIO45 (RTC Alarm)
+            sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_0);
+            sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_0);
+            sys::rtc_gpio_pullup_en(sys::gpio_num_t_GPIO_NUM_45);
+            sys::rtc_gpio_pulldown_dis(sys::gpio_num_t_GPIO_NUM_45);
+
+            // Power down RC_FAST oscillator and arm EXT1 low-level wake (fallback to GPIO0 if GPIO45 is rejected as non-RTC IO)
+            let _ = sys::esp_sleep_pd_config(
+                sys::esp_sleep_pd_domain_t_ESP_PD_DOMAIN_RC_FAST,
+                sys::esp_sleep_pd_option_t_ESP_PD_OPTION_OFF,
+            );
+            let wake_mask: u64 = (1u64 << 0) | (1u64 << 45);
+            if sys::esp_sleep_enable_ext1_wakeup(
+                wake_mask,
+                sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
+            ) != sys::ESP_OK
+            {
+                let _ = sys::esp_sleep_enable_ext1_wakeup(
+                    1u64 << 0,
+                    sys::esp_sleep_ext1_wakeup_mode_t_ESP_EXT1_WAKEUP_ANY_LOW,
+                );
+            }
+            sys::esp_deep_sleep_disable_rom_logging();
+            FreeRtos::delay_ms(50);
+            sys::esp_deep_sleep_start();
+        }
+    }
+
     struct FreeRtosDelay;
 
     impl DelayNs for FreeRtosDelay {
