@@ -3110,12 +3110,6 @@ mod firmware {
                 sys::esp_sleep_disable_wakeup_source(sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_ALL);
             sys::esp_sleep_config_gpio_isolate();
 
-            // Power down RC_FAST oscillator during deep sleep
-            let _ = sys::esp_sleep_pd_config(
-                sys::esp_sleep_pd_domain_t_ESP_PD_DOMAIN_RC_FAST,
-                sys::esp_sleep_pd_option_t_ESP_PD_OPTION_OFF,
-            );
-
             // Configure GPIO0 (BOOT) as RTC input with held pull-up so it cannot float low and wake immediately
             let _ = sys::rtc_gpio_init(sys::gpio_num_t_GPIO_NUM_0);
             let _ = sys::rtc_gpio_set_direction(
