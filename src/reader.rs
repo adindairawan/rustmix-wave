@@ -44,7 +44,7 @@ pub const READER_LINES_PER_PAGE: usize = 22;
 /// Maximum wrapped characters per line for the current Reader body profile[cite: 5].
 pub const READER_CHARS_PER_LINE: usize = 43;
 /// Maximum wrapped characters per line for full-screen AO3 Lucida Sans (Inter) prose.
-pub const FANFIC_CHARS_PER_LINE: usize = 52;
+pub const FANFIC_CHARS_PER_LINE: usize = 46;
 /// Nearby page cache retained in RAM while one book is open[cite: 5].
 pub const READER_NEARBY_PAGE_CACHE: usize = 8;
 /// Maximum bytes read while generating a single page[cite: 5].
@@ -99,10 +99,7 @@ pub enum Ao3ScrollLine {
     SectionHeader(String),
     IndentedProse(String),
     ChapterHeading(String),
-    BodyProse {
-        text: String,
-        paragraph_end: bool,
-    },
+    BodyProse { text: String, paragraph_end: bool },
 }
 
 /// Reader-supported content types. TXT and bounded reflowable EPUB are active[cite: 5].
@@ -1783,7 +1780,8 @@ impl ReaderUiState {
                     .len()
                     .saturating_sub(FANFIC_VIEWPORT_LINES);
                 if session.scroll_line < max_scroll {
-                    session.scroll_line = (session.scroll_line + FANFIC_SCROLL_STEP).min(max_scroll);
+                    session.scroll_line =
+                        (session.scroll_line + FANFIC_SCROLL_STEP).min(max_scroll);
                 } else if let Some(doc) = session.epub_document.as_ref() {
                     // At bottom of chapter -> turn page to the top of the next chapter!
                     if session.current_chapter_idx + 1 < doc.chapters.len() {
@@ -2251,23 +2249,12 @@ impl ReaderUiState {
             let meta = book.ao3.clone().unwrap_or_default();
             // A TXT work has no chapters: render it as chapter 1 of 1 so the
             // header, meta box and closing notes all appear.
-            build_ao3_chapter_scroll_stream(
-                &book.title,
-                &meta,
-                "",
-                1,
-                1,
-                &story_lines,
-                true,
-                true,
-            )
+            build_ao3_chapter_scroll_stream(&book.title, &meta, "", 1, 1, &story_lines, true, true)
         } else {
             Vec::new()
         };
         let scroll_line = if is_fanfic {
-            let max_scroll = ao3_scroll_lines
-                .len()
-                .saturating_sub(FANFIC_VIEWPORT_LINES);
+            let max_scroll = ao3_scroll_lines.len().saturating_sub(FANFIC_VIEWPORT_LINES);
             requested
                 .filter(|location| location.matches_book(book))
                 .map_or(0, |location| {
@@ -2479,7 +2466,10 @@ fn wrap_story_paragraphs(raw_text: &str, max_chars: usize) -> Vec<ReaderPageLine
         }
         let trimmed = raw_line.trim();
         if trimmed.is_empty() {
-            if !out.last().is_some_and(|l: &ReaderPageLine| l.text.is_empty()) {
+            if !out
+                .last()
+                .is_some_and(|l: &ReaderPageLine| l.text.is_empty())
+            {
                 out.push(ReaderPageLine {
                     text: String::new(),
                     paragraph_end: true,
@@ -2542,46 +2532,44 @@ fn build_ao3_chapter_scroll_stream(
     use Ao3ScrollLine::*;
     let mut s = Vec::new();
 
-    if is_first_chapter {
-        // 1. AO3 Header & Action Bar (Only on Chapter 1)
-        s.push(TopBanner);
-        s.push(NavBar);
-        s.push(ActionButtons);
-        s.push(MetaBoxTop);
+    // 1. AO3 Header & Action Bar (Shown at the top of every chapter)
+    s.push(TopBanner);
+    s.push(NavBar);
+    s.push(ActionButtons);
+    s.push(MetaBoxTop);
 
-        // 2. Strictly ONLY Rating:, Fandom:, and Character: in the Meta Box
-        let fields = [
-            ("Rating:", meta.rating_text.as_str()),
-            ("Fandom:", meta.fandoms.as_str()),
-            ("Character:", meta.characters.as_str()),
-        ];
-        for (label, val) in fields {
-            s.push(MetaLabel(label.into(), false));
-            for wrapped in wrap_plain_str(val, 48) {
-                s.push(MetaValue(wrapped, false));
-            }
+    // 2. Strictly ONLY Rating:, Fandom:, and Character: in the Meta Box
+    let fields = [
+        ("Rating:", meta.rating_text.as_str()),
+        ("Fandom:", meta.fandoms.as_str()),
+        ("Character:", meta.characters.as_str()),
+    ];
+    for (label, val) in fields {
+        s.push(MetaLabel(label.into(), false));
+        for wrapped in wrap_plain_str(val, 48) {
+            s.push(MetaValue(wrapped, false));
         }
-        s.push(MetaBoxBottom);
+    }
+    s.push(MetaBoxBottom);
+    s.push(Blank);
+
+    // 3. Georgia Title & Author
+    for t_line in wrap_plain_str(title, 26) {
+        s.push(WorkTitle(t_line));
+    }
+    s.push(WorkAuthor(meta.author.clone()));
+    s.push(Blank);
+
+    // 4. Summary (Shown on Chapter 1 before the chapter heading)
+    if is_first_chapter && !meta.summary.is_empty() {
+        s.push(SectionHeader("Summary:".into()));
+        for line in wrap_plain_str(&meta.summary, FANFIC_CHARS_PER_LINE) {
+            s.push(BodyProse {
+                text: line,
+                paragraph_end: false,
+            });
+        }
         s.push(Blank);
-
-        // 3. Georgia Title & Author
-        for t_line in wrap_plain_str(title, 26) {
-            s.push(WorkTitle(t_line));
-        }
-        s.push(WorkAuthor(meta.author.clone()));
-        s.push(Blank);
-
-        // 4. Summary (Full-screen width, 52 chars per line)
-        if !meta.summary.is_empty() {
-            s.push(SectionHeader("Summary:".into()));
-            for line in wrap_plain_str(&meta.summary, FANFIC_CHARS_PER_LINE) {
-                s.push(BodyProse {
-                    text: line,
-                    paragraph_end: false,
-                });
-            }
-            s.push(Blank);
-        }
     }
 
     // 5. Chapter Heading + Current Chapter Prose
@@ -3471,4 +3459,58 @@ fn split_escaped_tabs(value: &str) -> Result<Vec<String>, String> {
     }
     output.push(unescape_field(&current)?);
     Ok(output)
+}
+
+#[cfg(test)]
+mod ao3_stream_tests {
+    use super::{build_ao3_chapter_scroll_stream, Ao3ScrollLine, ReaderPageLine};
+    use crate::epub::EpubAo3Meta;
+
+    #[test]
+    fn ao3_header_and_meta_appear_on_every_chapter_while_summary_only_on_first() {
+        let meta = EpubAo3Meta {
+            author: "Author".into(),
+            rating_text: "Teen And Up".into(),
+            fandoms: "Test Fandom".into(),
+            characters: "Character A".into(),
+            summary: "Work summary text.".into(),
+            ..EpubAo3Meta::default()
+        };
+        let prose = vec![ReaderPageLine {
+            text: "Chapter body line.".into(),
+            paragraph_end: true,
+        }];
+
+        let ch1 = build_ao3_chapter_scroll_stream(
+            "Sample Fic",
+            &meta,
+            "Chapter 1",
+            1,
+            2,
+            &prose,
+            true,
+            false,
+        );
+        let ch2 = build_ao3_chapter_scroll_stream(
+            "Sample Fic",
+            &meta,
+            "Chapter 2",
+            2,
+            2,
+            &prose,
+            false,
+            true,
+        );
+
+        for stream in [&ch1, &ch2] {
+            assert!(stream.contains(&Ao3ScrollLine::TopBanner));
+            assert!(stream.contains(&Ao3ScrollLine::NavBar));
+            assert!(stream.contains(&Ao3ScrollLine::ActionButtons));
+            assert!(stream.contains(&Ao3ScrollLine::MetaBoxTop));
+            assert!(stream.contains(&Ao3ScrollLine::WorkTitle("Sample Fic".into())));
+            assert!(stream.contains(&Ao3ScrollLine::WorkAuthor("Author".into())));
+        }
+        assert!(ch1.contains(&Ao3ScrollLine::SectionHeader("Summary:".into())));
+        assert!(!ch2.contains(&Ao3ScrollLine::SectionHeader("Summary:".into())));
+    }
 }

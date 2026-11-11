@@ -40,17 +40,25 @@ pub fn render_continue_reading(
     let heading = state.display.heading_style();
     let body = state.display.body_style();
     if let Some(session) = state.reader.session.as_ref() {
-        Text::new(&truncate(&session.book.title, 38), Point::new(24, 190), heading)
-            .draw(display)?;
+        Text::new(
+            &truncate(&session.book.title, 38),
+            Point::new(24, 190),
+            heading,
+        )
+        .draw(display)?;
         Text::new(&session.display_page_label(), Point::new(24, 240), body).draw(display)?;
         Text::new("SELECT resumes the open page.", Point::new(24, 284), body).draw(display)?;
     } else if let Some(resume) = state.reader.resume.as_ref() {
         Text::new(&truncate(&resume.title, 38), Point::new(24, 190), heading).draw(display)?;
         let resume_detail = if resume.path.contains("FANFIC") {
             if let Some(ch) = resume.epub_chapter.as_ref() {
-                let pct = ((ch.page_number.saturating_add(FANFIC_VIEWPORT_LINES).min(ch.page_count) * 100)
+                let pct = ((ch
+                    .page_number
+                    .saturating_add(FANFIC_VIEWPORT_LINES)
+                    .min(ch.page_count)
+                    * 100)
                     / ch.page_count.max(1))
-                    .min(100);
+                .min(100);
                 format!(
                     "Saved Ch {} Line {} ({pct}%) ready to restore.",
                     ch.chapter_number, ch.page_number
@@ -155,9 +163,13 @@ pub fn render_library(
             let card_top = 240 + (slot as i32) * 246;
             let saved_badge = visible[index].location.as_ref().map(|loc| {
                 if let Some(ch) = loc.epub_chapter.as_ref() {
-                    let pct = ((ch.page_number.saturating_add(FANFIC_VIEWPORT_LINES).min(ch.page_count) * 100)
+                    let pct = ((ch
+                        .page_number
+                        .saturating_add(FANFIC_VIEWPORT_LINES)
+                        .min(ch.page_count)
+                        * 100)
                         / ch.page_count.max(1))
-                        .min(100);
+                    .min(100);
                     format!("Saved: Ch {} ({pct}%)", ch.chapter_number)
                 } else {
                     format!("Saved: Line {}", loc.page_index + 1)
@@ -240,9 +252,24 @@ fn draw_ao3_blurb_card(
     let gx = 24;
     let gy = top + 12;
     for (dx, dy, sym, invert) in [
-        (0, 0, meta.rating_text.chars().next().unwrap_or('T'), selected),
-        (24, 0, meta.category_text.chars().next().unwrap_or('/'), false),
-        (0, 24, meta.warning_text.chars().next().unwrap_or('!'), false),
+        (
+            0,
+            0,
+            meta.rating_text.chars().next().unwrap_or('T'),
+            selected,
+        ),
+        (
+            24,
+            0,
+            meta.category_text.chars().next().unwrap_or('/'),
+            false,
+        ),
+        (
+            0,
+            24,
+            meta.warning_text.chars().next().unwrap_or('!'),
+            false,
+        ),
         (24, 24, '=', false),
     ] {
         let cell_pt = Point::new(gx + dx, gy + dy);
@@ -253,7 +280,9 @@ fn draw_ao3_blurb_card(
             Text::new(
                 &sym.to_string(),
                 Point::new(gx + dx + 6, gy + dy + 16),
-                state.display.text_style(UiTextRole::Detail, BinaryColor::Off),
+                state
+                    .display
+                    .text_style(UiTextRole::Detail, BinaryColor::Off),
             )
             .draw(display)?;
         } else {
@@ -481,12 +510,7 @@ pub fn render_loading(
     display: &mut OrientedFrameBuffer<'_>,
     state: &AppState,
 ) -> Result<(), Infallible> {
-    draw_header(
-        display,
-        state.display,
-        "OPENING WORK",
-        "RESPONSIVE CACHE",
-    )?;
+    draw_header(display, state.display, "OPENING WORK", "RESPONSIVE CACHE")?;
     let body = state.display.body_style();
     let heading = state.display.heading_style();
     let loading = state.reader.loading.as_ref();
@@ -671,6 +695,18 @@ pub fn render_page(
     Ok(())
 }
 
+#[must_use]
+const fn fanfic_body_font_size(
+    preferred: crate::reader::BookFontSize,
+) -> crate::reader::BookFontSize {
+    match preferred {
+        crate::reader::BookFontSize::Small => crate::reader::BookFontSize::Medium,
+        crate::reader::BookFontSize::Medium
+        | crate::reader::BookFontSize::Large
+        | crate::reader::BookFontSize::XLarge => crate::reader::BookFontSize::Large,
+    }
+}
+
 fn render_ao3_continuous_scroll_page(
     display: &mut OrientedFrameBuffer<'_>,
     state: &AppState,
@@ -695,7 +731,7 @@ fn render_ao3_continuous_scroll_page(
 
     let lucida_body = reader_body_style(
         crate::reader::BookFont::Inter,
-        state.reader.preferences.font_size,
+        fanfic_body_font_size(state.reader.preferences.font_size),
         theme,
     );
     let lucida_sm = reader_body_style(
@@ -704,7 +740,9 @@ fn render_ao3_continuous_scroll_page(
         theme,
     );
     let detail = state.display.detail_style();
-    let inv_detail = state.display.text_style(UiTextRole::Detail, BinaryColor::Off);
+    let inv_detail = state
+        .display
+        .text_style(UiTextRole::Detail, BinaryColor::Off);
 
     let total_lines = session.total_fanfic_virtual_lines().max(1);
     let start = session.scroll_line.min(total_lines.saturating_sub(1));
@@ -862,8 +900,8 @@ fn render_ao3_continuous_scroll_page(
     let thumb_h =
         ((FANFIC_VIEWPORT_LINES as i32 * track_h) / total_lines as i32).clamp(18, track_h);
     let max_start = total_lines.saturating_sub(FANFIC_VIEWPORT_LINES).max(1) as i32;
-    let thumb_y = track_top
-        + ((start as i32 * (track_h - thumb_h)) / max_start).clamp(0, track_h - thumb_h);
+    let thumb_y =
+        track_top + ((start as i32 * (track_h - thumb_h)) / max_start).clamp(0, track_h - thumb_h);
     Rectangle::new(Point::new(472, thumb_y), Size::new(4, thumb_h as u32))
         .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
         .draw(display)?;
@@ -871,8 +909,7 @@ fn render_ao3_continuous_scroll_page(
     Rectangle::new(Point::new(14, 748), Size::new(452, 1))
         .into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
         .draw(display)?;
-    let pct = ((start.saturating_add(FANFIC_VIEWPORT_LINES).min(total_lines) * 100)
-        / total_lines)
+    let pct = ((start.saturating_add(FANFIC_VIEWPORT_LINES).min(total_lines) * 100) / total_lines)
         .min(100);
     Text::new(
         &format!("UP/DOWN scroll ({pct}%)   SELECT options   BOOT back"),
@@ -1129,7 +1166,9 @@ fn draw_tabs(
             Text::new(
                 tab.label(),
                 Point::new(left + 8, 158),
-                state.display.text_style(UiTextRole::Detail, BinaryColor::Off),
+                state
+                    .display
+                    .text_style(UiTextRole::Detail, BinaryColor::Off),
             )
             .draw(display)?;
         } else {
@@ -1365,5 +1404,22 @@ mod tests {
             bounds,
         );
         assert!(justified.len() > "one two three".len());
+    }
+
+    #[test]
+    fn fanfic_body_font_steps_up_for_comfortable_reading() {
+        use crate::reader::BookFontSize;
+        assert_eq!(
+            super::fanfic_body_font_size(BookFontSize::Small),
+            BookFontSize::Medium
+        );
+        assert_eq!(
+            super::fanfic_body_font_size(BookFontSize::Medium),
+            BookFontSize::Large
+        );
+        assert_eq!(
+            super::fanfic_body_font_size(BookFontSize::Large),
+            BookFontSize::Large
+        );
     }
 }
