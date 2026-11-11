@@ -13,7 +13,7 @@ This build introduces major upgrades focused on battery efficiency (both active/
 
 ### Power & Reliability
 * **Active & Idle Battery Optimization:**
-  * Configured ESP-IDF power management (`esp_pm_configure` at `40–160 MHz` with `light_sleep_enable: true`) in `src/main.rs` alongside `CONFIG_PM_ENABLE` and tickless idle.
+  * Configured ESP-IDF power management dynamic frequency scaling (`esp_pm_configure` at `40–160 MHz`) in `src/main.rs` alongside `CONFIG_PM_ENABLE` and tickless idle.
   * Gated I2S0 TX/RX clocks on demand in `src/audio/espidf.rs` so the 6.144 MHz MCLK and ESP-IDF APB/light-sleep lock are released whenever audio playback or recording is idle.
   * Added on-demand standby/wake for the QMI8658 IMU (`src/imu.rs`, `src/board_services.rs`) and lowered active ODR from `1000 Hz` to `250 Hz`, keeping the IMU asleep unless a motion screen or motion-controlled game is active.
   * Cached AXP2101 chip-ID verification in `src/power.rs` to cut redundant polling I2C traffic, and enabled `WIFI_PS_MAX_MODEM` when Wi-Fi is connected and idle (`WIFI_PS_MIN_MODEM` during file transfers) in `src/network.rs`.

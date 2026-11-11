@@ -116,11 +116,11 @@ mod firmware {
             let pm_config = sys::esp_pm_config_t {
                 max_freq_mhz: 160,
                 min_freq_mhz: 40,
-                light_sleep_enable: true,
+                light_sleep_enable: false,
             };
             let err = sys::esp_pm_configure((&pm_config as *const sys::esp_pm_config_t).cast());
             if err == sys::ESP_OK {
-                info!("rustmix-wave=power-management status=enabled max-mhz=160 min-mhz=40 light-sleep=true");
+                info!("rustmix-wave=power-management status=enabled max-mhz=160 min-mhz=40 light-sleep=false");
             } else {
                 warn!("rustmix-wave=power-management status=unavailable err={err}");
             }
@@ -3103,12 +3103,21 @@ mod firmware {
                 sys::gpio_num_t_GPIO_NUM_48,
             ] {
                 sys::gpio_reset_pin(gpio);
+                let _ = sys::gpio_pullup_dis(gpio);
+                let _ = sys::gpio_pulldown_dis(gpio);
+                let _ = sys::gpio_set_direction(gpio, sys::gpio_mode_t_GPIO_MODE_DISABLE);
             }
 
             // Clear any prior wake sources and isolate floating RTC GPIOs
             let _ =
                 sys::esp_sleep_disable_wakeup_source(sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_ALL);
             sys::esp_sleep_config_gpio_isolate();
+
+            // Keep RTC_PERIPH powered so GPIO0's internal pull-up stays active during deep sleep
+            let _ = sys::esp_sleep_pd_config(
+                sys::esp_sleep_pd_domain_t_ESP_PD_DOMAIN_RTC_PERIPH,
+                sys::esp_sleep_pd_option_t_ESP_PD_OPTION_ON,
+            );
 
             // Configure GPIO0 (BOOT) as RTC input with held pull-up so it cannot float low and wake immediately
             let _ = sys::rtc_gpio_init(sys::gpio_num_t_GPIO_NUM_0);
