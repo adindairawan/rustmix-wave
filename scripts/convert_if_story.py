@@ -2,6 +2,8 @@
 """Convert .twee (Twine) or .ink (Inkle Ink) files into RustMix STORY.TXT format."""
 
 import argparse
+import html
+from html.parser import HTMLParser
 import pathlib
 import re
 import sys
@@ -135,15 +137,61 @@ def convert_ink(text: str, title: str, author: str) -> str:
     return "\n".join(out) + "\n"
 
 
+class _TwineHtmlParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.story_name: str | None = None
+        self.passages: list[tuple[str, str]] = []
+        self._current_name: str | None = None
+        self._buf: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr_map = dict(attrs)
+        if tag.lower() == "tw-storydata":
+            if attr_map.get("name"):
+                self.story_name = attr_map["name"]
+        elif tag.lower() == "tw-passagedata":
+            self._current_name = attr_map.get("name") or "node"
+            self._buf = []
+
+    def handle_data(self, data: str) -> None:
+        if self._current_name is not None:
+            self._buf.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() == "tw-passagedata" and self._current_name is not None:
+            self.passages.append((self._current_name, html.unescape("".join(self._buf))))
+            self._current_name = None
+            self._buf = []
+
+
+def convert_twine_html(raw_html: str, title: str, author: str) -> str:
+    parser = _TwineHtmlParser()
+    parser.feed(raw_html)
+    if not parser.passages:
+        raise ValueError(
+            "No Twine <tw-passagedata> passages found in HTML "
+            "(this looks like a webpage wrapper rather than a compiled Twine .html game)."
+        )
+    twee_parts: list[str] = []
+    if parser.story_name:
+        twee_parts.append(f":: StoryTitle\n{parser.story_name}\n")
+    for name, body in parser.passages:
+        twee_parts.append(f":: {name}\n{body}\n")
+    return convert_twee("\n".join(twee_parts), parser.story_name or title, author)
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Convert .twee or .ink to RustMix STORY.TXT")
-    parser.add_argument("input", type=pathlib.Path, help="Input .twee or .ink file")
+    parser = argparse.ArgumentParser(
+        description="Convert .twee, .ink, or Twine .html to RustMix STORY.TXT"
+    )
+    parser.add_argument("input", type=pathlib.Path, help="Input .twee, .ink, or Twine .html file")
     parser.add_argument("-o", "--output", type=pathlib.Path, default=pathlib.Path("STORY.TXT"))
     parser.add_argument("--title", default=None)
     parser.add_argument("--author", default="Community IF")
     args = parser.parse_args()
 
-    text = args.input.read_text(encoding="utf-8")
+    text = args.input.read_text(encoding="utf-8", errors="replace")
     title = args.title or args.input.stem.replace("_", " ").replace("-", " ").title()
     ext = args.input.suffix.lower()
 
@@ -151,10 +199,20 @@ def main() -> int:
         result = convert_twee(text, title, args.author)
     elif ext == ".ink":
         result = convert_ink(text, title, args.author)
+    elif ext in (".html", ".htm"):
+        try:
+            result = convert_twine_html(text, title, args.author)
+        except ValueError as err:
+            print(f"Error: {err}", file=sys.stderr)
+            return 1
     else:
-        print(f"Unsupported extension '{ext}' (expected .twee, .tw, or .ink)", file=sys.stderr)
+        print(
+            f"Unsupported extension '{ext}' (expected .twee, .tw, .ink, or .html)",
+            file=sys.stderr,
+        )
         return 1
 
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(result, encoding="utf-8")
     print(f"Wrote {args.output}")
     return 0
