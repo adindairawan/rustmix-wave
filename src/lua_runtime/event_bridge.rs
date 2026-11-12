@@ -14,6 +14,7 @@ use crate::{
         motion_2048::{Motion2048EventResult, Motion2048Game},
         shake_dice::{ShakeDiceEventResult, ShakeDiceGame},
         sokoban_tilt::{SokobanTiltEventResult, SokobanTiltGame},
+        story_game::{StoryEventResult, StoryGame},
         sudoku::{SudokuEventResult, SudokuGame},
         tilt_maze::{TiltMazeEventResult, TiltMazeGame},
     },
@@ -29,6 +30,7 @@ pub enum LuaGameEventResult {
     SokobanTilt(SokobanTiltEventResult),
     BabaTilt(BabaEventResult),
     ShakeDice(ShakeDiceEventResult),
+    Story(StoryEventResult),
 }
 impl LuaGameEventResult {
     #[must_use]
@@ -41,6 +43,7 @@ impl LuaGameEventResult {
             Self::SokobanTilt(_) => "sokoban-tilt",
             Self::BabaTilt(_) => "baba-tilt",
             Self::ShakeDice(_) => "shake-dice",
+            Self::Story(_) => "story",
         }
     }
     #[must_use]
@@ -53,6 +56,7 @@ impl LuaGameEventResult {
             Self::SokobanTilt(r) => r.reason,
             Self::BabaTilt(r) => r.reason,
             Self::ShakeDice(r) => r.reason,
+            Self::Story(r) => r.reason,
         }
     }
     #[must_use]
@@ -65,6 +69,7 @@ impl LuaGameEventResult {
             Self::SokobanTilt(r) => r.row,
             Self::BabaTilt(r) => r.row,
             Self::ShakeDice(_) => 0,
+            Self::Story(r) => r.node_index,
         }
     }
     #[must_use]
@@ -77,6 +82,7 @@ impl LuaGameEventResult {
             Self::SokobanTilt(r) => r.column,
             Self::BabaTilt(r) => r.column,
             Self::ShakeDice(_) => 0,
+            Self::Story(r) => r.choice_index,
         }
     }
     #[must_use]
@@ -89,6 +95,7 @@ impl LuaGameEventResult {
             | Self::SokobanTilt(_)
             | Self::BabaTilt(_)
             | Self::ShakeDice(_) => "motion",
+            Self::Story(_) => "story",
         }
     }
     #[must_use]
@@ -101,6 +108,7 @@ impl LuaGameEventResult {
             | Self::SokobanTilt(_)
             | Self::BabaTilt(_)
             | Self::ShakeDice(_) => "imu",
+            Self::Story(_) => "button",
         }
     }
     #[must_use]
@@ -150,6 +158,12 @@ impl LuaGameEventResult {
             Self::ShakeDice(r) => {
                 format!("die={} value={} rolls={}", r.die.marker(), r.value, r.rolls)
             }
+            Self::Story(r) => {
+                format!(
+                    "node={} choice={} turns={} ended={}",
+                    r.node_index, r.choice_index, r.turns, r.ended
+                )
+            }
         }
     }
     #[must_use]
@@ -162,6 +176,7 @@ impl LuaGameEventResult {
             Self::SokobanTilt(r) => r.outcome.completed(),
             Self::BabaTilt(r) => r.outcome.completed(),
             Self::ShakeDice(_) => false,
+            Self::Story(r) => r.ended,
         }
     }
     #[must_use]
@@ -174,6 +189,7 @@ impl LuaGameEventResult {
             Self::SokobanTilt(r) => r.dirty_regions.len(),
             Self::BabaTilt(r) => r.dirty_regions.len(),
             Self::ShakeDice(r) => r.dirty_regions.len(),
+            Self::Story(r) => r.dirty_regions.len(),
         }
     }
 }
@@ -188,6 +204,7 @@ pub enum LuaEventBridge {
     SokobanTilt(SokobanTiltGame),
     BabaTilt(Box<BabaGame>),
     ShakeDice(ShakeDiceGame),
+    Story(Box<StoryGame>),
 }
 impl LuaEventBridge {
     pub fn load(source: &str, canvas: &mut NativeGameCanvas) -> Result<Self, String> {
@@ -211,6 +228,10 @@ impl LuaEventBridge {
             let game = BabaGame::from_app_dir(&map, app_dir)?;
             game.render_initial(canvas)?;
             Ok(Self::BabaTilt(Box::new(game)))
+        } else if let Some(story_arg) = parse_story_init(source)? {
+            let game = StoryGame::from_app_dir(&story_arg, app_dir)?;
+            game.render_initial(canvas)?;
+            Ok(Self::Story(Box::new(game)))
         } else if let Some(seed) = parse_motion2048_init(source)? {
             let game = Motion2048Game::from_seed(seed)?;
             game.render_initial(canvas)?;
@@ -243,6 +264,7 @@ impl LuaEventBridge {
             Self::SokobanTilt(_) => "sokoban-tilt",
             Self::BabaTilt(_) => "baba-tilt",
             Self::ShakeDice(_) => "shake-dice",
+            Self::Story(_) => "story",
         }
     }
     #[must_use]
@@ -286,6 +308,9 @@ impl LuaEventBridge {
             Self::ShakeDice(g) => g
                 .apply_button_and_render(event, canvas)
                 .map(|r| r.map(LuaGameEventResult::ShakeDice)),
+            Self::Story(g) => g
+                .apply_button_and_render(event, canvas)
+                .map(|r| r.map(LuaGameEventResult::Story)),
         }
     }
     pub fn apply_boot_short_press(
@@ -306,6 +331,10 @@ impl LuaEventBridge {
             Self::Minesweeper(g) => g
                 .apply_boot_short_press_and_render(canvas)
                 .map(LuaGameEventResult::Minesweeper)
+                .map(Some),
+            Self::Story(g) => g
+                .apply_boot_short_press_and_render(canvas)
+                .map(LuaGameEventResult::Story)
                 .map(Some),
         }
     }
@@ -330,7 +359,7 @@ impl LuaEventBridge {
             Self::ShakeDice(g) => g
                 .apply_motion_and_render(event, canvas)
                 .map(|r| r.map(LuaGameEventResult::ShakeDice)),
-            Self::Static | Self::Sudoku(_) | Self::Minesweeper(_) => Ok(None),
+            Self::Static | Self::Sudoku(_) | Self::Minesweeper(_) | Self::Story(_) => Ok(None),
         }
     }
 }
@@ -339,6 +368,9 @@ fn parse_sokoban_init(source: &str) -> Result<Option<String>, String> {
 }
 fn parse_baba_init(source: &str) -> Result<Option<String>, String> {
     parse_single_quoted_init(source, "baba.init(", "baba")
+}
+fn parse_story_init(source: &str) -> Result<Option<String>, String> {
+    parse_single_quoted_init(source, "story.init(", "story")
 }
 fn parse_tiltmaze_init(source: &str) -> Result<Option<String>, String> {
     parse_single_quoted_init(source, "tiltmaze.init(", "tiltmaze")

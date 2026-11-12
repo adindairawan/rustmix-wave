@@ -1,0 +1,6 @@
+id = "story_beacon"
+name = "Saltmire Story"
+kind = "game"
+entry = "MAIN.LUA"
+version = "1.0"
+input = ["rotary", "select", "back"]

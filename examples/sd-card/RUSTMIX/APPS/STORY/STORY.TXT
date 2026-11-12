@@ -1,0 +1,30 @@
+TITLE: The Saltmire Beacon
+AUTHOR: RustMix Interactive
+
+== start ==
+Cold rain taps the glass of the old lighthouse. On the oak desk sits a brass lantern beside a bolted iron trapdoor.
+
+A wet spiral staircase winds down into the dark.
+* [Inspect the brass lantern] ?!has_key -> lantern
+* [Unlock the trapdoor] ?has_key -> cellar
+* [Descend the spiral stairs] -> stairs
+
+== lantern ==
++has_key
+You lift the brass lantern. Tucked underneath the oil can is a heavy iron key stamped with an anchor.
+* [Pocket the key and step back] -> start
+
+== stairs ==
+Halfway down, the sea wind howls through a cracked shutter. You spot a frayed signal rope tied to the bell.
+* [Pull the signal rope] -> bell_ending
+* [Climb back up to the lantern room] -> start
+
+== cellar ==
+The iron key turns with a dry click. Below the trapdoor lies a dry cedar chest holding the missing harbour logbook — and a warm thermos of tea.
+
+You found the Saltmire logbook!
+
+== bell_ending ==
+The bronze bell booms across the bay. Minutes later, a fishing boat answers with its searchlight, guiding you safely off the shoals.
+
+Safe rescue — Ending 2 of 2.
