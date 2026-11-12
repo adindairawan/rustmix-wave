@@ -1,0 +1,6 @@
+id = "baba_tilt"
+name = "Baba Tilt"
+kind = "game"
+entry = "MAIN.LUA"
+version = "1.0"
+input = ["imu", "up", "down", "select", "back"]

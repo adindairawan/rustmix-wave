@@ -1,0 +1,53 @@
+-- Baba Tilt levels (12 columns x 8 rows each, separated by blank lines)
+-- Words: B=BABA W=WALL R=ROCK F=FLAG K=WATER I=IS Y=YOU S=STOP P=PUSH X=WIN N=SINK
+-- Objects: b=baba w=wall r=rock f=flag k=water .=empty
+
+-- Level 1: Make FLAG IS WIN
+BIY.....FI..
+..........X.
+..wwwwwwww..
+..w......w..
+..w.b..r.f..
+..w......w..
+..wwwwwwww..
+WIS.....RIP.
+
+-- Level 2: Walk around the wall to Flag
+BIY.....WIS.
+............
+..wwwwwwww..
+..w......w..
+..w.b..w.f..
+..w......w..
+..wwwwwwww..
+........FIX.
+
+-- Level 3: Break WALL IS STOP
+BIY.........
+....b..WIS..
+............
+wwwwwwwwwwww
+.........f..
+....FIX.....
+............
+............
+
+-- Level 4: Bridge the water with Rock
+BIY.....KIN.
+wwwwwwwwwwww
+w....k.....w
+w.br.k...f.w
+w....k.....w
+wwwwwwwwwwww
+RIP.....FIX.
+........WIS.
+
+-- Level 5: Transform ROCK IS FLAG
+BIY.....WIS.
+wwwwwwwwwwww
+w..........w
+w.b..r..R..w
+w....I.....w
+w....F.....w
+wwwwwwwwwwww
+RIP.....FIX.

@@ -147,12 +147,9 @@ impl LuaGameEventResult {
                 r.rules_count,
                 r.outcome.marker()
             ),
-            Self::ShakeDice(r) => format!(
-                "die={} value={} rolls={}",
-                r.die.marker(),
-                r.value,
-                r.rolls
-            ),
+            Self::ShakeDice(r) => {
+                format!("die={} value={} rolls={}", r.die.marker(), r.value, r.rolls)
+            }
         }
     }
     #[must_use]
@@ -194,6 +191,14 @@ pub enum LuaEventBridge {
 }
 impl LuaEventBridge {
     pub fn load(source: &str, canvas: &mut NativeGameCanvas) -> Result<Self, String> {
+        Self::load_in_dir(source, None, canvas)
+    }
+
+    pub fn load_in_dir(
+        source: &str,
+        app_dir: Option<&std::path::Path>,
+        canvas: &mut NativeGameCanvas,
+    ) -> Result<Self, String> {
         if let Some(seed) = parse_shakedice_init(source)? {
             let game = ShakeDiceGame::from_seed(seed)?;
             game.render_initial(canvas)?;
@@ -203,7 +208,7 @@ impl LuaEventBridge {
             game.render_initial(canvas)?;
             Ok(Self::SokobanTilt(game))
         } else if let Some(map) = parse_baba_init(source)? {
-            let game = BabaGame::from_map(&map)?;
+            let game = BabaGame::from_app_dir(&map, app_dir)?;
             game.render_initial(canvas)?;
             Ok(Self::BabaTilt(Box::new(game)))
         } else if let Some(seed) = parse_motion2048_init(source)? {

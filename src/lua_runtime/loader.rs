@@ -26,7 +26,8 @@ pub fn open_entry_on_worker(entry: LuaAppEntry) -> Result<LuaAppSession, String>
         let path = entry.entry_path();
         let source = read_bounded_script(&path)?;
         let mut canvas = NativeGameCanvas::default();
-        let event_bridge = LuaEventBridge::load(&source, &mut canvas)?;
+        let event_bridge =
+            LuaEventBridge::load_in_dir(&source, Some(&entry.directory), &mut canvas)?;
         let refresh_plan = GameRefreshPolicy::plan(canvas.dirty(), RefreshTrigger::RouteTransition);
         Ok::<_, String>(LuaAppSession {
             entry,

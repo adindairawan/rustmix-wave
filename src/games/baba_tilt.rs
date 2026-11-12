@@ -177,6 +177,273 @@ pub const BIT_PUSH: u8 = 2;
 pub const BIT_WIN: u8 = 3;
 pub const BIT_SINK: u8 = 4;
 
+const BABA_LEVELS_FILE: &str = "LEVELS.TXT";
+const BABA_SPRITES_FILE: &str = "SPRITES.TXT";
+const BABA_MAX_ASSET_BYTES: u64 = 32 * 1024;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BabaSprites {
+    pub baba: [u16; 16],
+    pub wall: [u16; 16],
+    pub rock: [u16; 16],
+    pub flag: [u16; 16],
+    pub water: [u16; 16],
+}
+
+impl Default for BabaSprites {
+    fn default() -> Self {
+        Self {
+            baba: parse_sprite_const(&[
+                "...##......##...",
+                "...###....###...",
+                "...##########...",
+                "..############..",
+                ".##..........##.",
+                ".#...##..##...#.",
+                ".#...##..##...#.",
+                ".#............#.",
+                ".##..........##.",
+                "..############..",
+                "...##########...",
+                "...##..##..##...",
+                "...##..##..##...",
+                "..###......###..",
+                "................",
+                "................",
+            ]),
+            wall: parse_sprite_const(&[
+                "################",
+                "#......##......#",
+                "#......##......#",
+                "################",
+                "...##......##...",
+                "...##......##...",
+                "################",
+                "#......##......#",
+                "#......##......#",
+                "################",
+                "...##......##...",
+                "...##......##...",
+                "################",
+                "#......##......#",
+                "#......##......#",
+                "################",
+            ]),
+            rock: parse_sprite_const(&[
+                "................",
+                "....########....",
+                "..##........##..",
+                ".#....####....#.",
+                ".#...#........#.",
+                "#..............#",
+                "#..##..........#",
+                "#......##......#",
+                "#........##....#",
+                "#..............#",
+                ".#.....###....#.",
+                ".#............#.",
+                "..##........##..",
+                "....########....",
+                "................",
+                "................",
+            ]),
+            flag: parse_sprite_const(&[
+                "................",
+                "...##...........",
+                "...##########...",
+                "...###########..",
+                "...##########...",
+                "...#########....",
+                "...########.....",
+                "...##...........",
+                "...##...........",
+                "...##...........",
+                "...##...........",
+                "...##...........",
+                "...##...........",
+                ".######.........",
+                "................",
+                "................",
+            ]),
+            water: parse_sprite_const(&[
+                "................",
+                "................",
+                ".##...####...##.",
+                "...###....###...",
+                "................",
+                "................",
+                ".###...####...#.",
+                "....###....###..",
+                "................",
+                "................",
+                ".##...####...##.",
+                "...###....###...",
+                "................",
+                "................",
+                "................",
+                "................",
+            ]),
+        }
+    }
+}
+
+impl BabaSprites {
+    #[must_use]
+    pub fn parse(text: &str) -> Self {
+        let mut sprites = Self::default();
+        let mut current: Option<&str> = None;
+        let mut rows = [0u16; 16];
+        let mut row_idx = 0usize;
+
+        let commit = |sprites: &mut Self, section: Option<&str>, rows: &[u16; 16], count: usize| {
+            if count != 16 {
+                return;
+            }
+            match section {
+                Some("baba") => sprites.baba = *rows,
+                Some("wall") => sprites.wall = *rows,
+                Some("rock") => sprites.rock = *rows,
+                Some("flag") => sprites.flag = *rows,
+                Some("water") => sprites.water = *rows,
+                _ => {}
+            }
+        };
+
+        for raw in text.lines() {
+            let line = raw
+                .split("--")
+                .next()
+                .unwrap_or_default()
+                .split(';')
+                .next()
+                .unwrap_or_default()
+                .trim();
+            if line.is_empty() {
+                continue;
+            }
+            if line.starts_with('[') && line.ends_with(']') {
+                commit(&mut sprites, current, &rows, row_idx);
+                let name = line[1..line.len() - 1].trim().to_ascii_lowercase();
+                current = match name.as_str() {
+                    "baba" => Some("baba"),
+                    "wall" => Some("wall"),
+                    "rock" => Some("rock"),
+                    "flag" => Some("flag"),
+                    "water" => Some("water"),
+                    _ => None,
+                };
+                rows = [0u16; 16];
+                row_idx = 0;
+                continue;
+            }
+            if current.is_some() && row_idx < 16 {
+                if let Some(bits) = parse_sprite_row(line) {
+                    rows[row_idx] = bits;
+                    row_idx += 1;
+                }
+            }
+        }
+        commit(&mut sprites, current, &rows, row_idx);
+        sprites
+    }
+
+    #[must_use]
+    pub const fn for_noun(&self, noun: Noun) -> [u16; 16] {
+        match noun {
+            Noun::Baba => self.baba,
+            Noun::Wall => self.wall,
+            Noun::Rock => self.rock,
+            Noun::Flag => self.flag,
+            Noun::Water => self.water,
+        }
+    }
+}
+
+const fn parse_sprite_row_const(row: &str) -> u16 {
+    let bytes = row.as_bytes();
+    let mut bits = 0u16;
+    let mut col = 0usize;
+    while col < 16 && col < bytes.len() {
+        if bytes[col] == b'#' || bytes[col] == b'1' || bytes[col] == b'X' {
+            bits |= 1 << (15 - col);
+        }
+        col += 1;
+    }
+    bits
+}
+
+const fn parse_sprite_const(lines: &[&str; 16]) -> [u16; 16] {
+    let mut out = [0u16; 16];
+    let mut idx = 0usize;
+    while idx < 16 {
+        out[idx] = parse_sprite_row_const(lines[idx]);
+        idx += 1;
+    }
+    out
+}
+
+fn parse_sprite_row(line: &str) -> Option<u16> {
+    if line.len() != 16 {
+        return None;
+    }
+    let mut bits = 0u16;
+    for (col, ch) in line.bytes().enumerate() {
+        match ch {
+            b'#' | b'1' | b'X' => bits |= 1 << (15 - col),
+            b'.' | b'0' | b' ' => {}
+            _ => return None,
+        }
+    }
+    Some(bits)
+}
+
+fn parse_levels_txt(text: &str) -> Vec<[String; GRID_H]> {
+    let mut levels = Vec::new();
+    let mut block: Vec<String> = Vec::new();
+    for raw in text.lines() {
+        let line = raw
+            .split("--")
+            .next()
+            .unwrap_or_default()
+            .split(';')
+            .next()
+            .unwrap_or_default()
+            .trim();
+        if line.is_empty() {
+            if block.len() == GRID_H {
+                let arr: [String; GRID_H] = std::array::from_fn(|i| block[i].clone());
+                levels.push(arr);
+            }
+            block.clear();
+            continue;
+        }
+        if line.contains('|') || line.contains('/') {
+            for part in line.split('|') {
+                let part = part.trim();
+                let rows: Vec<&str> = part.split('/').collect();
+                if rows.len() == GRID_H && rows.iter().all(|r| r.len() >= GRID_W) {
+                    levels.push(std::array::from_fn(|i| rows[i].to_string()));
+                }
+            }
+            block.clear();
+        } else if line.len() >= GRID_W {
+            block.push(line.to_string());
+        }
+    }
+    if block.len() == GRID_H {
+        levels.push(std::array::from_fn(|i| block[i].clone()));
+    }
+    levels
+}
+
+fn read_bounded_sd_text(path: &std::path::Path) -> Option<String> {
+    let meta = std::fs::metadata(path).ok()?;
+    if meta.len() > BABA_MAX_ASSET_BYTES {
+        return None;
+    }
+    std::fs::read_to_string(path).ok()
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BabaGame {
     pub entities: [Entity; MAX_ENTITIES],
@@ -187,6 +454,7 @@ pub struct BabaGame {
     pub lost: bool,
     pub level_idx: usize,
     pub custom_levels: Vec<[String; GRID_H]>,
+    pub sprites: BabaSprites,
     pub status: String,
 }
 
@@ -208,6 +476,7 @@ impl BabaGame {
             lost: false,
             level_idx: 0,
             custom_levels: Vec::new(),
+            sprites: BabaSprites::default(),
             status: "Tilt to move  UP undo  SELECT reset".into(),
         };
         game.load_ascii_level(DEFAULT_LEVELS[0]);
@@ -215,24 +484,29 @@ impl BabaGame {
     }
 
     pub fn from_map(encoded: &str) -> Result<Self, String> {
+        Self::from_app_dir(encoded, None)
+    }
+
+    pub fn from_app_dir(encoded: &str, app_dir: Option<&std::path::Path>) -> Result<Self, String> {
         let mut game = Self::new();
         let trimmed = encoded.trim();
         if !trimmed.is_empty() && !trimmed.eq_ignore_ascii_case("default") {
-            let mut parsed_levels = Vec::new();
-            for part in trimmed.split('|') {
-                let part = part.trim();
-                if part.is_empty() {
-                    continue;
-                }
-                let rows: Vec<&str> = part.split('/').collect();
-                if rows.len() == GRID_H && rows.iter().all(|r| r.len() >= GRID_W) {
-                    let level_arr: [String; GRID_H] = std::array::from_fn(|i| rows[i].to_string());
-                    parsed_levels.push(level_arr);
-                }
-            }
+            let parsed_levels = parse_levels_txt(trimmed);
             if !parsed_levels.is_empty() {
                 game.custom_levels = parsed_levels;
                 game.load_level_by_index(0);
+            }
+        }
+        if let Some(dir) = app_dir {
+            if let Some(levels_text) = read_bounded_sd_text(&dir.join(BABA_LEVELS_FILE)) {
+                let sd_levels = parse_levels_txt(&levels_text);
+                if !sd_levels.is_empty() {
+                    game.custom_levels = sd_levels;
+                    game.load_level_by_index(0);
+                }
+            }
+            if let Some(sprites_text) = read_bounded_sd_text(&dir.join(BABA_SPRITES_FILE)) {
+                game.sprites = BabaSprites::parse(&sprites_text);
             }
         }
         Ok(game)
@@ -729,7 +1003,7 @@ impl BabaGame {
             }
             let cx = BABA_GRID_X + (e.x as i32) * BABA_CELL_SIZE;
             let cy = BABA_GRID_Y + (e.y as i32) * BABA_CELL_SIZE;
-            Self::draw_entity(canvas, cx, cy, e.kind)?;
+            self.draw_entity(canvas, cx, cy, e.kind)?;
         }
 
         canvas.text(
@@ -754,6 +1028,7 @@ impl BabaGame {
     }
 
     fn draw_entity(
+        &self,
         canvas: &mut NativeGameCanvas,
         cx: i32,
         cy: i32,
@@ -779,34 +1054,8 @@ impl BabaGame {
                     canvas.text(x, cy + 25, top.into(), CanvasTextStyle::Detail)?;
                 }
             }
-            EntityKind::Object(Noun::Baba) => {
-                // Ears, outlined head/body, two eyes, and two feet.
-                canvas.rect(cx + 10, cy + 5, 4, 6, true)?;
-                canvas.rect(cx + 24, cy + 5, 4, 6, true)?;
-                canvas.rect(cx + 8, cy + 10, 22, 18, false)?;
-                canvas.rect(cx + 13, cy + 16, 3, 3, true)?;
-                canvas.rect(cx + 22, cy + 16, 3, 3, true)?;
-                canvas.rect(cx + 11, cy + 28, 5, 4, true)?;
-                canvas.rect(cx + 22, cy + 28, 5, 4, true)?;
-            }
-            EntityKind::Object(Noun::Wall) => {
-                canvas.rect(cx + 3, cy + 3, BABA_CELL_SIZE - 6, BABA_CELL_SIZE - 6, true)?;
-            }
-            EntityKind::Object(Noun::Rock) => {
-                canvas.rect(cx + 7, cy + 9, 24, 20, false)?;
-                canvas.line(cx + 10, cy + 15, cx + 22, cy + 15)?;
-                canvas.line(cx + 16, cy + 22, cx + 28, cy + 22)?;
-            }
-            EntityKind::Object(Noun::Flag) => {
-                canvas.rect(cx + 11, cy + 6, 2, 25, true)?;
-                canvas.rect(cx + 13, cy + 7, 15, 11, true)?;
-                canvas.rect(cx + 7, cy + 30, 10, 2, true)?;
-            }
-            EntityKind::Object(Noun::Water) => {
-                canvas.rect(cx + 5, cy + 11, 12, 2, true)?;
-                canvas.rect(cx + 19, cy + 14, 13, 2, true)?;
-                canvas.rect(cx + 6, cy + 22, 13, 2, true)?;
-                canvas.rect(cx + 21, cy + 25, 11, 2, true)?;
+            EntityKind::Object(noun) => {
+                canvas.sprite16(cx + 3, cy + 3, 2, self.sprites.for_noun(noun))?;
             }
         }
         Ok(())
@@ -929,5 +1178,47 @@ mod tests {
             ],
         );
         assert!(lv4.won, "level 4 should be won");
+    }
+
+    #[test]
+    fn sd_card_loads_levels_and_custom_sprites() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("rustmix-baba-sd-{nonce}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("LEVELS.TXT"),
+            "-- Custom SD level\n\
+             BIY.....FIX.\n\
+             ............\n\
+             ..b......f..\n\
+             ............\n\
+             ............\n\
+             ............\n\
+             ............\n\
+             ............\n",
+        )
+        .unwrap();
+        let mut custom_sprite = String::from("[baba]\n");
+        for _ in 0..16 {
+            custom_sprite.push_str("################\n");
+        }
+        std::fs::write(dir.join("SPRITES.TXT"), custom_sprite).unwrap();
+
+        let game = BabaGame::from_app_dir("default", Some(&dir)).unwrap();
+        assert_eq!(game.total_levels(), 1);
+        assert_eq!(game.sprites.baba, [0xFFFF; 16]);
+        let mut canvas = NativeGameCanvas::default();
+        game.render_initial(&mut canvas).unwrap();
+        assert!(canvas.commands().iter().any(|cmd| matches!(
+            cmd,
+            super::super::canvas::DrawCommand::Sprite16 { rows, .. } if *rows == [0xFFFF; 16]
+        )));
+
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

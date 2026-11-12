@@ -54,6 +54,12 @@ pub enum DrawCommand {
         cell_width: i32,
         cell_height: i32,
     },
+    Sprite16 {
+        x: i32,
+        y: i32,
+        scale: u8,
+        rows: [u16; 16],
+    },
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -181,6 +187,15 @@ impl NativeGameCanvas {
             cell_height,
         })?;
         self.dirty.invalidate(DirtyRect::new(x, y, width, height));
+        Ok(())
+    }
+
+    pub fn sprite16(&mut self, x: i32, y: i32, scale: u8, rows: [u16; 16]) -> Result<(), String> {
+        let scale = scale.max(1);
+        let size = 16 * i32::from(scale);
+        self.validate_rect(DirtyRect::new(x, y, size, size))?;
+        self.push(DrawCommand::Sprite16 { x, y, scale, rows })?;
+        self.dirty.invalidate(DirtyRect::new(x, y, size, size));
         Ok(())
     }
 

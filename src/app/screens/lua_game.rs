@@ -218,6 +218,25 @@ fn draw_command(
                     .draw(display)?;
             }
         }
+        DrawCommand::Sprite16 { x, y, scale, rows } => {
+            let s = i32::from((*scale).max(1));
+            let style = PrimitiveStyle::with_fill(BinaryColor::On);
+            for (ry, &bits) in rows.iter().enumerate() {
+                if bits == 0 {
+                    continue;
+                }
+                for rx in 0..16 {
+                    if (bits & (1 << (15 - rx))) != 0 {
+                        Rectangle::new(
+                            Point::new(*x + (rx as i32) * s, *y + (ry as i32) * s),
+                            Size::new(s as u32, s as u32),
+                        )
+                        .into_styled(style)
+                        .draw(display)?;
+                    }
+                }
+            }
+        }
     }
     Ok(())
 }
