@@ -1221,4 +1221,19 @@ mod tests {
 
         std::fs::remove_dir_all(dir).unwrap();
     }
+
+    #[test]
+    fn example_baba_sd_app_passes_manifest_and_catalog_scan() {
+        let apps_root =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/sd-card/RUSTMIX/APPS");
+        let catalog = crate::lua_runtime::catalog::LuaAppCatalog::scan(&apps_root, true);
+        assert!(
+            catalog
+                .entries
+                .iter()
+                .any(|entry| entry.directory_name == "BABA" && entry.manifest.id == "baba_tilt"),
+            "BABA example app should be accepted by LuaAppCatalog::scan; rejected={}",
+            catalog.rejected_entries
+        );
+    }
 }

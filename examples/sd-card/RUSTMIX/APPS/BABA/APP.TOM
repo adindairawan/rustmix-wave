@@ -3,4 +3,4 @@ name = "Baba Tilt"
 kind = "game"
 entry = "MAIN.LUA"
 version = "1.0"
-input = ["imu", "up", "down", "select", "back"]
+input = ["imu", "rotary", "select", "back"]
