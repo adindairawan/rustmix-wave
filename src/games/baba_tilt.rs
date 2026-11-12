@@ -1062,7 +1062,7 @@ impl BabaGame {
     }
 }
 
-pub const DEFAULT_LEVELS: [&[&str; GRID_H]; 5] = [
+pub const DEFAULT_LEVELS: [&[&str; GRID_H]; 10] = [
     &[
         "BIY.....FI..",
         "..........X.",
@@ -1112,6 +1112,56 @@ pub const DEFAULT_LEVELS: [&[&str; GRID_H]; 5] = [
         "w....F.....w",
         "wwwwwwwwwwww",
         "RIP.....FIX.",
+    ],
+    &[
+        "BIY.....WIS.",
+        "wwwwwwwwwwww",
+        "w..R...k...w",
+        "w.b.I..k.r.w",
+        "w...Y..k.f.w",
+        "w......k...w",
+        "wwwwwwwwwwww",
+        "KIN.....FIX.",
+    ],
+    &[
+        "BIY.....WIS.",
+        "wwwwwwwwwwww",
+        "w..K.......w",
+        "w.b.I..k...w",
+        "w...F......w",
+        "w..........w",
+        "wwwwwwwwwwww",
+        "KIN.....FIX.",
+    ],
+    &[
+        "BIY.....FIX.",
+        "wwwwwwwwwwww",
+        "w..W.I..w..w",
+        "w.b...P.w..w",
+        "w.......wf.w",
+        "w.......w..w",
+        "wwwwwwwwwwww",
+        "........WIS.",
+    ],
+    &[
+        "BIY.....WIS.",
+        "wwwwwwwwwwww",
+        "w..........w",
+        "w.b.KIN..X.w",
+        "w......k...w",
+        "w..........w",
+        "wwwwwwwwwwww",
+        "............",
+    ],
+    &[
+        "BIY.....WIS.",
+        "wwwwwwwwwwww",
+        "w..........w",
+        "w.b..I.r.X.w",
+        "w...B......w",
+        "w..........w",
+        "wwwwwwwwwwww",
+        "........RIP.",
     ],
 ];
 
@@ -1235,5 +1285,108 @@ mod tests {
             "BABA example app should be accepted by LuaAppCatalog::scan; rejected={}",
             catalog.rejected_entries
         );
+    }
+
+    #[test]
+    fn levels_6_through_10_are_solvable() {
+        // Level 6: form ROCK IS YOU, then move Rock onto Flag.
+        let mut lv6 = BabaGame::new();
+        lv6.load_level_by_index(5);
+        play_moves(&mut lv6, &[(0, -1), (1, 0), (0, 1)]);
+        assert!(lv6.won, "level 6 should be won");
+
+        // Level 7: form WATER IS FLAG, then walk onto the transformed Flag.
+        let mut lv7 = BabaGame::new();
+        lv7.load_level_by_index(6);
+        play_moves(
+            &mut lv7,
+            &[(0, -1), (1, 0), (0, 1), (1, 0), (1, 0), (1, 0), (1, 0)],
+        );
+        assert!(lv7.won, "level 7 should be won");
+
+        // Level 8: form WALL IS PUSH, push a wall aside, and reach Flag.
+        let mut lv8 = BabaGame::new();
+        lv8.load_level_by_index(7);
+        play_moves(
+            &mut lv8,
+            &[
+                (0, 1),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (0, -1),
+                (0, 1),
+                (-1, 0),
+                (-1, 0),
+                (-1, 0),
+                (-1, 0),
+                (0, -1),
+                (0, -1),
+                (1, 0),
+                (0, 1),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (0, 1),
+            ],
+        );
+        assert!(lv8.won, "level 8 should be won");
+
+        // Level 9: break WATER IS SINK, form WATER IS WIN, and step onto Water.
+        let mut lv9 = BabaGame::new();
+        lv9.load_level_by_index(8);
+        play_moves(
+            &mut lv9,
+            &[
+                (0, -1),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (0, 1),
+                (0, -1),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (0, 1),
+                (-1, 0),
+                (-1, 0),
+                (-1, 0),
+                (0, 1),
+            ],
+        );
+        assert!(lv9.won, "level 9 should be won");
+
+        // Level 10: move B up, clear Rock, and push WIN to form BABA IS WIN.
+        let mut lv10 = BabaGame::new();
+        lv10.load_level_by_index(9);
+        play_moves(
+            &mut lv10,
+            &[
+                (0, 1),
+                (0, 1),
+                (1, 0),
+                (1, 0),
+                (0, -1), // push B to (4,3), b at (4,4)
+                (1, 0),
+                (1, 0),
+                (1, 0),  // b at (7,4)
+                (0, -1), // push r to (7,2), b at (7,3)
+                (0, 1),  // b at (7,4)
+                (1, 0),
+                (1, 0),
+                (1, 0),  // b at (10,4)
+                (0, -1), // b at (10,3)
+                (-1, 0),
+                (-1, 0),
+                (-1, 0), // push X to (6,3) -> B I X!
+            ],
+        );
+        assert!(lv10.won, "level 10 should be won");
     }
 }

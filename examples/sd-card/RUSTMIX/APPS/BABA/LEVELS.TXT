@@ -51,3 +51,53 @@ w....I.....w
 w....F.....w
 wwwwwwwwwwww
 RIP.....FIX.
+
+-- Level 6: Become the Rock (ROCK IS YOU)
+BIY.....WIS.
+wwwwwwwwwwww
+w..R...k...w
+w.b.I..k.r.w
+w...Y..k.f.w
+w......k...w
+wwwwwwwwwwww
+KIN.....FIX.
+
+-- Level 7: Turn Water into Flag (WATER IS FLAG)
+BIY.....WIS.
+wwwwwwwwwwww
+w..K.......w
+w.b.I..k...w
+w...F......w
+w..........w
+wwwwwwwwwwww
+KIN.....FIX.
+
+-- Level 8: Wall Is Push
+BIY.....FIX.
+wwwwwwwwwwww
+w..W.I..w..w
+w.b...P.w..w
+w.......wf.w
+w.......w..w
+wwwwwwwwwwww
+........WIS.
+
+-- Level 9: Water Is Win
+BIY.....WIS.
+wwwwwwwwwwww
+w..........w
+w.b.KIN..X.w
+w......k...w
+w..........w
+wwwwwwwwwwww
+............
+
+-- Level 10: Baba Is Win
+BIY.....WIS.
+wwwwwwwwwwww
+w..........w
+w.b..I.r.X.w
+w...B......w
+w..........w
+wwwwwwwwwwww
+........RIP.
