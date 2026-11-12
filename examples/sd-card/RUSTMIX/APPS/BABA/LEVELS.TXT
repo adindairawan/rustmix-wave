@@ -101,3 +101,403 @@ w...B......w
 w..........w
 wwwwwwwwwwww
 ........RIP.
+
+-- Level 11: Clear the Rock, Form FLAG IS WIN
+BIY.....WIS.
+wwwwwwwwwwww
+w..F.......w
+w.b..I.r.X.w
+w..........w
+w..........w
+wwwwwwwwwwww
+........RIP.
+
+-- Level 12: Assemble ROCK IS PUSH
+BIY.....WIS.
+wwwwwwwwwwww
+w.R.I..w...w
+w.b..P.w.f.w
+w......r...w
+w......w...w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 13: Push the Wall Aside
+BIY.....FIX.
+wwwwwwwwwwww
+w.W.I..w...w
+w.b.rP.w.f.w
+w......w...w
+w......w...w
+wwwwwwwwwwww
+....RIP.WIS.
+
+-- Level 14: Two-Tile Water Bridge
+BIY.....KIN.
+wwwwwwwwwwww
+w..r..kk...w
+w.b...kk.f.w
+w..r..kk...w
+w.....kk...w
+wwwwwwwwwwww
+RIP.....FIX.
+
+-- Level 15: Remote Rock Control
+BIY.....WIS.
+wwwwwwwwwwww
+w..R...w...w
+w.b.I..w.r.w
+w...Y..w.f.w
+w......w...w
+wwwwwwwwwwww
+KIN.....FIX.
+
+-- Level 16: Break WALL IS STOP
+BIY.....FIX.
+wwwwwwwwwwww
+w..........w
+w.b..WIS...w
+w..........w
+wwwwwwwwwwww
+w........f.w
+wwwwwwwwwwww
+
+-- Level 17: Break WATER IS SINK
+BIY.....WIS.
+wwwwwwwwwwww
+w......kkk.w
+w.b.KINkfk.w
+w......kkk.w
+w..........w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 18: Break Both STOP and SINK
+BIY.....FIX.
+wwwwwwwwwwww
+w.b..WIS.w.w
+w........w.w
+w....KIN.w.w
+wwwwwwwwwwkw
+.........f..
+............
+
+-- Level 19: Replace STOP with PUSH
+BIY.....WIS.
+wwwwwwwwwwww
+w..P...w...w
+w.b.RISw...w
+w......r.f.w
+w......w...w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 20: Shared IS Crossroad
+BIY.....WIS.
+wwwwwwwwwwww
+w...B......w
+w.bF.I.X...w
+w...Y......w
+w..........w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 21: Rocks Become Flags
+BIY.....WIS.
+wwwwwwwwwwww
+w..R.......w
+w.b..I..r..w
+w...F......w
+w.......r..w
+wwwwwwwwwwww
+RIP.....FIX.
+
+-- Level 22: Water Becomes Pushable Rock
+BIY.....WIS.
+wwwwwwwwwwww
+w..K...w...w
+w.b.I..k.f.w
+w...R..w...w
+w......w...w
+wwwwwwwwwwww
+RIP.....FIX.
+
+-- Level 23: Walls Become Water
+BIY.....FIX.
+wwwwwwwwwwww
+w..W.......w
+w.b.I..w...w
+w...K..w.f.w
+w......w...w
+wwwwwwwwwwww
+........WIS.
+
+-- Level 24: Walls Become Rocks
+BIY.....FIX.
+wwwwwwwwwwww
+w..W...w...w
+w.b.I..w.f.w
+w...R..w...w
+w......w...w
+wwwwwwwwwwww
+RIP.....WIS.
+
+-- Level 25: Clone Baba to Cross Water
+BIY.....KIN.
+wwwwwwwwwwww
+w..R...k...w
+w.b.I.rk.f.w
+w...B..k...w
+w......k...w
+wwwwwwwwwwww
+RIP.....FIX.
+
+-- Level 26: Twin Babas
+BIY.....WIS.
+wwwwwwwwwwww
+w.b....w...w
+w......w...w
+w......w.b.w
+w......w.f.w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 27: Sacrificial Twin
+BIY.....KIN.
+wwwwwwwwwwww
+w.b....k...w
+w......k.f.w
+w..b...k...w
+w......k...w
+wwwwwwwwwwww
+WIS.....FIX.
+
+-- Level 28: Baba And Rock Are You
+BIY.....WIS.
+wwwwwwwwwwww
+w..R...w...w
+w.b.I..w.r.w
+w...Y..w...w
+w......w.f.w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 29: Flag Is You, Baba Is Win
+........WIS.
+wwwwwwwwwwww
+w..F..B....w
+w.bI...I.f.w
+w..Y...X...w
+w..........w
+wwwwwwwwwwww
+............
+
+-- Level 30: Wall Is Win
+BIY.....WIS.
+wwwwwwwwwwww
+w..W.......w
+w.b..I...X.w
+w..........w
+w..........w
+wwwwwwwwwwww
+............
+
+-- Level 31: Twin Sacrifice Across 2-Tile River
+BIY.....KIN.
+wwwwwwwwwwww
+w..R...kk..w
+w.b.I.rkkf.w
+w...B..kk..w
+w......kk..w
+wwwwwwwwwwww
+RIP.....FIX.
+
+-- Level 32: Push The Wall Doorway
+BIY.....FIX.
+wwwwwwwwwwww
+w..W...w...w
+w.b.I..w.f.w
+w..P...w...w
+w......w...w
+wwwwwwwwwwww
+........WIS.
+
+-- Level 33: Pocket the Rock, Build FIX Vertical
+BIY.....WIS.
+wwwwwwwwwwww
+w....F.....w
+w.b..r.....w
+w....I.....w
+w....X.....w
+wwwwwwwwwwww
+RIP.........
+
+-- Level 34: Break SINK Then Make WATER IS WIN
+BIY.....WIS.
+wwwwwwwwwwww
+w..b.......w
+w..KIN.k...w
+w......X...w
+w..........w
+wwwwwwwwwwww
+............
+
+-- Level 35: Turn Walls Into Rocks, Push Through
+BIY.....WIS.
+wwwwwwwwwwww
+w.W.I..w...w
+w.b.R..w.f.w
+w......w...w
+w......w...w
+wwwwwwwwwwww
+RIP.....FIX.
+
+-- Level 36: Double Rule — ROCK IS FLAG & FLAG IS WIN
+BIY.....WIS.
+wwwwwwwwwwww
+w.R.I..F...w
+w.b..F.I.r.w
+w......X...w
+w..........w
+wwwwwwwwwwww
+RIP.........
+
+-- Level 37: Water Is You
+BIY.....WIS.
+wwwwwwwwwwww
+w..K...w...w
+w.b.I..k.f.w
+w...Y..w...w
+w......w...w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 38: Baba Becomes Rock (Still You!)
+BIY.....WIS.
+wwwwwwwwwwww
+w..B...R...w
+w.b.I..I.f.w
+w...R..Y...w
+w..........w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 39: Crossroad Rules (BIY + FIX)
+BIY.....WIS.
+wwwwwwwwwwww
+w...B......w
+w.bF.I...X.w
+w...Y......w
+w..........w
+wwwwwwwwwwww
+............
+
+-- Level 40: Bridge For WIN Token
+BIY.....KIN.
+wwwwwwwwwwww
+w..F...k...w
+w.b.I.rk.X.w
+w......k...w
+w....f.k...w
+wwwwwwwwwwww
+RIP.....WIS.
+
+-- Level 41: Three Babas, Two-Tile River
+BIY.....KIN.
+wwwwwwwwwwww
+w..R...kk..w
+w.bI.r.kkf.w
+w..B.r.kk..w
+w......kk..w
+wwwwwwwwwwww
+RIP.....FIX.
+
+-- Level 42: Wall Is Flag
+BIY.....WIS.
+wwwwwwwwwwww
+w..W.......w
+w.b.I....F.w
+w..........w
+w..........w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 43: Water Is Push
+BIY.....WIS.
+wwwwwwwwwwww
+w..K...w...w
+w.b.I..k.f.w
+w...P..w...w
+w......w...w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 44: Push Wall to Reach WIN
+BIY.....WIS.
+wwwwwwwwwwww
+w.W.I..w...w
+w.b.P..w.X.w
+w.B.I..w...w
+w......w...w
+wwwwwwwwwwww
+............
+
+-- Level 45: Flag Is You, Water Is Win
+........WIS.
+wwwwwwwwwwww
+w..F..K....w
+w.fI...I.k.w
+w..Y...X...w
+w..........w
+wwwwwwwwwwww
+............
+
+-- Level 46: Unstick Rock Then Bridge Water
+BIY.....KIN.
+wwwwwwwwwwww
+w..P...k...w
+w.b.RISk.f.w
+w....r.k...w
+w......k...w
+wwwwwwwwwwww
+........FIX.
+
+-- Level 47: Push Rock Into N to Break SINK
+BIY.....WIS.
+wwwwwwwwwwww
+w......kkk.w
+w.b.rKINfk.w
+w......kkk.w
+w..........w
+wwwwwwwwwwww
+RIP.....FIX.
+
+-- Level 48: Sink a Wall Into Water
+BIY.....KIN.
+wwwwwwwwwwww
+w.W.I..k...w
+w.b.P.wk.f.w
+w......k...w
+w......k...w
+wwwwwwwwwwww
+WIS.....FIX.
+
+-- Level 49: Rock Is You, Wall Is Win
+BIY.....WIS.
+wwwwwwwwwwww
+w..R...W...w
+w.b.I..I.r.w
+w...Y..X...w
+w..........w
+wwwwwwwwwwww
+............
+
+-- Level 50: Grand Finale
+BIY.....WIS.
+wwwwwwwwwwww
+w..r...k...w
+w.b.F.Ik.X.w
+w......k.f.w
+w......k...w
+wwwwwwwwwwww
+RIP.....KIN.

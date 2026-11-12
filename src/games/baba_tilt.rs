@@ -114,7 +114,7 @@ pub struct BabaEventResult {
     pub dirty_regions: Vec<DirtyRect>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Noun {
     Baba = 0,
     Wall = 1,
@@ -123,7 +123,7 @@ pub enum Noun {
     Water = 4,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TokenRole {
     Noun(Noun),
     VerbIs,
@@ -134,13 +134,13 @@ pub enum TokenRole {
     PropSink,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EntityKind {
     Object(Noun),
     Text(TokenRole),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Entity {
     pub active: bool,
     pub kind: EntityKind,
@@ -1388,5 +1388,37 @@ mod tests {
             ],
         );
         assert!(lv10.won, "level 10 should be won");
+    }
+
+    #[test]
+    fn all_50_sd_levels_render_and_have_initial_entities() {
+        let baba_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("examples/sd-card/RUSTMIX/APPS/BABA");
+        let mut game = BabaGame::from_app_dir("default", Some(&baba_dir)).unwrap();
+        assert_eq!(game.total_levels(), 50, "expected 50 levels in LEVELS.TXT");
+
+        let mut canvas = NativeGameCanvas::default();
+        for lv in 0..game.total_levels() {
+            game.load_level_by_index(lv);
+            game.render_initial(&mut canvas)
+                .unwrap_or_else(|err| panic!("SD level {} failed to render: {err}", lv + 1));
+            assert!(
+                !game.won,
+                "SD level {} should not already be won at step 0",
+                lv + 1
+            );
+            assert!(
+                game.entities
+                    .iter()
+                    .any(|e| e.active && game.entity_has_prop(e, BIT_YOU)),
+                "SD level {} has no initial YOU entity",
+                lv + 1
+            );
+            assert!(
+                !canvas.commands().is_empty(),
+                "SD level {} produced no draw commands",
+                lv + 1
+            );
+        }
     }
 }
