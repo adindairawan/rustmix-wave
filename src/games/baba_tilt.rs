@@ -14,9 +14,9 @@ pub const GRID_H: usize = 8;
 pub const MAX_ENTITIES: usize = 64;
 pub const MAX_UNDO: usize = 32;
 
-pub const BABA_GRID_X: i32 = 24;
+pub const BABA_GRID_X: i32 = 12;
 pub const BABA_GRID_Y: i32 = 200;
-pub const BABA_CELL_SIZE: i32 = 36;
+pub const BABA_CELL_SIZE: i32 = 38;
 
 const BABA_HEADER_RECT: DirtyRect = DirtyRect::new(16, 48, 448, 96);
 const BABA_STATUS_RECT: DirtyRect = DirtyRect::new(16, 606, 448, 142);
@@ -290,9 +290,7 @@ impl BabaGame {
     fn char_to_kind(ch: u8) -> Option<EntityKind> {
         use EntityKind::{Object, Text};
         use Noun::{Baba, Flag, Rock, Wall, Water};
-        use TokenRole::{
-            Noun as RoleNoun, PropPush, PropSink, PropStop, PropWin, PropYou, VerbIs,
-        };
+        use TokenRole::{Noun as RoleNoun, PropPush, PropSink, PropStop, PropWin, PropYou, VerbIs};
         match ch {
             b'B' => Some(Text(RoleNoun(Baba))),
             b'W' => Some(Text(RoleNoun(Wall))),
@@ -314,29 +312,21 @@ impl BabaGame {
         }
     }
 
-    fn kind_glyph(kind: EntityKind) -> (&'static str, bool) {
-        use EntityKind::{Object, Text};
+    fn token_lines(role: TokenRole) -> (&'static str, Option<&'static str>) {
         use Noun::{Baba, Flag, Rock, Wall, Water};
-        use TokenRole::{
-            Noun as RoleNoun, PropPush, PropSink, PropStop, PropWin, PropYou, VerbIs,
-        };
-        match kind {
-            Text(RoleNoun(Baba)) => ("B", true),
-            Text(RoleNoun(Wall)) => ("W", true),
-            Text(RoleNoun(Rock)) => ("R", true),
-            Text(RoleNoun(Flag)) => ("F", true),
-            Text(RoleNoun(Water)) => ("K", true),
-            Text(VerbIs) => ("I", true),
-            Text(PropYou) => ("Y", true),
-            Text(PropStop) => ("S", true),
-            Text(PropPush) => ("P", true),
-            Text(PropWin) => ("X", true),
-            Text(PropSink) => ("N", true),
-            Object(Baba) => ("b", false),
-            Object(Wall) => ("#", false),
-            Object(Rock) => ("o", false),
-            Object(Flag) => ("f", false),
-            Object(Water) => ("~", false),
+        use TokenRole::{Noun as RoleNoun, PropPush, PropSink, PropStop, PropWin, PropYou, VerbIs};
+        match role {
+            RoleNoun(Baba) => ("BA", Some("BA")),
+            RoleNoun(Wall) => ("WA", Some("LL")),
+            RoleNoun(Rock) => ("RO", Some("CK")),
+            RoleNoun(Flag) => ("FL", Some("AG")),
+            RoleNoun(Water) => ("WA", Some("TER")),
+            VerbIs => ("IS", None),
+            PropYou => ("YOU", None),
+            PropStop => ("ST", Some("OP")),
+            PropPush => ("PU", Some("SH")),
+            PropWin => ("WIN", None),
+            PropSink => ("SI", Some("NK")),
         }
     }
 
@@ -596,18 +586,15 @@ impl BabaGame {
         let reason = if was_won {
             self.status = format!("Level {} started  Tilt to move", self.level_idx + 1);
             "level-advance"
-        } else if !moved {
-            self.status = format!("{} blocked  UP undo  SELECT reset", direction.label());
-            "blocked"
         } else if self.won {
-            self.status = format!(
-                "YOU WIN in {} steps! Tilt/SELECT next",
-                self.steps
-            );
+            self.status = format!("YOU WIN in {} steps! Tilt/SELECT next", self.steps);
             "goal-reached"
         } else if self.lost {
             self.status = "NO 'YOU' LEFT! Press UP to undo".into();
             "no-you"
+        } else if !moved {
+            self.status = format!("{} blocked  UP undo  SELECT reset", direction.label());
+            "blocked"
         } else {
             self.status = format!(
                 "{} moved ({} rules active)",
@@ -679,7 +666,12 @@ impl BabaGame {
             canvas.invalidate_rect(*rect);
         }
         canvas.request_refresh();
-        Ok(Some(self.build_result(reason, "none", "none", dirty_regions)))
+        Ok(Some(self.build_result(
+            reason,
+            "none",
+            "none",
+            dirty_regions,
+        )))
     }
 
     fn build_result(
@@ -718,7 +710,7 @@ impl BabaGame {
         canvas.text(
             24,
             126,
-            "UPPER=Word [B I Y]  lower=Obj (b # o f ~)".into(),
+            "BOX = Word Rule   ICON = Baba / Rock / Flag / Water".into(),
             CanvasTextStyle::Detail,
         )?;
 
@@ -737,28 +729,7 @@ impl BabaGame {
             }
             let cx = BABA_GRID_X + (e.x as i32) * BABA_CELL_SIZE;
             let cy = BABA_GRID_Y + (e.y as i32) * BABA_CELL_SIZE;
-            let (glyph, is_text_token) = Self::kind_glyph(e.kind);
-
-            if is_text_token {
-                canvas.rect(
-                    cx + 3,
-                    cy + 3,
-                    BABA_CELL_SIZE - 6,
-                    BABA_CELL_SIZE - 6,
-                    false,
-                )?;
-                canvas.text(cx + 10, cy + 25, glyph.into(), CanvasTextStyle::Heading)?;
-            } else if e.kind == EntityKind::Object(Noun::Wall) {
-                canvas.rect(
-                    cx + 5,
-                    cy + 5,
-                    BABA_CELL_SIZE - 10,
-                    BABA_CELL_SIZE - 10,
-                    true,
-                )?;
-            } else {
-                canvas.text(cx + 10, cy + 25, glyph.into(), CanvasTextStyle::Body)?;
-            }
+            Self::draw_entity(canvas, cx, cy, e.kind)?;
         }
 
         canvas.text(
@@ -779,6 +750,65 @@ impl BabaGame {
             "TILT move  UP undo  DN next lv  SELECT reset".into(),
             CanvasTextStyle::Body,
         )?;
+        Ok(())
+    }
+
+    fn draw_entity(
+        canvas: &mut NativeGameCanvas,
+        cx: i32,
+        cy: i32,
+        kind: EntityKind,
+    ) -> Result<(), String> {
+        match kind {
+            EntityKind::Text(role) => {
+                canvas.rect(
+                    cx + 2,
+                    cy + 2,
+                    BABA_CELL_SIZE - 4,
+                    BABA_CELL_SIZE - 4,
+                    false,
+                )?;
+                let (top, bottom) = Self::token_lines(role);
+                if let Some(second) = bottom {
+                    let x1 = cx + if top.len() >= 3 { 4 } else { 8 };
+                    let x2 = cx + if second.len() >= 3 { 4 } else { 8 };
+                    canvas.text(x1, cy + 16, top.into(), CanvasTextStyle::Detail)?;
+                    canvas.text(x2, cy + 31, second.into(), CanvasTextStyle::Detail)?;
+                } else {
+                    let x = cx + if top.len() >= 3 { 4 } else { 9 };
+                    canvas.text(x, cy + 25, top.into(), CanvasTextStyle::Detail)?;
+                }
+            }
+            EntityKind::Object(Noun::Baba) => {
+                // Ears, outlined head/body, two eyes, and two feet.
+                canvas.rect(cx + 10, cy + 5, 4, 6, true)?;
+                canvas.rect(cx + 24, cy + 5, 4, 6, true)?;
+                canvas.rect(cx + 8, cy + 10, 22, 18, false)?;
+                canvas.rect(cx + 13, cy + 16, 3, 3, true)?;
+                canvas.rect(cx + 22, cy + 16, 3, 3, true)?;
+                canvas.rect(cx + 11, cy + 28, 5, 4, true)?;
+                canvas.rect(cx + 22, cy + 28, 5, 4, true)?;
+            }
+            EntityKind::Object(Noun::Wall) => {
+                canvas.rect(cx + 3, cy + 3, BABA_CELL_SIZE - 6, BABA_CELL_SIZE - 6, true)?;
+            }
+            EntityKind::Object(Noun::Rock) => {
+                canvas.rect(cx + 7, cy + 9, 24, 20, false)?;
+                canvas.line(cx + 10, cy + 15, cx + 22, cy + 15)?;
+                canvas.line(cx + 16, cy + 22, cx + 28, cy + 22)?;
+            }
+            EntityKind::Object(Noun::Flag) => {
+                canvas.rect(cx + 11, cy + 6, 2, 25, true)?;
+                canvas.rect(cx + 13, cy + 7, 15, 11, true)?;
+                canvas.rect(cx + 7, cy + 30, 10, 2, true)?;
+            }
+            EntityKind::Object(Noun::Water) => {
+                canvas.rect(cx + 5, cy + 11, 12, 2, true)?;
+                canvas.rect(cx + 19, cy + 14, 13, 2, true)?;
+                canvas.rect(cx + 6, cy + 22, 13, 2, true)?;
+                canvas.rect(cx + 21, cy + 25, 11, 2, true)?;
+            }
+        }
         Ok(())
     }
 }
@@ -805,20 +835,20 @@ pub const DEFAULT_LEVELS: [&[&str; GRID_H]; 5] = [
         "........FIX.",
     ],
     &[
-        "BIY.....WIS.",
+        "BIY.........",
+        "....b..WIS..",
         "............",
         "wwwwwwwwwwww",
-        "....b.......",
-        "wwwwwwwwwwww",
-        "............",
-        "..r..R...f..",
+        ".........f..",
         "....FIX.....",
+        "............",
+        "............",
     ],
     &[
         "BIY.....KIN.",
         "wwwwwwwwwwww",
         "w....k.....w",
-        "w.b..k.r.f.w",
+        "w.br.k...f.w",
         "w....k.....w",
         "wwwwwwwwwwww",
         "RIP.....FIX.",
@@ -835,3 +865,69 @@ pub const DEFAULT_LEVELS: [&[&str; GRID_H]; 5] = [
         "RIP.....FIX.",
     ],
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn play_moves(game: &mut BabaGame, moves: &[(i8, i8)]) {
+        for &(dx, dy) in moves {
+            assert!(game.step(dx, dy), "expected move ({dx}, {dy}) to succeed");
+        }
+    }
+
+    #[test]
+    fn all_default_levels_render_within_command_budget() {
+        let mut canvas = NativeGameCanvas::default();
+        for idx in 0..DEFAULT_LEVELS.len() {
+            let mut game = BabaGame::new();
+            game.load_level_by_index(idx);
+            game.render_initial(&mut canvas)
+                .unwrap_or_else(|err| panic!("level {idx} failed to render: {err}"));
+            assert!(
+                !canvas.commands().is_empty(),
+                "level {idx} produced no draw commands"
+            );
+        }
+    }
+
+    #[test]
+    fn level_3_and_level_4_are_solvable() {
+        // Level 3: break WALL IS STOP by pushing I up, then walk through the wall to Flag.
+        let mut lv3 = BabaGame::new();
+        lv3.load_level_by_index(2);
+        play_moves(
+            &mut lv3,
+            &[
+                (0, 1), // (4, 2)
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (1, 0),  // (8, 2)
+                (0, -1), // push I up to (8, 0), breaking WIS
+                (1, 0),  // (9, 1)
+                (0, 1),
+                (0, 1),
+                (0, 1), // walk down through wall to f at (9, 4)
+            ],
+        );
+        assert!(lv3.won, "level 3 should be won");
+
+        // Level 4: push Rock right into Water to bridge, then walk to Flag.
+        let mut lv4 = BabaGame::new();
+        lv4.load_level_by_index(3);
+        play_moves(
+            &mut lv4,
+            &[
+                (1, 0),
+                (1, 0), // push r into k at (5,3)
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (1, 0),
+                (1, 0), // reach f at (9,3)
+            ],
+        );
+        assert!(lv4.won, "level 4 should be won");
+    }
+}
