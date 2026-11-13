@@ -11,6 +11,7 @@ use crate::buttons::ButtonEvent;
 
 pub const STORY_FILE: &str = "STORY.TXT";
 pub const STORY_SAVE_FILE: &str = "SAVE.TXT";
+pub const STORY_DIR: &str = "STORIES";
 pub const STORY_MAX_BYTES: u64 = 256 * 1024;
 pub const STORY_CHARS_PER_LINE: usize = 42;
 pub const STORY_LINES_PER_PAGE: usize = 12;
@@ -99,11 +100,22 @@ impl StoryGame {
         let mut save_path: Option<PathBuf> = None;
 
         if let Some(dir) = app_dir {
-            let candidate = dir.join(STORY_FILE);
-            if let Some(text) = read_bounded_text(&candidate) {
-                story_text = Some(text);
+            // First check if a multiple-stories subfolder STORIES/ exists
+            let stories_sub = dir.join(STORY_DIR);
+            if stories_sub.is_dir() {
+                if let Some(hub) = build_story_hub_text(&stories_sub) {
+                    story_text = Some(hub);
+                    save_path = Some(dir.join(STORY_SAVE_FILE));
+                }
             }
-            save_path = Some(dir.join(STORY_SAVE_FILE));
+
+            if story_text.is_none() {
+                let candidate = dir.join(STORY_FILE);
+                if let Some(text) = read_bounded_text(&candidate) {
+                    story_text = Some(text);
+                }
+                save_path = Some(dir.join(STORY_SAVE_FILE));
+            }
         }
 
         let source = if let Some(text) = story_text {
@@ -685,6 +697,84 @@ fn read_bounded_text(path: &Path) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
+fn build_story_hub_text(dir: &Path) -> Option<String> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    let mut files = Vec::new();
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_file() {
+            if let Some(ext) = p.extension() {
+                if ext.eq_ignore_ascii_case("txt") {
+                    files.push(p);
+                }
+            }
+        }
+    }
+    files.sort();
+    if files.is_empty() {
+        return None;
+    }
+
+    let mut hub = String::from("TITLE: Story Collection\nAUTHOR: SD Stories\nSTART: start\n\n== start ==\nSelect a story to play:\n");
+    let mut stories_content = String::new();
+
+    for (idx, path) in files.iter().enumerate() {
+        let Some(text) = read_bounded_text(path) else {
+            continue;
+        };
+        let prefix = format!("s{}", idx + 1);
+
+        // Read metadata
+        let mut title = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Untitled")
+            .to_string();
+        for line in text.lines() {
+            let l = line.trim();
+            if let Some(t) = l.strip_prefix("TITLE:") {
+                title = t.trim().to_string();
+                break;
+            }
+            if l.starts_with("==") {
+                break;
+            }
+        }
+
+        hub.push_str(&format!("* [Play: {}] -> {prefix}_start\n", title));
+
+        // Prefix all node identifiers in this story to avoid collision
+        let mut current_node = String::new();
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("TITLE:")
+                || trimmed.starts_with("AUTHOR:")
+                || trimmed.starts_with("START:")
+            {
+                continue;
+            }
+            if trimmed.starts_with("==") && trimmed.ends_with("==") && trimmed.len() > 4 {
+                let id = trimmed[2..trimmed.len() - 2].trim();
+                current_node = format!("{prefix}_{id}");
+                stories_content.push_str(&format!("\n== {current_node} ==\n"));
+                continue;
+            }
+            if current_node.is_empty() {
+                continue;
+            }
+            if let Some((before_arrow, target)) = line.split_once("->") {
+                let new_target = format!("{prefix}_{}", target.trim());
+                stories_content.push_str(&format!("{before_arrow}-> {new_target}\n"));
+            } else {
+                stories_content.push_str(&format!("{line}\n"));
+            }
+        }
+    }
+
+    hub.push_str(&stories_content);
+    Some(hub)
+}
+
 pub const DEFAULT_STORY: &str = r#"TITLE: The Saltmire Beacon
 AUTHOR: RustMix Interactive
 
@@ -780,5 +870,52 @@ mod tests {
         assert!(resumed.flags.contains("done"));
 
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn loads_multiple_stories_from_subfolder_and_builds_menu() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let app_dir = std::env::temp_dir().join(format!("rustmix-story-hub-{nonce}"));
+        let stories_dir = app_dir.join(STORY_DIR);
+        std::fs::create_dir_all(&stories_dir).unwrap();
+
+        std::fs::write(
+            stories_dir.join("BEACON.TXT"),
+            "TITLE: Saltmire Beacon\n== start ==\nLighthouse rain.\n* [Look] -> look\n== look ==\nBright.\n",
+        )
+        .unwrap();
+
+        std::fs::write(
+            stories_dir.join("DEADWGT.TXT"),
+            "TITLE: Dead Weight\n== start ==\nZombies outside.\n* [Fight] -> fight\n== fight ==\nVictory.\n",
+        )
+        .unwrap();
+
+        let mut game = StoryGame::from_app_dir("default", Some(&app_dir)).unwrap();
+        assert_eq!(game.current_node, "start");
+        let choices = game.visible_choices();
+        assert_eq!(choices.len(), 2);
+        assert_eq!(choices[0].label, "Play: Saltmire Beacon");
+        assert_eq!(choices[1].label, "Play: Dead Weight");
+
+        let mut canvas = NativeGameCanvas::default();
+        // Pick Dead Weight (index 1)
+        game.selected_choice = 1;
+        game.apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap();
+        assert_eq!(game.current_node, "s2_start");
+        assert!(game
+            .nodes
+            .get("s2_start")
+            .unwrap()
+            .body
+            .contains("Zombies outside"));
+
+        std::fs::remove_dir_all(app_dir).unwrap();
     }
 }

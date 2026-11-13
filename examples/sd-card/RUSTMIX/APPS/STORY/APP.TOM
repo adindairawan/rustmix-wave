@@ -1,5 +1,5 @@
-id = "story_beacon"
-name = "Saltmire Story"
+id = "stories"
+name = "Interactive Stories"
 kind = "game"
 entry = "MAIN.LUA"
 version = "1.0"
