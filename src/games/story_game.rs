@@ -502,7 +502,14 @@ impl StoryGame {
         &mut self,
         canvas: &mut NativeGameCanvas,
     ) -> Result<StoryEventResult, String> {
-        let reason = if self.undo() { "undo" } else { "undo-empty" };
+        let reason = if self.is_ending() || self.undo_stack.is_empty() {
+            self.restart();
+            "restart"
+        } else if self.undo() {
+            "undo"
+        } else {
+            "undo-empty"
+        };
         self.render_commands(canvas)?;
         canvas.reset_dirty_regions();
         let dirty_regions = vec![STORY_FULL_RECT, STORY_BODY_RECT];
@@ -602,12 +609,12 @@ impl StoryGame {
         }
 
         canvas.text(20, 706, self.status.clone(), CanvasTextStyle::Detail)?;
-        canvas.text(
-            20,
-            736,
-            "UP/DN choose   SELECT ok   BOOT back".into(),
-            CanvasTextStyle::Detail,
-        )?;
+        let hint = if self.undo_stack.is_empty() {
+            "UP/DN choose   SELECT ok   BOOT restart"
+        } else {
+            "UP/DN choose   SELECT ok   BOOT undo"
+        };
+        canvas.text(20, 736, hint.into(), CanvasTextStyle::Detail)?;
         Ok(())
     }
 }
