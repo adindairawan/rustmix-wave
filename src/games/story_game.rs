@@ -589,21 +589,30 @@ impl StoryGame {
                     CanvasTextStyle::Body,
                 )?;
             } else {
-                let mut cy = 528;
-                for (idx, choice) in choices.iter().take(5).enumerate() {
-                    let prefix = if idx == self.selected_choice {
-                        ">"
-                    } else {
-                        " "
-                    };
-                    let label = format!("{prefix} {}. {}", idx + 1, choice.label);
-                    let style = if idx == self.selected_choice {
+                let mut cy = 520;
+                for (idx, choice) in choices.iter().take(4).enumerate() {
+                    let is_sel = idx == self.selected_choice;
+                    let prefix = if is_sel { ">" } else { " " };
+                    let style = if is_sel {
                         CanvasTextStyle::Heading
                     } else {
                         CanvasTextStyle::Body
                     };
-                    canvas.text(20, cy, label, style)?;
-                    cy += 34;
+
+                    let full_label = format!("{prefix} {}. {}", idx + 1, choice.label);
+                    // Word-wrap long choice labels up to 2 lines so they don't bleed off screen
+                    let wrapped = wrap_passage(&full_label, 36);
+                    if let Some(first_line) = wrapped.first() {
+                        canvas.text(20, cy, first_line.clone(), style)?;
+                        cy += 24;
+                    }
+                    if let Some(second_line) = wrapped.get(1) {
+                        let indent = format!("     {second_line}");
+                        canvas.text(20, cy, indent, style)?;
+                        cy += 24;
+                    } else {
+                        cy += 6;
+                    }
                 }
             }
         }
