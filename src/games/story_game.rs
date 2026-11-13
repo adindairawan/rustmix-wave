@@ -16,9 +16,48 @@ pub const STORY_MAX_BYTES: u64 = 256 * 1024;
 pub const STORY_CHARS_PER_LINE: usize = 42;
 pub const STORY_LINES_PER_PAGE: usize = 12;
 pub const STORY_MAX_UNDO: usize = 32;
+pub const STORY_SETTINGS_COUNT: usize = 4;
 
 const STORY_FULL_RECT: DirtyRect = DirtyRect::new(0, 0, 480, 800);
 const STORY_BODY_RECT: DirtyRect = DirtyRect::new(16, 110, 448, 600);
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum StorySettingsOption {
+    Resume = 0,
+    PreviousDecision = 1,
+    Restart = 2,
+    QuitStory = 3,
+}
+
+impl StorySettingsOption {
+    pub const fn from_index(idx: usize) -> Option<Self> {
+        match idx {
+            0 => Some(Self::Resume),
+            1 => Some(Self::PreviousDecision),
+            2 => Some(Self::Restart),
+            3 => Some(Self::QuitStory),
+            _ => None,
+        }
+    }
+
+    pub const fn title(self) -> &'static str {
+        match self {
+            Self::Resume => "Resume Story",
+            Self::PreviousDecision => "Previous Decision (Undo)",
+            Self::Restart => "Restart Story",
+            Self::QuitStory => "Quit to Story Menu",
+        }
+    }
+
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::Resume => "Return to the current passage",
+            Self::PreviousDecision => "Step back to your previous choice",
+            Self::Restart => "Start over from the beginning",
+            Self::QuitStory => "Exit story and return to catalog",
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoryChoice {
@@ -67,6 +106,8 @@ pub struct StoryGame {
     pub undo_stack: Vec<StorySnapshot>,
     pub save_path: Option<PathBuf>,
     pub status: String,
+    pub in_settings: bool,
+    pub settings_cursor: usize,
 }
 
 impl Default for StoryGame {
@@ -92,6 +133,8 @@ impl StoryGame {
             undo_stack: Vec::new(),
             save_path: None,
             status: "Empty story".into(),
+            in_settings: false,
+            settings_cursor: 0,
         })
     }
 
@@ -269,7 +312,9 @@ impl StoryGame {
             turns: 0,
             undo_stack: Vec::new(),
             save_path: None,
-            status: "UP/DN select  SELECT choose  BOOT back".into(),
+            status: "UP/DN select  SELECT choose  BOOT settings".into(),
+            in_settings: false,
+            settings_cursor: 0,
         };
         game.apply_node_flags(&start_node);
         Ok(game)
@@ -331,6 +376,8 @@ impl StoryGame {
         self.selected_choice = 0;
         self.turns = 0;
         self.undo_stack.clear();
+        self.in_settings = false;
+        self.settings_cursor = 0;
         let start = self.start_node.clone();
         self.apply_node_flags(&start);
         self.status = "Story restarted".into();
@@ -366,7 +413,7 @@ impl StoryGame {
         self.selected_choice = 0;
         self.turns += 1;
         self.status = if self.is_ending() {
-            "THE END  SELECT restart  BOOT undo".into()
+            "THE END  SELECT restart  BOOT settings".into()
         } else {
             format!("Scene: {}", self.current_node)
         };
@@ -444,6 +491,71 @@ impl StoryGame {
         event: ButtonEvent,
         canvas: &mut NativeGameCanvas,
     ) -> Result<Option<StoryEventResult>, String> {
+        if self.in_settings {
+            let reason = match event {
+                ButtonEvent::Up => {
+                    self.settings_cursor = self.settings_cursor.saturating_sub(1);
+                    "settings-up"
+                }
+                ButtonEvent::Down => {
+                    if self.settings_cursor + 1 < STORY_SETTINGS_COUNT {
+                        self.settings_cursor += 1;
+                    }
+                    "settings-down"
+                }
+                ButtonEvent::Select => {
+                    match StorySettingsOption::from_index(self.settings_cursor) {
+                        Some(StorySettingsOption::Resume) => {
+                            self.in_settings = false;
+                            self.status = format!("Scene: {}", self.current_node);
+                            "settings-resume"
+                        }
+                        Some(StorySettingsOption::PreviousDecision) => {
+                            if self.undo() {
+                                self.in_settings = false;
+                                "settings-undo"
+                            } else {
+                                self.status = "No previous decision available".into();
+                                "settings-undo-empty"
+                            }
+                        }
+                        Some(StorySettingsOption::Restart) => {
+                            self.restart();
+                            "settings-restart"
+                        }
+                        Some(StorySettingsOption::QuitStory) => {
+                            if self.nodes.contains_key("start") && self.current_node != "start" {
+                                self.current_node = "start".into();
+                                self.flags.clear();
+                                self.page = 0;
+                                self.selected_choice = 0;
+                                self.turns = 0;
+                                self.undo_stack.clear();
+                                self.in_settings = false;
+                                self.status = "Returned to Story Menu".into();
+                                self.persist_save();
+                                "settings-quit-catalog"
+                            } else {
+                                self.restart();
+                                self.status = "Story reset to start".into();
+                                "settings-quit"
+                            }
+                        }
+                        None => "settings-invalid",
+                    }
+                }
+            };
+
+            self.render_commands(canvas)?;
+            canvas.reset_dirty_regions();
+            let dirty_regions = vec![STORY_FULL_RECT, STORY_BODY_RECT];
+            for rect in &dirty_regions {
+                canvas.invalidate_rect(*rect);
+            }
+            canvas.request_refresh();
+            return Ok(Some(self.build_result(reason, dirty_regions)));
+        }
+
         let pages_len = self.wrapped_pages().len().max(1);
         let choices_len = self.visible_choices().len();
 
@@ -502,13 +614,15 @@ impl StoryGame {
         &mut self,
         canvas: &mut NativeGameCanvas,
     ) -> Result<StoryEventResult, String> {
-        let reason = if self.is_ending() || self.undo_stack.is_empty() {
-            self.restart();
-            "restart"
-        } else if self.undo() {
-            "undo"
+        let reason = if self.in_settings {
+            self.in_settings = false;
+            self.status = format!("Scene: {}", self.current_node);
+            "settings-close"
         } else {
-            "undo-empty"
+            self.in_settings = true;
+            self.settings_cursor = 0;
+            self.status = "Story Settings & Stats".into();
+            "settings-open"
         };
         self.render_commands(canvas)?;
         canvas.reset_dirty_regions();
@@ -533,15 +647,109 @@ impl StoryGame {
         StoryEventResult {
             reason,
             node_index,
-            choice_index: self.selected_choice,
+            choice_index: if self.in_settings {
+                self.settings_cursor
+            } else {
+                self.selected_choice
+            },
             turns: self.turns,
-            ended: self.is_ending(),
+            ended: !self.in_settings && self.is_ending(),
             dirty_regions,
         }
     }
 
     fn render_commands(&self, canvas: &mut NativeGameCanvas) -> Result<(), String> {
         canvas.clear_frame();
+
+        if self.in_settings {
+            canvas.text(
+                20,
+                76,
+                "STORY SETTINGS & STATS".into(),
+                CanvasTextStyle::Heading,
+            )?;
+            canvas.text(
+                20,
+                104,
+                format!("{}  |  By {}", self.title, self.author),
+                CanvasTextStyle::Detail,
+            )?;
+            canvas.line(20, 114, 460, 114)?;
+
+            // Section 1: Story Stats
+            canvas.text(20, 142, "STORY STATS".into(), CanvasTextStyle::Heading)?;
+            canvas.text(
+                24,
+                170,
+                format!("Current Passage : {}", self.current_node),
+                CanvasTextStyle::Body,
+            )?;
+            canvas.text(
+                24,
+                198,
+                format!(
+                    "Decisions Made  : {} turn(s)  ({} undo steps)",
+                    self.turns,
+                    self.undo_stack.len()
+                ),
+                CanvasTextStyle::Body,
+            )?;
+
+            let flags_summary = if self.flags.is_empty() {
+                "Active Flags    : (none)".to_string()
+            } else {
+                let list: Vec<String> = self.flags.iter().cloned().collect();
+                format!("Active Flags    : {}", list.join(", "))
+            };
+            let wrapped_flags = wrap_passage(&flags_summary, 38);
+            let mut fy = 226;
+            for line in wrapped_flags.iter().take(3) {
+                canvas.text(24, fy, line.clone(), CanvasTextStyle::Detail)?;
+                fy += 22;
+            }
+
+            canvas.line(20, 310, 460, 310)?;
+
+            // Section 2: Actions Menu
+            canvas.text(20, 338, "ACTIONS".into(), CanvasTextStyle::Heading)?;
+
+            let mut my = 372;
+            for idx in 0..STORY_SETTINGS_COUNT {
+                let opt = StorySettingsOption::from_index(idx).unwrap();
+                let is_sel = idx == self.settings_cursor;
+                let prefix = if is_sel { ">" } else { " " };
+                let style = if is_sel {
+                    CanvasTextStyle::Heading
+                } else {
+                    CanvasTextStyle::Body
+                };
+
+                canvas.text(
+                    20,
+                    my,
+                    format!("{prefix} {}. {}", idx + 1, opt.title()),
+                    style,
+                )?;
+                canvas.text(
+                    38,
+                    my + 22,
+                    format!("   {}", opt.description()),
+                    CanvasTextStyle::Detail,
+                )?;
+                my += 58;
+            }
+
+            canvas.line(20, 630, 460, 630)?;
+            canvas.text(20, 660, self.status.clone(), CanvasTextStyle::Detail)?;
+            canvas.text(
+                20,
+                706,
+                "UP/DN choose   SELECT confirm   BOOT resume".into(),
+                CanvasTextStyle::Detail,
+            )?;
+            return Ok(());
+        }
+
         let pages = self.wrapped_pages();
         let pages_len = pages.len().max(1);
         let page_idx = self.page.min(pages_len - 1);
@@ -618,10 +826,10 @@ impl StoryGame {
         }
 
         canvas.text(20, 706, self.status.clone(), CanvasTextStyle::Detail)?;
-        let hint = if self.undo_stack.is_empty() {
-            "UP/DN choose   SELECT ok   BOOT restart"
+        let hint = if self.is_ending() {
+            "SELECT restart   BOOT settings"
         } else {
-            "UP/DN choose   SELECT ok   BOOT undo"
+            "UP/DN choose   SELECT ok   BOOT settings"
         };
         canvas.text(20, 736, hint.into(), CanvasTextStyle::Detail)?;
         Ok(())
@@ -851,9 +1059,63 @@ mod tests {
         assert_eq!(choices.len(), 2);
         assert_eq!(choices[0].target, "cellar");
 
-        // Undo returns to lantern.
-        game.apply_boot_short_press_and_render(&mut canvas).unwrap();
+        // BOOT opens settings menu!
+        let boot_res = game.apply_boot_short_press_and_render(&mut canvas).unwrap();
+        assert_eq!(boot_res.reason, "settings-open");
+        assert!(game.in_settings);
+        assert_eq!(game.settings_cursor, 0);
+
+        // Select Previous Decision (Undo, index 1)
+        game.settings_cursor = 1;
+        let undo_res = game
+            .apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap()
+            .unwrap();
+        assert_eq!(undo_res.reason, "settings-undo");
+        assert!(!game.in_settings);
         assert_eq!(game.current_node, "lantern");
+    }
+
+    #[test]
+    fn settings_menu_navigation_and_actions() {
+        let mut game = StoryGame::new();
+        let mut canvas = NativeGameCanvas::default();
+
+        // 1. BOOT opens settings
+        game.apply_boot_short_press_and_render(&mut canvas).unwrap();
+        assert!(game.in_settings);
+        assert_eq!(game.settings_cursor, 0);
+
+        // 2. Down navigates cursor
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        assert_eq!(game.settings_cursor, 1);
+
+        // 3. Up navigates back
+        game.apply_button_and_render(ButtonEvent::Up, &mut canvas)
+            .unwrap();
+        assert_eq!(game.settings_cursor, 0);
+
+        // 4. BOOT again closes settings (resumes reading)
+        let close_res = game.apply_boot_short_press_and_render(&mut canvas).unwrap();
+        assert_eq!(close_res.reason, "settings-close");
+        assert!(!game.in_settings);
+
+        // 5. Navigate story: pick lantern
+        game.apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap();
+        assert_eq!(game.current_node, "lantern");
+        assert_eq!(game.turns, 1);
+
+        // Open settings, select Restart (index 2)
+        game.apply_boot_short_press_and_render(&mut canvas).unwrap();
+        game.settings_cursor = 2; // Restart
+        game.apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap();
+        assert!(!game.in_settings);
+        assert_eq!(game.current_node, "start");
+        assert_eq!(game.turns, 0);
+        assert!(game.flags.is_empty());
     }
 
     #[test]
@@ -931,6 +1193,20 @@ mod tests {
             .unwrap()
             .body
             .contains("Zombies outside"));
+
+        // Open settings and pick "Quit to Story Menu" (index 3)
+        game.apply_boot_short_press_and_render(&mut canvas).unwrap();
+        assert!(game.in_settings);
+        game.settings_cursor = 3;
+        let quit_res = game
+            .apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap()
+            .unwrap();
+        assert_eq!(quit_res.reason, "settings-quit-catalog");
+        assert!(!game.in_settings);
+        // Returns to the hub catalog start node!
+        assert_eq!(game.current_node, "start");
+        assert_eq!(game.visible_choices().len(), 2);
 
         std::fs::remove_dir_all(app_dir).unwrap();
     }
