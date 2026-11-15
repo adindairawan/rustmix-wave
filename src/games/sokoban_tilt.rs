@@ -320,10 +320,8 @@ impl SokobanTiltGame {
                                     self.current_level + 2
                                 );
                             } else {
-                                self.status = format!(
-                                    "Solved in {} moves  SELECT menu",
-                                    self.moves
-                                );
+                                self.status =
+                                    format!("Solved in {} moves  SELECT menu", self.moves);
                             }
                             "goal-reached"
                         } else {
@@ -533,7 +531,9 @@ impl SokobanTiltGame {
                 self.menu_selected - 3
             };
 
-            for (row_offset, idx) in (start_idx..(start_idx + visible_rows).min(self.levels.len())).enumerate() {
+            for (row_offset, idx) in
+                (start_idx..(start_idx + visible_rows).min(self.levels.len())).enumerate()
+            {
                 let row_y = SOKOBAN_GRID_Y + 46 + (row_offset as i32 * 48);
                 let cursor = if idx == self.menu_selected { ">" } else { " " };
                 let badge = if self.solved_levels[idx] {

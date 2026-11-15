@@ -151,6 +151,17 @@ impl NetworkSnapshot {
         WIFI_CONFIG_PATH
     }
 
+    /// Check if another snapshot represents a meaningful network transition
+    /// (excluding signal strength RSSI churn) that warrants an immediate display refresh.
+    #[must_use]
+    pub fn significant_change(&self, other: &Self) -> bool {
+        self.wifi_state != other.wifi_state
+            || self.ntp_state != other.ntp_state
+            || self.ssid != other.ssid
+            || self.ipv4_address != other.ipv4_address
+            || self.error != other.error
+    }
+
     /// Build a concise fingerprint for serial-marker rate limiting.
     #[must_use]
     pub fn log_fingerprint(&self) -> NetworkLogFingerprint {
@@ -259,31 +270,52 @@ pub mod espidf {
                 ..Default::default()
             }))?;
             wifi.start()?;
-            wifi.connect()?;
-            wifi.wait_netif_up()?;
-
-            let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
-            let mut conf = SntpConf::default();
-            conf.servers[0] = config.ntp_server.as_str();
-            let sntp = EspSntp::new(&conf)?;
-            Ok(Self {
-                wifi: Some(wifi),
-                sntp: Some(sntp),
-                snapshot: NetworkSnapshot {
-                    wifi_state: WifiConnectionState::Connected,
-                    ntp_state: NtpSyncState::Synchronizing,
-                    ssid: Some(config.ssid.clone()),
-                    ipv4_address: Some(format!("{}", ip_info.ip)),
-                    rssi_dbm: read_rssi_dbm(),
-                    timezone_name: config.timezone.clone(),
-                    ntp_server: config.ntp_server.clone(),
-                    last_sync_utc: None,
-                    error: None,
-                },
-                ntp_reported: false,
-                suspended: false,
-                max_ps_active: false,
-            })
+            let connect_result = wifi.connect().and_then(|()| wifi.wait_netif_up());
+            match connect_result {
+                Ok(()) => {
+                    let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
+                    let mut conf = SntpConf::default();
+                    conf.servers[0] = config.ntp_server.as_str();
+                    let sntp = EspSntp::new(&conf).ok();
+                    Ok(Self {
+                        wifi: Some(wifi),
+                        sntp,
+                        snapshot: NetworkSnapshot {
+                            wifi_state: WifiConnectionState::Connected,
+                            ntp_state: NtpSyncState::Synchronizing,
+                            ssid: Some(config.ssid.clone()),
+                            ipv4_address: Some(format!("{}", ip_info.ip)),
+                            rssi_dbm: read_rssi_dbm(),
+                            timezone_name: config.timezone.clone(),
+                            ntp_server: config.ntp_server.clone(),
+                            last_sync_utc: None,
+                            error: None,
+                        },
+                        ntp_reported: false,
+                        suspended: false,
+                        max_ps_active: false,
+                    })
+                }
+                Err(error) => {
+                    let _ = wifi.disconnect();
+                    Ok(Self {
+                        wifi: Some(wifi),
+                        sntp: None,
+                        snapshot: NetworkSnapshot {
+                            wifi_state: WifiConnectionState::Failed,
+                            ntp_state: NtpSyncState::Failed,
+                            ssid: Some(config.ssid.clone()),
+                            timezone_name: config.timezone.clone(),
+                            ntp_server: config.ntp_server.clone(),
+                            error: Some(format!("{error:#}")),
+                            ..NetworkSnapshot::default()
+                        },
+                        ntp_reported: false,
+                        suspended: false,
+                        max_ps_active: false,
+                    })
+                }
+            }
         }
 
         #[must_use]
@@ -339,13 +371,16 @@ pub mod espidf {
         /// product-facing network snapshot.
         pub fn resume(&mut self, config: &NetworkConfig) -> Result<()> {
             let wifi = self.wifi.as_mut().context("Wi-Fi runtime is unavailable")?;
-            wifi.start()?;
+            if !wifi.is_started()? {
+                wifi.start()?;
+            }
+            let _ = wifi.disconnect();
             wifi.connect()?;
             wifi.wait_netif_up()?;
             let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
             let mut conf = SntpConf::default();
             conf.servers[0] = config.ntp_server.as_str();
-            self.sntp = Some(EspSntp::new(&conf)?);
+            self.sntp = EspSntp::new(&conf).ok();
             self.snapshot.wifi_state = WifiConnectionState::Connected;
             self.snapshot.ntp_state = NtpSyncState::Synchronizing;
             self.snapshot.ssid = Some(config.ssid.clone());
@@ -449,5 +484,21 @@ mod tests {
         let mut changed = snapshot;
         changed.ipv4_address = Some("192.0.2.10".into());
         assert_ne!(first, changed.log_fingerprint());
+    }
+
+    #[test]
+    fn significant_change_detects_state_and_ip_but_ignores_rssi() {
+        let mut first = NetworkSnapshot::default();
+        first.rssi_dbm = Some(-50);
+        let mut second = first.clone();
+        second.rssi_dbm = Some(-75);
+        assert!(!first.significant_change(&second));
+
+        second.wifi_state = WifiConnectionState::Connected;
+        assert!(first.significant_change(&second));
+
+        let mut third = first.clone();
+        third.ipv4_address = Some("192.168.1.100".into());
+        assert!(first.significant_change(&third));
     }
 }

@@ -665,10 +665,7 @@ loadList('/');
         let Some(parent) = path.parent() else {
             return path.to_path_buf();
         };
-        let stem = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("BOOK");
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("BOOK");
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         for index in 1..=99 {
@@ -790,10 +787,7 @@ mod tests {
             shorten_to_fat83_filename("My Favorite AO3 Story (Chapter 1).epub"),
             "MYFAVORI.EPU"
         );
-        assert_eq!(
-            shorten_to_fat83_filename("   ---.epub"),
-            "BOOK0001.EPU"
-        );
+        assert_eq!(shorten_to_fat83_filename("   ---.epub"), "BOOK0001.EPU");
         let resolved =
             resolve_upload_portal_path("/BOOKS/The Slow Burn Coffee Shop AU.epub").unwrap();
         assert!(resolved.ends_with("BOOKS/THESLOWB.EPU"));

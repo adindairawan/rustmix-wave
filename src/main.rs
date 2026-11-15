@@ -578,6 +578,7 @@ mod firmware {
         log_network_snapshot(&state.network);
         let mut last_network_log = Instant::now();
         let mut last_network_fingerprint = state.network.log_fingerprint();
+        let mut last_wifi_reconnect_attempt: Option<Instant> = None;
         // Explicitly activated only.  Normal boot never starts the portal.
         let mut wifi_transfer_server: Option<WifiTransferServer> = None;
         state.update_wifi_transfer_snapshot(WifiTransferSnapshot::default());
@@ -921,43 +922,79 @@ mod firmware {
                     | ScreenRoute::WeatherDetails
             ) || wifi_transfer_server.is_some();
 
-            // Wake the radio on-demand if the user enters Network or Weather screens
-            if sleep_network.is_suspended() && on_network_screen && state.panel_awake {
-                if last_network_log.elapsed() >= Duration::from_secs(15) {
-                    info!("rustmix-wave=wifi-on-demand-wake status=resuming");
-                    resume_network_after_sleep(
-                        &mut network_runtime,
-                        network_config.as_ref(),
+            let manual_network_reconnect = state.take_network_reconnect_request();
+
+            // Wake the radio on-demand if the user enters Network or Weather screens, or requested reconnect
+            if manual_network_reconnect
+                || (sleep_network.is_suspended() && on_network_screen && state.panel_awake)
+            {
+                info!("rustmix-wave=wifi-on-demand-wake status=resuming manual={manual_network_reconnect}");
+                resume_network_after_sleep(
+                    &mut network_runtime,
+                    network_config.as_ref(),
+                    &mut state,
+                    &mut sleep_network,
+                    &mut last_network_fingerprint,
+                    &mut last_network_log,
+                    &mut last_weather_attempt,
+                    &mut weather_retry,
+                );
+                last_wifi_reconnect_attempt = Some(Instant::now());
+                if state.panel_awake
+                    && matches!(
+                        state.active_route(),
+                        ScreenRoute::Network | ScreenRoute::NetworkDetails
+                    )
+                {
+                    refresh_screen(
+                        &mut panel,
+                        &mut frame,
                         &mut state,
-                        &mut sleep_network,
-                        &mut last_network_fingerprint,
-                        &mut last_network_log,
-                        &mut last_weather_attempt,
-                        &mut weather_retry,
-                    );
+                        &mut panel_refresh,
+                        RefreshRequest::Normal,
+                    )?;
+                    last_status_refresh = Instant::now();
                 }
             }
 
             if !sleep_network.is_suspended() {
                 if on_network_screen
                     && state.network.wifi_state != WifiConnectionState::Connected
-                    && last_network_log.elapsed() >= Duration::from_secs(15)
+                    && last_wifi_reconnect_attempt
+                        .map_or(true, |last| last.elapsed() >= Duration::from_secs(10))
                 {
                     if let Some(config) = network_config.as_ref() {
                         info!(
                             "rustmix-wave=wifi-on-demand-reconnect status=retrying ssid={}",
                             config.ssid
                         );
-                        if network_runtime.resume(config).is_ok() {
-                            info!(
-                                "rustmix-wave=wifi-on-demand-reconnect status=connected ssid={}",
-                                config.ssid
-                            );
-                            last_weather_attempt = None;
-                            weather_retry.clear();
+                        resume_network_after_sleep(
+                            &mut network_runtime,
+                            Some(config),
+                            &mut state,
+                            &mut sleep_network,
+                            &mut last_network_fingerprint,
+                            &mut last_network_log,
+                            &mut last_weather_attempt,
+                            &mut weather_retry,
+                        );
+                        last_wifi_reconnect_attempt = Some(Instant::now());
+                        if state.panel_awake
+                            && matches!(
+                                state.active_route(),
+                                ScreenRoute::Network | ScreenRoute::NetworkDetails
+                            )
+                        {
+                            refresh_screen(
+                                &mut panel,
+                                &mut frame,
+                                &mut state,
+                                &mut panel_refresh,
+                                RefreshRequest::Normal,
+                            )?;
+                            last_status_refresh = Instant::now();
                         }
                     }
-                    last_network_log = Instant::now();
                 }
 
                 if let Some(utc) = network_runtime.tick() {
@@ -995,7 +1032,24 @@ mod firmware {
                 }
                 let latest_network = network_runtime.snapshot();
                 if latest_network != state.network {
+                    let significant = state.network.significant_change(&latest_network);
                     state.update_network_snapshot(latest_network);
+                    if significant
+                        && state.panel_awake
+                        && matches!(
+                            state.active_route(),
+                            ScreenRoute::Network | ScreenRoute::NetworkDetails
+                        )
+                    {
+                        refresh_screen(
+                            &mut panel,
+                            &mut frame,
+                            &mut state,
+                            &mut panel_refresh,
+                            RefreshRequest::Normal,
+                        )?;
+                        last_status_refresh = Instant::now();
+                    }
                 }
 
                 // Power-saving check: shut down the 2.4GHz modem if:

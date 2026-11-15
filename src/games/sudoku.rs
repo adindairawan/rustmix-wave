@@ -293,15 +293,16 @@ impl SudokuGame {
 
         self.render_commands(canvas)?;
         canvas.reset_dirty_regions();
-        let mut dirty_regions = if was_menu_open || self.menu_open || old_level != self.current_level {
-            vec![SUDOKU_HEADER_RECT, SUDOKU_BOARD_RECT, SUDOKU_STATUS_RECT]
-        } else {
-            vec![
-                cell_rect(old_cursor),
-                cell_rect(self.cursor),
-                SUDOKU_STATUS_RECT,
-            ]
-        };
+        let mut dirty_regions =
+            if was_menu_open || self.menu_open || old_level != self.current_level {
+                vec![SUDOKU_HEADER_RECT, SUDOKU_BOARD_RECT, SUDOKU_STATUS_RECT]
+            } else {
+                vec![
+                    cell_rect(old_cursor),
+                    cell_rect(self.cursor),
+                    SUDOKU_STATUS_RECT,
+                ]
+            };
         dirty_regions.dedup();
         for rect in &dirty_regions {
             canvas.invalidate_rect(*rect);
@@ -411,10 +412,7 @@ impl SudokuGame {
                 if self.completed && self.puzzles.len() > 1 {
                     if self.current_level + 1 < self.puzzles.len() {
                         let next = self.current_level + 1;
-                        self.load_level(
-                            next,
-                            format!("Level {} started  SELECT edit", next + 1),
-                        );
+                        self.load_level(next, format!("Level {} started  SELECT edit", next + 1));
                         "level-advance"
                     } else {
                         self.menu_open = true;
@@ -779,12 +777,19 @@ mod tests {
         let mut canvas = NativeGameCanvas::default();
         game.render_initial(&mut canvas).unwrap();
         // Move cursor left to index 0 (which is a fixed clue '5')
-        game.apply_button_and_render(ButtonEvent::Up, &mut canvas).unwrap();
-        game.apply_button_and_render(ButtonEvent::Up, &mut canvas).unwrap();
-        let menu = game.apply_button_and_render(ButtonEvent::Select, &mut canvas).unwrap();
+        game.apply_button_and_render(ButtonEvent::Up, &mut canvas)
+            .unwrap();
+        game.apply_button_and_render(ButtonEvent::Up, &mut canvas)
+            .unwrap();
+        let menu = game
+            .apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap();
         assert_eq!(menu.reason, "menu-open");
-        game.apply_button_and_render(ButtonEvent::Down, &mut canvas).unwrap();
-        let selected = game.apply_button_and_render(ButtonEvent::Select, &mut canvas).unwrap();
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        let selected = game
+            .apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap();
         assert_eq!(selected.reason, "level-selected");
         assert_eq!(game.current_level, 1);
     }

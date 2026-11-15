@@ -35,6 +35,11 @@ pub fn render_network(
     } else {
         "Start Wi-Fi Transfer"
     };
+    let reconnect_label = match network.wifi_state {
+        crate::network::WifiConnectionState::Connecting => "Connecting Wi-Fi...",
+        crate::network::WifiConnectionState::Connected => "Reconnect Wi-Fi",
+        _ => "Connect Wi-Fi",
+    };
 
     draw_header(
         display,
@@ -69,8 +74,15 @@ pub fn render_network(
     draw_action(
         display,
         516,
-        "Provisioning details",
+        reconnect_label,
         state.network_action_selected == 1,
+        body,
+    )?;
+    draw_action(
+        display,
+        584,
+        "Provisioning details",
+        state.network_action_selected == 2,
         body,
     )?;
     draw_footer(

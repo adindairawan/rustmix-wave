@@ -34,8 +34,8 @@ pub const AUDIO_ACTION_COUNT: usize = 6;
 pub const DISPLAY_ACTION_COUNT: usize = 2;
 /// Number of selectable rows in the Weather overview screen.
 pub const WEATHER_ACTION_COUNT: usize = 2;
-/// Start/stop portal and provisioning-details rows on the Network screen.
-pub const NETWORK_ACTION_COUNT: usize = 2;
+/// Start/stop portal, reconnect, and provisioning-details rows on the Network screen.
+pub const NETWORK_ACTION_COUNT: usize = 3;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AppState {
@@ -87,6 +87,7 @@ pub struct AppState {
     power_key_menu_return_route: ScreenRoute,
     power_key_manual_refresh_requested: bool,
     weather_refresh_requested: bool,
+    network_reconnect_requested: bool,
 }
 
 impl Default for AppState {
@@ -124,6 +125,7 @@ impl Default for AppState {
             power_key_menu_return_route: ScreenRoute::Home,
             power_key_manual_refresh_requested: false,
             weather_refresh_requested: false,
+            network_reconnect_requested: false,
         }
     }
 }
@@ -237,6 +239,8 @@ impl AppState {
                             WifiTransferUiRequest::Start
                         });
                         self.router.navigate_to(ScreenRoute::WifiTransfer);
+                    } else if self.network_action_selected == 1 {
+                        self.request_network_reconnect();
                     } else {
                         self.router.navigate_to(ScreenRoute::NetworkDetails);
                     }
@@ -310,6 +314,10 @@ impl AppState {
             ButtonEvent::Select => {
                 let target = entries[self.category_selection(route)].route;
                 self.note_select_press();
+                if target == ScreenRoute::Network {
+                    self.network_action_selected = 0;
+                    self.request_network_reconnect();
+                }
                 if target == ScreenRoute::Weather {
                     self.weather_action_selected = 0;
                 }
@@ -812,6 +820,12 @@ impl AppState {
             .unwrap_or(0)
     }
 
+    pub fn set_category_selection(&mut self, route: ScreenRoute, selection: usize) {
+        if let Some(index) = category_index(route) {
+            self.category_selected[index] = selection;
+        }
+    }
+
     fn category_selection_mut(&mut self, route: ScreenRoute) -> &mut usize {
         let index = category_index(route).expect("category route required");
         &mut self.category_selected[index]
@@ -950,6 +964,19 @@ impl AppState {
     #[must_use]
     pub fn take_weather_refresh_request(&mut self) -> bool {
         core::mem::take(&mut self.weather_refresh_requested)
+    }
+
+    pub fn request_network_reconnect(&mut self) {
+        self.network_reconnect_requested = true;
+        if self.network.ssid.is_some() {
+            self.network.wifi_state = crate::network::WifiConnectionState::Connecting;
+            self.network.ntp_state = crate::network::NtpSyncState::WaitingForWifi;
+        }
+    }
+
+    #[must_use]
+    pub fn take_network_reconnect_request(&mut self) -> bool {
+        core::mem::take(&mut self.network_reconnect_requested)
     }
 
     pub fn set_orientation(&mut self, orientation: DisplayOrientation) {
@@ -1095,6 +1122,43 @@ mod tests {
             state.take_wifi_transfer_request(),
             Some(crate::wifi_transfer::WifiTransferUiRequest::Stop)
         );
+    }
+
+    #[test]
+    fn network_reconnect_triggers_on_settings_select_and_action_row() {
+        let mut state = AppState::default();
+        state.network.ssid = Some("TestNet".into());
+        state.network.wifi_state = crate::network::WifiConnectionState::Disabled;
+
+        // Navigating from Settings to Network should request reconnect immediately
+        state.router.navigate_to(ScreenRoute::Settings);
+        // Find index of Network entry in Settings
+        let entries = crate::app::menu::category_entries(ScreenRoute::Settings);
+        let network_idx = entries
+            .iter()
+            .position(|e| e.route == ScreenRoute::Network)
+            .unwrap();
+        state.set_category_selection(ScreenRoute::Settings, network_idx);
+        state.apply(ButtonEvent::Select);
+
+        assert_eq!(state.active_route(), ScreenRoute::Network);
+        assert!(state.take_network_reconnect_request());
+        assert_eq!(
+            state.network.wifi_state,
+            crate::network::WifiConnectionState::Connecting
+        );
+
+        // Selecting Action 1 (Reconnect Wi-Fi) on Network screen triggers reconnect
+        state.apply(ButtonEvent::Down);
+        assert_eq!(state.network_action_selected, 1);
+        state.apply(ButtonEvent::Select);
+        assert!(state.take_network_reconnect_request());
+
+        // Selecting Action 2 (Provisioning details) opens NetworkDetails
+        state.apply(ButtonEvent::Down);
+        assert_eq!(state.network_action_selected, 2);
+        state.apply(ButtonEvent::Select);
+        assert_eq!(state.active_route(), ScreenRoute::NetworkDetails);
     }
 
     #[test]
