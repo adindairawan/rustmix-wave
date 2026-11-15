@@ -669,7 +669,7 @@ mod firmware {
         info!("rustmix-wave=lua-tilt-maze-portrait-axis-repair-ready logical=portrait mapping=raw:+x->down,-x->up,+y->left,-y->right diagnostics=logical-direction,raw-axis");
         info!("rustmix-wave=lua-motion-2048-event-bridge-ready sample=M2048 board=4x4 motion=debounced-tilt-swipe dirty=board,status refresh=shared-panel-coordinator transport=existing-fullscreen-partial panel-api=rust-owned");
         info!("rustmix-wave=lua-sokoban-tilt-event-bridge-ready sample=SOKOBAN board=9x9 motion=debounced-tilt-only dirty=old-cell,new-cell,status-or-board refresh=shared-panel-coordinator transport=existing-fullscreen-partial panel-api=rust-owned");
-        info!("rustmix-wave=weather-fetch-stack-isolation-ready worker=weather-fetch stack-bytes=65536 main-task-stack-bytes=16384 response-max-bytes=8192 state=heap-boxed policy=short-lived-worker-join");
+        info!("rustmix-wave=weather-fetch-stack-isolation-ready worker=weather-fetch stack-bytes=20480 main-task-stack-bytes=16384 response-max-bytes=8192 state=heap-boxed policy=short-lived-worker-join");
         info!("rustmix-wave=wifi-transfer-web-portal-ready activation=settings-network-explicit-toggle auto-start=false root={WIFI_TRANSFER_ROOT} transport=http-lan-only token=required server-stack-bytes={WIFI_TRANSFER_SERVER_STACK_BYTES} main-task-stack-bytes=16384 upload=streamed-atomic-tmp fat83=true protected-config=true inactivity-seconds={WIFI_TRANSFER_INACTIVITY_SECONDS}");
         log_runtime_memory("boot-complete");
         info!("rustmix-wave=hierarchical-router-ready policy=category-subcategory-feature-details");

@@ -63,9 +63,15 @@ where
         })?,
         Err(error) => {
             log::warn!(
-                "rustmix-wave=worker-boundary name={name} status=start-failed error={error} action=fallback-inline"
+                "rustmix-wave=worker-boundary name={name} status=start-failed error={error}"
             );
+            if stack_bytes > 16 * 1024 {
+                return Err(NamedWorkerError::Start(error));
+            }
             if let Some(task_fn) = task_slot.lock().unwrap().take() {
+                log::warn!(
+                    "rustmix-wave=worker-boundary name={name} action=fallback-inline"
+                );
                 task_fn()
             } else {
                 return Err(NamedWorkerError::Start(error));
@@ -97,10 +103,9 @@ mod tests {
     }
 
     #[test]
-    fn falls_back_to_inline_if_spawn_fails() {
-        // Requesting an impossible stack size to trigger OS spawn failure
+    fn fails_gracefully_if_large_stack_spawn_fails() {
         let result =
-            run_named_worker("impossible-worker", usize::MAX / 2, || Ok::<_, String>(999)).unwrap();
-        assert_eq!(result, 999);
+            run_named_worker("impossible-worker", usize::MAX / 2, || Ok::<_, String>(999));
+        assert!(matches!(result, Err(super::NamedWorkerError::Start(_))));
     }
 }

@@ -679,7 +679,7 @@ pub mod espidf {
     /// Stack budget for one short-lived HTTPS worker. The ESP-IDF TLS path and
     /// bounded response buffer no longer consume the firmware main task's
     /// deliberately small orchestration stack.
-    pub const WEATHER_FETCH_WORKER_STACK_BYTES: usize = 64 * 1024;
+    pub const WEATHER_FETCH_WORKER_STACK_BYTES: usize = 20 * 1024;
 
     /// Fetch one bounded HTTPS payload on a short-lived dedicated worker. The
     /// main-loop retry policy remains synchronous and deterministic, while TLS
@@ -748,7 +748,7 @@ pub mod espidf {
         if status != 200 {
             return Err(WeatherFetchError::HttpStatus(status));
         }
-        let mut body = [0_u8; MAX_WEATHER_RESPONSE_BYTES];
+        let mut body = vec![0_u8; MAX_WEATHER_RESPONSE_BYTES];
         let bytes_read = io::try_read_full(&mut response, &mut body).map_err(|error| {
             WeatherFetchError::Transport(format!("ESP HTTP response read failed: {}", error.0))
         })?;
