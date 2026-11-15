@@ -272,23 +272,19 @@ def convert_ink(text: str, title: str, author: str) -> str:
                     p_choices.append(f"* [{label}] {flags_str}-> {choice_target}")
                 continue
 
-            # Regular body lines
-            clean_line = raw
-            clean_line = re.sub(
-                r"\{\s*[A-Za-z0-9_=\s\"\'><]+\s*:\s*([^}|-]+)(?:-\s*else\s*:\s*([^}]+))?\}",
-                r"\1",
-                clean_line,
-            )
-            clean_line = re.sub(r"\{[A-Za-z0-9_]+\}", "", clean_line)
-            clean_s = clean_line.strip()
+            # Regular body lines - preserve conditional blocks { ... } for engine evaluation!
+            clean_s = raw.strip()
             if (
-                clean_s
-                and not clean_s.startswith("~")
-                and not clean_s.startswith("- else:")
-                and not clean_s.startswith("{")
-                and clean_s != "}"
+                clean_s.startswith("~")
+                or clean_s.startswith("//")
+                or clean_s.startswith("--")
+                or clean_s.startswith("VAR ")
             ):
-                p_body.append(clean_s)
+                i += 1
+                continue
+
+            if clean_s:
+                p_body.append(raw.rstrip())
             i += 1
 
         out_passages[knot_id] = {

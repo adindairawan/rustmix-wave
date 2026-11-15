@@ -127,8 +127,11 @@ Beside you, however, Commander Sloane places a firm, kevlar-gloved hand on your 
 == post_triage_tunnel ==
 Ten minutes later, the deafening roar of Sloane's C4 charges shakes the earth, dropping fifty tons of reinforced concrete over the sub-basement entrance and burying St. Jude's Hospital—and the four thousand infected inside it—forever.
 Dust hangs thick in the pitch-black municipal storm drain. Ankle-deep rainwater swirls around your boots as your group pushes half a mile north toward the city surface ladder.
-Ahead of you, Jamie and Julian take turns supporting young Toby on his splinted ankle, the nineteen-year-old whispering quiet thank-yous in the dark.
-The silence where young Toby's voice should be hangs over the tunnel like lead; Jamie walks ten paces ahead in the dark, shoulders rigid, refusing to look back at you.
+{ toby_status == "alive":
+    Ahead of you, Jamie and Julian take turns supporting young Toby on his splinted ankle, the nineteen-year-old whispering quiet thank-yous in the dark.
+- else:
+    The silence where young Toby's voice should be hangs over the tunnel like lead; Jamie walks ten paces ahead in the dark, shoulders rigid, refusing to look back at you.
+}
 Suddenly, your body cashes the check your adrenaline wrote.
 A violent wave of vertigo slams into the base of your skull. Beneath your wet scrub sleeve, Maya's silvered bite mark sears as if someone pressed a white-hot scalpel directly against your radial bone—your immune system fighting a silent, brutal war in your veins.
 Your boots slip on the slick masonry. Your knees buckle in the freezing water.
@@ -143,11 +146,14 @@ Who catches you in the shadow of the tunnel?
 +julian_knows_bite
 Warm, familiar hands catch you under the ribs, easing your weight into a recessed brick alcove while the others pause twenty yards ahead by the ladder shaft.
 "Alex," Julian breathes, pressing the back of his bare hand against your clammy forehead. In the dim green wash of a chemical glow-stick, he is close enough that you can see the exhaustion etched around his dark eyes.
-His fingers slide down to cradle your injured left forearm protectively, shielding it with his own body so Sloane and Kieran can't see you flinch.
-"It's flaring again, isn't it?" he whispers against your temple, his lips brushing your damp hair. "Hold onto me, Alex. Six months I spent trying to stay away from you so I wouldn't ruin your life any further—and I swear to God, if we make it up that ladder, I am never letting you out of my sight again."
-His fingers slide down to steady your left forearm—and through the wet gauze, the surgeon in him feels the unmistakable, raised contour of a human bite arch.
-He freezes. He looks from your bandaged wrist up to your clear, steady eyes, realizing how many hours have passed since Exam Room 4 went dark. Instead of panicking, he pulls your body flush against his chest to block your arm from Sloane's line of sight.
-"You were bitten," Julian whispers against your temple, his voice trembling with raw terror and awe. "And you're not turning. Hold onto me, Alex. Nobody else touches that arm—when we find shelter tonight, I'm tending it myself."
+{ julian_knows_bite:
+    His fingers slide down to cradle your injured left forearm protectively, shielding it with his own body so Sloane and Kieran can't see you flinch.
+    "It's flaring again, isn't it?" he whispers against your temple, his lips brushing your damp hair. "Hold onto me, Alex. Six months I spent trying to stay away from you so I wouldn't ruin your life any further—and I swear to God, if we make it up that ladder, I am never letting you out of my sight again."
+- else:
+    His fingers slide down to steady your left forearm—and through the wet gauze, the surgeon in him feels the unmistakable, raised contour of a human bite arch.
+    He freezes. He looks from your bandaged wrist up to your clear, steady eyes, realizing how many hours have passed since Exam Room 4 went dark. Instead of panicking, he pulls your body flush against his chest to block your arm from Sloane's line of sight.
+    "You were bitten," Julian whispers against your temple, his voice trembling with raw terror and awe. "And you're not turning. Hold onto me, Alex. Nobody else touches that arm—when we find shelter tonight, I'm tending it myself."
+}
 * [Steady your breathing against Julian's chest and climb the surface ladder] -> chapter_one_ending
 
 == tunnel_moment_ro2 ==
@@ -161,8 +167,11 @@ Sloane kills her rifle flashlight instantly to give you privacy in the dark. She
 == tunnel_moment_ro3 ==
 +jamie_knows_bite
 The instant your boot slips, Jamie spins around and catches you with both arms, looping your uninjured arm around his neck and bracing your weight against his hip.
-"I'm still so angry at you for Toby," Jamie whispers fiercely, his voice thick with tears as he guides you onto a dry pipe ledge. "I hate what happened back there, Alex. I hate it. But you look like you're about to pass out in freezing water, and I can't lose you too."
-"Whoa, easy, I've got you, partner," Jamie whispers, guiding you onto a dry pipe ledge and wiping a streak of soot from your cheek with a shaky, lopsided smile. "Rule number one of Ambulance Rig 9: the Chief Resident isn't allowed to faint before the paramedic does."
+{ toby_status == "dead":
+    "I'm still so angry at you for Toby," Jamie whispers fiercely, his voice thick with tears as he guides you onto a dry pipe ledge. "I hate what happened back there, Alex. I hate it. But you look like you're about to pass out in freezing water, and I can't lose you too."
+- else:
+    "Whoa, easy, I've got you, partner," Jamie whispers, guiding you onto a dry pipe ledge and wiping a streak of soot from your cheek with a shaky, lopsided smile. "Rule number one of Ambulance Rig 9: the Chief Resident isn't allowed to faint before the paramedic does."
+}
 Then Jamie's warm fingers brush your burning left forearm through your wet sleeve, making you flinch hard.
 Jamie freezes. He looks down at the blood-spotted bandage, peels back half an inch of tape in the dim glow-stick light, and sees the silvered crescent of teeth marks. He puts the timeline of Exam Room 4 together in a heartbeat. Instead of pulling away, he unstraps a heavy black wrist-splint from his trauma kit and buckles it snugly over your sleeve to hide the stain from Sloane.
 "Four hours and you're still you," Jamie breathes, squeezing your good hand tightly. "Whatever miracle is in your blood, Alex... nobody finds out until you're ready. I've got your back."
@@ -189,7 +198,7 @@ The city skyline is burning. Across the river, high-rise towers are dark save fo
 "Look at the density of that herd," Sloane mutters, lowering her binoculars. "Ten thousand hostiles between us and the river. Moving a group in the pitch dark with three rounds left in my magazine is suicide."
 Julian checks his silver watch in the rain, his jaw tight with desperation. "My little sister Maya's boarding school is across the Eastside Overpass by the ferry terminal. If the ferries stop running at dawn—"
 "And the 14th Precinct armory is four blocks south," Kieran cuts in, lighting a crushed menthol cigarette inside cupped palms and glancing at you. "Armored SWAT van in the garage, riot shotguns in the lockers—and the evidence vault with the original St. Jude's clinic files."
-"Guys, look at Alex," Jamie interrupts quietly, stepping close to your side. "And Toby can barely stand on that ankle."  "We're soaked, freezing, and out of medical supplies. The second-story apartments above that corner pharmacy right above us have iron security grates and a roof access ladder. We have two hours until dawn."
+"Guys, look at Alex," Jamie interrupts quietly, stepping close to your side. { toby_status == "alive": "And Toby can barely stand on that ankle." } "We're soaked, freezing, and out of medical supplies. The second-story apartments above that corner pharmacy right above us have iron security grates and a roof access ladder. We have two hours until dawn."
 Sloane turns her cool grey eyes on you. "You're the senior officer of this hospital crew, Dr. Vance. We hole up above the pharmacy until first light gives us visibility—what is our primary objective at dawn, and how are we prepping tonight?"
 * ["At dawn we push for the Eastside Overpass to find Julian's sister. Tonight, we scavenge medical gear for the crossing."] -> chapter_two_start
 * ["At dawn we raid the 14th Precinct Armory for guns and a van. Tonight, we prep weapons and tactical sightlines."] -> chapter_two_start
@@ -199,10 +208,15 @@ Sloane turns her cool grey eyes on you. "You're the senior officer of this hospi
 The iron fire escape groans under your boots as your group climbs above the alley mist and slips through a jimmied second-story window above *Mercer Street Pharmacy*.
 The apartment above the shop belongs to someone who evacuated in a hurry—mismatched floral armchairs, a cold radiator, and rain drumming steadily against the taped glass panes. Below on the street, the slow, endless tide of the dead shuffles past the pharmacy's barred storefront, their pale faces upturned toward the orange glow of the burning skyline.
 Sloane immediately secures the stairwell door with a heavy oak sideboard, while Jamie drops a scavenged crate of pharmacy supplies—peroxide, suture kits, bottled water, and protein bars—onto the kitchen table.
-You are still wearing Kieran's heavy denim jacket over your scrubs. Across the dim living room, Julian's dark eyes flick to the oversized collar around your neck, then over to Kieran leaning against the radiator, a silent, suffocating flash of jealousy tightening Julian's jaw.
-On the sofa, nineteen-year-old Toby lets out a muffled groan as Jamie elevates his swollen ankle on a pillow. The kid looks up at you with tear-bright eyes.
-"Dr. Vance... thank you for coming back for me in the bullpen," Toby whispers, shivering. "I heard Commander Sloane tell you to drop the shutter. I owe you my life."
-In the corner of the kitchen, Jamie sets down the medical crate with a hollow thud, staring down at his own blood-stained hands. There is an empty armchair by the window where young Toby should be sitting, and the weight of the sealed bullpen hangs in the cold air of the room.
+{ wearing_kieran_jacket:
+    You are still wearing Kieran's heavy denim jacket over your scrubs. Across the dim living room, Julian's dark eyes flick to the oversized collar around your neck, then over to Kieran leaning against the radiator, a silent, suffocating flash of jealousy tightening Julian's jaw.
+}
+{ toby_status == "alive":
+    On the sofa, nineteen-year-old Toby lets out a muffled groan as Jamie elevates his swollen ankle on a pillow. The kid looks up at you with tear-bright eyes.
+    "Dr. Vance... thank you for coming back for me in the bullpen," Toby whispers, shivering. "I heard Commander Sloane tell you to drop the shutter. I owe you my life."
+- else:
+    In the corner of the kitchen, Jamie sets down the medical crate with a hollow thud, staring down at his own blood-stained hands. There is an empty armchair by the window where young Toby should be sitting, and the weight of the sealed bullpen hangs in the cold air of the room.
+}
 Before anyone can rest, the group fractures into quiet corners of the dim apartment:
 1. **In the tiny bathroom**, Julian is washing the soot from his hands, staring at his reflection with a suture kit open on the counter—waiting to see if you'll come to him.
 2. **At the rain-streaked front window**, Commander Sloane is field-stripping her carbine in the dark, watching the horde below while nursing a deep gash across her forearm from the hospital breach.
@@ -217,14 +231,20 @@ You have time for two quiet interactions before dawn breaks. Who do you approach
 == ch2_talk_julian ==
 You step into the narrow apartment bathroom and push the door nearly shut behind you. A single tea-light candle flickers on the porcelain sink.
 Julian turns immediately. In the warm amber light, the dark circles under his eyes make him look ten years older than the boy who used to quiz you with anatomy flashcards on your apartment floor.
-His gaze drops immediately to Kieran's denim jacket draped over your shoulders.
-"Cole's jacket?" Julian asks quietly, a bitter edge scraping across his voice. "The man who spent four months trying to put us both in a federal penitentiary, and now you're wearing his clothes?"
-He reaches out without thinking, his warm fingers brushing a wet strand of hair back from your forehead before he catches himself.
-"Sit on the edge of the tub," Julian whispers, reaching for the antiseptic bottle and sterile gauze. "Let me see the bite, Alex. Please."
-You roll up your left sleeve. In the candlelight, the crescent of Maya's teeth marks gleams like hammered silver against your skin—completely dry, the black veins gone, though the flesh around it is cool to the touch.
-Julian kneels between your knees, cradling your wrist in both hands as he gently cleans the dried blood away. His thumb traces the edge of the scar with aching tenderness.
-"In the tunnel, when you stumbled, my heart stopped," he confesses softly, not looking up from your arm.
-"You've been guarding that left arm since the locker room," Julian says softly, stepping close enough that your knees brush in the cramped space. "And don't tell me it's a crash-cart sprain, Alex. I lived with you for four years."
+{ wearing_kieran_jacket:
+    His gaze drops immediately to Kieran's denim jacket draped over your shoulders.
+    "Cole's jacket?" Julian asks quietly, a bitter edge scraping across his voice. "The man who spent four months trying to put us both in a federal penitentiary, and now you're wearing his clothes?"
+- else:
+    He reaches out without thinking, his warm fingers brushing a wet strand of hair back from your forehead before he catches himself.
+}
+{ julian_knows_bite:
+    "Sit on the edge of the tub," Julian whispers, reaching for the antiseptic bottle and sterile gauze. "Let me see the bite, Alex. Please."
+    You roll up your left sleeve. In the candlelight, the crescent of Maya's teeth marks gleams like hammered silver against your skin—completely dry, the black veins gone, though the flesh around it is cool to the touch.
+    Julian kneels between your knees, cradling your wrist in both hands as he gently cleans the dried blood away. His thumb traces the edge of the scar with aching tenderness.
+    "In the tunnel, when you stumbled, my heart stopped," he confesses softly, not looking up from your arm.
+- else:
+    "You've been guarding that left arm since the locker room," Julian says softly, stepping close enough that your knees brush in the cramped space. "And don't tell me it's a crash-cart sprain, Alex. I lived with you for four years."
+}
 He looks up into your eyes, the six months of silence between you finally breaking open.
 "When I walked out of our apartment in October," Julian whispers, his voice raw, "you thought I left because I couldn't stand looking at you after you falsified that report. Didn't you?"
 * ["You left your key on the counter without saying goodbye, Julian. What was I supposed to think?"] -> ch2_talk_julian_opt1
@@ -240,10 +260,16 @@ In the cramped candlelight of the bathroom, Julian is only inches away. You can 
 You cross the darkened living room to the rain-streaked front window where Commander Sloane stands watch.
 She has stripped off her outer kevlar vest, revealing a black compression shirt and a jagged, four-inch laceration across her right tricep where a shattered steel doorframe caught her during the hospital breach. She is trying to stitch her own arm one-handed with a curved needle held in her teeth.
 She doesn't flinch when you step up beside her.
-"The paramedic is still glaring at you from the kitchen," Sloane remarks quietly, her eyes fixed on the shuffling horde two stories below. "Let him glare. What you did with that fire shutter in the bullpen took iron, Vance. If you hadn't pulled that lever, none of us would have made the drain."
-"Your intern is going to slow our march pace by thirty percent tomorrow," Sloane remarks coolly, though there is no real malice in her voice. "Reckless stunt you pulled in that bullpen, Doctor. Effective, I'll grant you—you didn't hesitate once you committed—but reckless."
-You pull the small tin of sour lemon drops she gave you in the tunnel out of your pocket and hold it out so she can take one.
-A tiny, genuine crease forms at the corner of Sloane's austere mouth. She takes a lemon drop, pops it into her mouth, and lowers the suture needle from her teeth.
+{ triage_choice == "sealed_doors":
+    "The paramedic is still glaring at you from the kitchen," Sloane remarks quietly, her eyes fixed on the shuffling horde two stories below. "Let him glare. What you did with that fire shutter in the bullpen took iron, Vance. If you hadn't pulled that lever, none of us would have made the drain."
+}
+{ triage_choice == "saved_toby":
+    "Your intern is going to slow our march pace by thirty percent tomorrow," Sloane remarks coolly, though there is no real malice in her voice. "Reckless stunt you pulled in that bullpen, Doctor. Effective, I'll grant you—you didn't hesitate once you committed—but reckless."
+}
+{ has_lemon_tin:
+    You pull the small tin of sour lemon drops she gave you in the tunnel out of your pocket and hold it out so she can take one.
+    A tiny, genuine crease forms at the corner of Sloane's austere mouth. She takes a lemon drop, pops it into her mouth, and lowers the suture needle from her teeth.
+}
 "Give me the needle-driver, Commander," you say quietly, reaching for her suture kit. "Even special-ops officers can't tie a clean square knot in their own tricep."
 Sloane studies your face in the orange reflection of the burning city across the river—then surrenders the forceps to your hand.
 As you clean the clean metal gash on her arm and begin drawing the nylon thread through her skin, you feel the corded muscle of her arm tense—not from the pain, which she ignores completely, but from the unfamiliarity of someone taking care of *her*.
@@ -258,14 +284,20 @@ You finish tying off the final stitch on her tricep and smooth a sterile dressin
 
 == ch2_talk_jamie ==
 You walk into the dim apartment kitchen where Jamie is sitting at the linoleum table, sorting gauze rolls by the light of a camping lantern.
-The moment you pull out the chair opposite him, Jamie stops sorting. He looks down at the table, his jaw trembling as he tries to hold onto the sunny mask he always wears on the ambulance rig.
-"I keep hearing him, Alex," Jamie whispers, his voice cracking. "When that ceiling glass broke in the bullpen... Toby called out for us. For *you*. You're the one who taught me on my first day at St. Jude's that we don't trade one life for another."
-He looks up at you with red-rimmed eyes. "Tell me the truth. Are we turning into people like Sloane to stay alive?"
-Jamie looks up as you sit down, offering you a tired, genuine smile as he slides an opened bottle of water and a protein bar across the table toward you.
-"Toby's finally asleep on the couch," Jamie whispers softly. "When you charged into that bullpen with me to lift that locker... I swear, Alex, for five seconds I didn't think we were going to make it out. Everyone else wanted to leave him behind. If you hadn't backed me up, I think something inside me would have broken tonight."
-Jamie glances toward the kitchen doorway to make sure Sloane and Kieran are out of earshot, then reaches across the table to gently touch the black wrist-splint he buckled over your left arm in the tunnel.
-"How's the bite?" he whispers, his brow furrowed with fierce worry. "Is the fever coming back at all?"
-Jamie notices the way you're resting your bandaged left forearm gingerly in your lap and frowns with paramedic instinct. "Seriously, partner, that wrist wrap has blood spotting through it. Let me re-wrap it with clean gauze."
+{ toby_status == "dead":
+    The moment you pull out the chair opposite him, Jamie stops sorting. He looks down at the table, his jaw trembling as he tries to hold onto the sunny mask he always wears on the ambulance rig.
+    "I keep hearing him, Alex," Jamie whispers, his voice cracking. "When that ceiling glass broke in the bullpen... Toby called out for us. For *you*. You're the one who taught me on my first day at St. Jude's that we don't trade one life for another."
+    He looks up at you with red-rimmed eyes. "Tell me the truth. Are we turning into people like Sloane to stay alive?"
+- else:
+    Jamie looks up as you sit down, offering you a tired, genuine smile as he slides an opened bottle of water and a protein bar across the table toward you.
+    "Toby's finally asleep on the couch," Jamie whispers softly. "When you charged into that bullpen with me to lift that locker... I swear, Alex, for five seconds I didn't think we were going to make it out. Everyone else wanted to leave him behind. If you hadn't backed me up, I think something inside me would have broken tonight."
+}
+{ jamie_knows_bite:
+    Jamie glances toward the kitchen doorway to make sure Sloane and Kieran are out of earshot, then reaches across the table to gently touch the black wrist-splint he buckled over your left arm in the tunnel.
+    "How's the bite?" he whispers, his brow furrowed with fierce worry. "Is the fever coming back at all?"
+- else:
+    Jamie notices the way you're resting your bandaged left forearm gingerly in your lap and frowns with paramedic instinct. "Seriously, partner, that wrist wrap has blood spotting through it. Let me re-wrap it with clean gauze."
+}
 * ["It's tearing me apart too, Jamie. I made a brutal call so I wouldn't lose you and the others—please don't hate me for it."] ?toby_dead -> ch2_talk_jamie_opt1
 * ["You're the reason Toby is breathing, Jamie. Don't ever let this world take that heart of yours away."] ?toby_alive -> ch2_talk_jamie_opt2
 * [Let Jamie unwrap your wrist under the table—show him the silvered bite mark in secret] ?!jamie_knows_bite +jamie_knows_bite -> ch2_talk_jamie_opt3
@@ -278,17 +310,23 @@ Jamie moves around the corner of the table, kneeling beside your chair to adjust
 == ch2_talk_kieran ==
 You step out onto the shadowy stairwell landing just outside the apartment door, where Detective Kieran Cole is crouched beside a pried-open landlord's safe, pocketing two boxes of .38 hollow-point ammunition.
 He looks up as the door clicks shut behind you. A single red EXIT sign buzzes overhead, casting sharp, dramatic shadows across his bruised cheekbone and split lower lip.
-His dark eyes travel slowly from your boots up to his heavy denim jacket hanging off your shoulders. A slow, wicked grin tugs at the corner of his mouth.
-"Look at that," Kieran drawls softly, rising to his full height so you have to tilt your chin up to meet his gaze. "St. Jude's golden doctor wearing a disgraced cop's colors. If Julian stares at me any harder through that doorway, he's going to give himself an aneurysm."
-He tosses one of the boxes of .38 shells into your hand so you can reload the revolver you used to shoot his handcuffs off in Cell B.
-"You still surprise me, Vance," Kieran murmurs, stepping closer until your back brushes the stairwell railing. "Back in the bullpen, when the glass broke, I figured you and the boy-scout surgeon would leave me chained to that pipe to bury your October secret forever. Instead, you ran through a swarm of stiffs to shoot my chains off."
+{ wearing_kieran_jacket:
+    His dark eyes travel slowly from your boots up to his heavy denim jacket hanging off your shoulders. A slow, wicked grin tugs at the corner of his mouth.
+    "Look at that," Kieran drawls softly, rising to his full height so you have to tilt your chin up to meet his gaze. "St. Jude's golden doctor wearing a disgraced cop's colors. If Julian stares at me any harder through that doorway, he's going to give himself an aneurysm."
+}
+{ triage_choice == "saved_kieran":
+    He tosses one of the boxes of .38 shells into your hand so you can reload the revolver you used to shoot his handcuffs off in Cell B.
+    "You still surprise me, Vance," Kieran murmurs, stepping closer until your back brushes the stairwell railing. "Back in the bullpen, when the glass broke, I figured you and the boy-scout surgeon would leave me chained to that pipe to bury your October secret forever. Instead, you ran through a swarm of stiffs to shoot my chains off."
+}
 "Let's talk about October, Kieran," you say quietly in the red-lit shadow of the landing. "No lawyers, no hospital board."
 Kieran's smirk fades into something sharp, raw, and intensely focused. He steps in until there is barely an inch of air between your chests, bracing one hand on the iron railing beside your hip.
 "You want the truth, Doc?" Kieran whispers, his voice rough as gravel. "Four months ago, when Internal Affairs took my badge based on that forged safety clearance with *Alex Vance* signed at the bottom, I pulled your personnel file. I sat in an unmarked car across from St. Jude's ER entrance for three nights in the rain, watching you work."
 Your pulse skips. "You watched me?"
 "Watched you run out into the ambulance bay without a coat to do chest compressions on a homeless guy nobody else wanted to touch," Kieran says softly, his dark eyes boring into yours. "And I realized two things right then. One: you didn't falsify that log for money—you did it to save Mercer's neck. And two: you were the worst possible enemy I could have, because I couldn't even make myself hate you."
-His fingers brush lightly over the left sleeve of the jacket covering your silvered bite mark.
-"And now I'm the keeper of your second felony secret," he murmurs, his thumb grazing your wrist pulse.
+{ kieran_knows_bite:
+    His fingers brush lightly over the left sleeve of the jacket covering your silvered bite mark.
+    "And now I'm the keeper of your second felony secret," he murmurs, his thumb grazing your wrist pulse.
+}
 * ["I never wanted your life destroyed, Kieran. The hospital board used my signature to frame you without my knowledge."] -> ch2_talk_kieran_opt1
 * ["If you couldn't make yourself hate me four months ago, what are you going to do with me now?"] -> ch2_talk_kieran_opt2
 
@@ -309,9 +347,11 @@ The rain outside begins to thin as the clock ticks past 4:30 AM. You have time t
 5:15 AM.
 Cold, ash-grey light finally bleeds across the eastern sky, illuminating the wrecked canyon of Mercer Street.
 You gather the group around the kitchen table for the final gear check.
-Before zipping your trauma bag, you take thirty seconds to scan Maya Lin's blood-work chart—the one you saved from the locker room sink in Chapter 1.
-Your breath catches. Scribbled at the bottom of the pathology printout is a red-stamped note from St. Jude's Chief Virologist: *PATIENT ZERO BLOOD PANEL SHOWS SYNTHETIC VIRAL VECTOR (PROJECT LAZARUS - FORT MARROW). ONLY SUBJECTS WITH SYNTHETIC ANTI-FACTOR VII IN BLOODSTREAM SURVIVE INITIAL FEBRILE ARREST.*
-Wait—six months ago, during the October free-clinic trial, you accidentally stuck your finger with an experimental coagulant needle from a Fort Marrow charity crate. *That's* why your blood burned the zombie pathogen out. And according to the chart, the research facility at **Fort Marrow Island**—just past the Eastside Ferry—has the lab equipment to synthesize an antiserum from your blood!
+{ saved_chart:
+    Before zipping your trauma bag, you take thirty seconds to scan Maya Lin's blood-work chart—the one you saved from the locker room sink in Chapter 1.
+    Your breath catches. Scribbled at the bottom of the pathology printout is a red-stamped note from St. Jude's Chief Virologist: *PATIENT ZERO BLOOD PANEL SHOWS SYNTHETIC VIRAL VECTOR (PROJECT LAZARUS - FORT MARROW). ONLY SUBJECTS WITH SYNTHETIC ANTI-FACTOR VII IN BLOODSTREAM SURVIVE INITIAL FEBRILE ARREST.*
+    Wait—six months ago, during the October free-clinic trial, you accidentally stuck your finger with an experimental coagulant needle from a Fort Marrow charity crate. *That's* why your blood burned the zombie pathogen out. And according to the chart, the research facility at **Fort Marrow Island**—just past the Eastside Ferry—has the lab equipment to synthesize an antiserum from your blood!
+}
 Suddenly, from down on the ground floor of the pharmacy, a horrific sound shatters the morning quiet.
 *CRASH.*
 A runaway city bus—its driver long since turned and slumped over the wheel—plows straight through a burning ambulance half a block away and slams directly into the brick support column of the pharmacy below you.
@@ -324,8 +364,11 @@ There is only one way off the second floor: a narrow, ten-foot gap between the p
 You all scramble up the interior hatch onto the tar-and-gravel pharmacy roof as the downstairs apartment doorsplinters inward under dozens of rotting hands.
 Sloane kicks an aluminum extension ladder left by roofers across the ten-foot chasm to the Metro Rail platform, forming a narrow bridge thirty feet above the swarming alley.
 "Go! Across the ladder, one by one!" Sloane barks.
-Jamie and Julian guide Toby across the swaying aluminum rungs first, getting the injured intern safely onto the rail platform.
-Jamie and Julian scramble across the swaying aluminum rungs first, reaching the rail platform and turning to cover you.
+{ toby_status == "alive":
+    Jamie and Julian guide Toby across the swaying aluminum rungs first, getting the injured intern safely onto the rail platform.
+- else:
+    Jamie and Julian scramble across the swaying aluminum rungs first, reaching the rail platform and turning to cover you.
+}
 Kieran goes next, then Sloane—leaving you last on the pharmacy roof just as the roof access hatch behind you bursts open.
 Four turned paramedics from the night shift lunge out onto the gravel roof, cutting you off from the ladder bridge by three steps!
 The lead infected—a six-foot-tall orderly with rusted scissors jutting from his neck—grabs your left arm with crushing force, his rotting fingernails ripping your sleeve—and your bandage—clean off your forearm!
@@ -352,9 +395,15 @@ Sloane's carbine barrel is pointed at your chest, though for the first time all 
 == climax_ally_shield ==
 You swing your heavy trauma kit in a brutal arc, knocking the nearest zombie backward into the others, and sprint across the swaying aluminum ladder onto the concrete rail platform.
 Kieran kicks the ladder away into the alley below—and the instant Sloane raises her carbine toward your exposed, bite-scarred forearm, the people you fought for tonight move as one.
-Julian steps directly in front of your chest, placing his own heart two inches from the muzzle of Sloane's rifle. "I told you in the locker room, Alex," Julian says fiercely, never taking his eyes off Sloane. "She wants to follow protocol, she shoots through me first."
-Jamie steps squarely between you and Sloane, Halligan pry-bar raised tightly across his chest. "Put the gun down, Commander!" Jamie shouts, his voice ringing with absolute conviction. "Alex has had that bite since ten o'clock last night! She's immune—and nobody touches my partner!"
-With the speed of a striking snake, Kieran draws his service pistol and levels it two inches from Sloane's temple. "Lower the carbine, Soldier," Kieran drawls in an ice-cold whisper, stepping beside your shoulder. "The Doc's blood just dropped a stiff on contact, and I'm rather attached to her breathing."
+{ julian_rel >= 60:
+    Julian steps directly in front of your chest, placing his own heart two inches from the muzzle of Sloane's rifle. "I told you in the locker room, Alex," Julian says fiercely, never taking his eyes off Sloane. "She wants to follow protocol, she shoots through me first."
+}
+{ jamie_rel >= 60:
+    Jamie steps squarely between you and Sloane, Halligan pry-bar raised tightly across his chest. "Put the gun down, Commander!" Jamie shouts, his voice ringing with absolute conviction. "Alex has had that bite since ten o'clock last night! She's immune—and nobody touches my partner!"
+}
+{ kieran_rel >= 45:
+    With the speed of a striking snake, Kieran draws his service pistol and levels it two inches from Sloane's temple. "Lower the carbine, Soldier," Kieran drawls in an ice-cold whisper, stepping beside your shoulder. "The Doc's blood just dropped a stiff on contact, and I'm rather attached to her breathing."
+}
 * [Step forward so Sloane can hear the truth from you] -> chapter_two_resolution
 
 == climax_chart_proof ==
@@ -363,11 +412,14 @@ You sprint across the swaying aluminum rungs onto the Metro Rail platform, kick 
 * [Show them what the chart means for the whole city] -> chapter_two_resolution
 
 == chapter_two_resolution ==
-Sloane stares at your eyes, then down at the silvered crescent on your arm, remembering the quiet moment you shared by the apartment window and the way you held this group together through the night.
-Slowly, deliberately, she clicks the safety ON and lowers her carbine to her side.
-"Eight hours," Sloane whispers, a fierce, electric hope breaking through her stoic mask. "In six hours of combat, I watched forty people turn in thirty minutes. Your blood didn't just survive the pathogen, Alex—it's actively lethal to the infection."
-Outnumbered and staring at undeniable medical proof—eight hours without turning, clear pupils, and a corpse lying paralyzed on the roof across the alley—Sloane slowly clicks the safety on her rifle and lowers the barrel.
-"Code Black protocol doesn't have a clause for an immune carrier," Sloane mutters, looking at your arm with stunned calculation. "You're a walking biological weapon against this plague, Dr. Vance."
+{ sloane_rel >= 50:
+    Sloane stares at your eyes, then down at the silvered crescent on your arm, remembering the quiet moment you shared by the apartment window and the way you held this group together through the night.
+    Slowly, deliberately, she clicks the safety ON and lowers her carbine to her side.
+    "Eight hours," Sloane whispers, a fierce, electric hope breaking through her stoic mask. "In six hours of combat, I watched forty people turn in thirty minutes. Your blood didn't just survive the pathogen, Alex—it's actively lethal to the infection."
+- else:
+    Outnumbered and staring at undeniable medical proof—eight hours without turning, clear pupils, and a corpse lying paralyzed on the roof across the alley—Sloane slowly clicks the safety on her rifle and lowers the barrel.
+    "Code Black protocol doesn't have a clause for an immune carrier," Sloane mutters, looking at your arm with stunned calculation. "You're a walking biological weapon against this plague, Dr. Vance."
+}
 Julian steps up to your right side, wrapping a clean linen strip gently around your exposed forearm, his fingers lingering warmly against your skin.
 Jamie lets out a huge, shaky breath on your left, grinning through the morning rain.
 And Kieran holsters his weapon with a wolfish smirk, lighting a fresh menthol as he looks down the elevated train tracks toward the bay.
@@ -382,24 +434,24 @@ The sun breaks red and gold through the smoke of the burning city. No more hidin
 "We take the elevated tracks east toward the water," you say, your voice steady in the morning wind. "We get Julian's sister off that dock, and we find out what Fort Marrow's labs did to start this nightmare."
 Julian catches your good hand and squeezes it tightly; Sloane takes point along the rusted rails; Jamie falls in at your shoulder; and Kieran checks his cylinder at your back.
 CURRENT MEMORY STATE SUMMARY:
-* Intern Toby Status:
-* Patient Zero Lab Chart Discovered:
-* Chapter 1 Triage Decision:
-* Tunnel Confidant:
-* Wearing Kieran's Jacket:
-* Relationship Scores — Julian:  | Sloane:  | Jamie:  | Kieran:
+* Intern Toby Status: {toby_status}
+* Patient Zero Lab Chart Discovered: {saved_chart}
+* Chapter 1 Triage Decision: {triage_choice}
+* Tunnel Confidant: {tunnel_catcher}
+* Wearing Kieran's Jacket: {wearing_kieran_jacket}
+* Relationship Scores — Julian: {julian_rel} | Sloane: {sloane_rel} | Jamie: {jamie_rel} | Kieran: {kieran_rel}
 -> END
 
 == ch2_ending_south ==
 "If Fort Marrow or the ferry docks are swarming, we need armor and firepower before we cross the bay," you say decisively, pointing toward the 14th Precinct skybridge. "We take the precinct garage first, then we roll east in an armored van."
 Kieran grins darkly, taking point beside Sloane along the steel catwalk, while Julian and Jamie stay tight at your flanks as you move out above the burning streets.
 CURRENT MEMORY STATE SUMMARY:
-* Intern Toby Status:
-* Patient Zero Lab Chart Discovered:
-* Chapter 1 Triage Decision:
-* Tunnel Confidant:
-* Wearing Kieran's Jacket:
-* Relationship Scores — Julian:  | Sloane:  | Jamie:  | Kieran:
+* Intern Toby Status: {toby_status}
+* Patient Zero Lab Chart Discovered: {saved_chart}
+* Chapter 1 Triage Decision: {triage_choice}
+* Tunnel Confidant: {tunnel_catcher}
+* Wearing Kieran's Jacket: {wearing_kieran_jacket}
+* Relationship Scores — Julian: {julian_rel} | Sloane: {sloane_rel} | Jamie: {jamie_rel} | Kieran: {kieran_rel}
 -> END
 
 == ch2_talk_julian_opt1 ==

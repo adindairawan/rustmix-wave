@@ -341,20 +341,26 @@ impl StoryGame {
             .iter()
             .filter(|c| match &c.require_flag {
                 None => true,
-                Some((flag, expected)) => self.flags.contains(flag) == *expected,
+                Some((flag, expected)) => eval_condition(flag, &self.flags) == *expected,
             })
             .cloned()
             .collect()
     }
 
     #[must_use]
-    pub fn wrapped_pages(&self) -> Vec<Vec<String>> {
-        let body = self
+    pub fn current_body(&self) -> String {
+        let raw = self
             .nodes
             .get(&self.current_node)
             .map(|n| n.body.as_str())
             .unwrap_or("(Missing passage)");
-        let lines = wrap_passage(body, STORY_CHARS_PER_LINE);
+        evaluate_passage_text(raw, &self.flags)
+    }
+
+    #[must_use]
+    pub fn wrapped_pages(&self) -> Vec<Vec<String>> {
+        let body = self.current_body();
+        let lines = wrap_passage(&body, STORY_CHARS_PER_LINE);
         if lines.is_empty() {
             return vec![vec![String::new()]];
         }
@@ -836,6 +842,108 @@ impl StoryGame {
     }
 }
 
+pub fn eval_condition(cond: &str, flags: &BTreeSet<String>) -> bool {
+    let cond = cond.trim();
+    let cond = cond.strip_prefix('?').unwrap_or(cond).trim();
+
+    if let Some((left, right)) = cond.split_once("==") {
+        let left = left.trim();
+        let right = right.trim().trim_matches('"').trim_matches('\'');
+        let combined = format!("{left}_{right}");
+        return flags.contains(right)
+            || flags.contains(&combined)
+            || (right == "alive" && flags.contains("toby_alive"))
+            || (right == "dead" && (flags.contains("toby_dead") || !flags.contains("toby_alive")));
+    }
+    if let Some((left, right)) = cond.split_once("!=") {
+        let left = left.trim();
+        let right = right.trim().trim_matches('"').trim_matches('\'');
+        let combined = format!("{left}_{right}");
+        let eq = flags.contains(right)
+            || flags.contains(&combined)
+            || (right == "alive" && flags.contains("toby_alive"))
+            || (right == "dead" && (flags.contains("toby_dead") || !flags.contains("toby_alive")));
+        return !eq;
+    }
+
+    if let Some(rest) = cond.strip_prefix('!') {
+        return !eval_condition(rest, flags);
+    }
+    if let Some(rest) = cond.strip_prefix("not ") {
+        return !eval_condition(rest, flags);
+    }
+
+    flags.contains(cond)
+}
+
+pub fn evaluate_passage_text(text: &str, flags: &BTreeSet<String>) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '{' {
+            let mut depth = 1usize;
+            let mut block = String::new();
+            while let Some(c) = chars.next() {
+                if c == '{' {
+                    depth += 1;
+                    block.push(c);
+                } else if c == '}' {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                    block.push(c);
+                } else {
+                    block.push(c);
+                }
+            }
+
+            if let Some((cond_part, rest)) = block.split_once(':') {
+                let cond_active = eval_condition(cond_part, flags);
+
+                let (true_part, false_part) = if let Some((t, f)) = rest.split_once("\n- else:") {
+                    (t, Some(f))
+                } else if let Some((t, f)) = rest.split_once("- else:") {
+                    (t, Some(f))
+                } else if let Some((t, f)) = rest.split_once('|') {
+                    (t, Some(f))
+                } else {
+                    (rest, None)
+                };
+
+                let chosen = if cond_active {
+                    true_part
+                } else {
+                    false_part.unwrap_or("")
+                };
+
+                let evaluated = evaluate_passage_text(chosen.trim(), flags);
+                if !evaluated.is_empty() {
+                    if !out.is_empty()
+                        && !out.ends_with('\n')
+                        && !out.ends_with(' ')
+                        && !evaluated.starts_with('\n')
+                        && !evaluated.starts_with(' ')
+                    {
+                        out.push(' ');
+                    }
+                    out.push_str(&evaluated);
+                }
+            } else {
+                let trimmed = block.trim();
+                if flags.contains(trimmed) {
+                    out.push_str(trimmed);
+                }
+            }
+        } else {
+            out.push(ch);
+        }
+    }
+
+    out
+}
+
 fn is_flag_ident(s: &str) -> bool {
     !s.is_empty()
         && s.bytes()
@@ -847,6 +955,7 @@ fn parse_choice_line(line: &str) -> Option<StoryChoice> {
     let open = rest.find('[')?;
     let close = rest[open + 1..].find(']')? + open + 1;
     let label = rest[open + 1..close].trim().to_string();
+    let prefix_part = rest[..open].trim();
     let after = rest[close + 1..].trim();
     let (meta, target_raw) = after.split_once("->")?;
     let target = target_raw.trim().to_string();
@@ -856,6 +965,14 @@ fn parse_choice_line(line: &str) -> Option<StoryChoice> {
 
     let mut require_flag = None;
     let mut set_flags = Vec::new();
+
+    if let Some(c) = prefix_part
+        .strip_prefix('{')
+        .and_then(|s| s.strip_suffix('}'))
+    {
+        require_flag = Some((c.trim().to_string(), true));
+    }
+
     for token in meta.split_whitespace() {
         if let Some(f) = token.strip_prefix("?!") {
             if is_flag_ident(f) {
@@ -1209,5 +1326,82 @@ mod tests {
         assert_eq!(game.visible_choices().len(), 2);
 
         std::fs::remove_dir_all(app_dir).unwrap();
+    }
+
+    #[test]
+    fn evaluates_conditional_passage_text_and_choices() {
+        let story_text = r#"TITLE: Conditional Test
+== start ==
+Before tunnel.
+
+{ toby_status == "alive":
+Ahead of you, Jamie and Julian take turns supporting young Toby on his splinted ankle.
+- else:
+The silence where young Toby's voice should be hangs over the tunnel like lead.
+}
+
+After tunnel. Jamie helps { toby_status == "alive": Toby | Julian }.
+* { toby_status == "alive" } [Thank Toby] -> end
+* { toby_status == "dead" } [Mourn Toby] -> end
+== end ==
+Done.
+"#;
+        let mut game = StoryGame::from_story_text(story_text).unwrap();
+
+        // 1. By default, toby_alive is false -> renders else branch!
+        let body_dead = game.current_body();
+        assert!(body_dead.contains("The silence where young Toby's voice should be"));
+        assert!(body_dead.contains("Jamie helps Julian"));
+        let choices_dead = game.visible_choices();
+        assert_eq!(choices_dead.len(), 1);
+        assert_eq!(choices_dead[0].label, "Mourn Toby");
+
+        // 2. Set toby_alive flag -> dynamically re-evaluates to true branch!
+        game.flags.insert("toby_alive".into());
+        let body_alive = game.current_body();
+        assert!(body_alive.contains("Jamie and Julian take turns supporting young Toby"));
+        assert!(body_alive.contains("Jamie helps Toby"));
+        let choices_alive = game.visible_choices();
+        assert_eq!(choices_alive.len(), 1);
+        assert_eq!(choices_alive[0].label, "Thank Toby");
+    }
+
+    #[test]
+    fn evaluates_user_exact_toby_status_snippet() {
+        let snippet = r#"TITLE: User Snippet
+== start ==
+Dust hangs thick in the pitch-black storm drain.
+
+{ toby_status == "alive":
+    Ahead of you, Jamie and Julian take turns supporting young Toby on his splinted ankle, the nineteen-year-old whispering quiet thank-yous in the dark.
+- else:
+    The silence where young Toby's voice should be hangs over the tunnel like lead; Jamie walks ten paces ahead in the dark, shoulders rigid, refusing to look back at you.
+}
+
+Suddenly, your body cashes the check your adrenaline wrote.
+* [Continue] -> end
+== end ==
+Done.
+"#;
+        let mut game = StoryGame::from_story_text(snippet).unwrap();
+
+        // 1. Default (Toby dead)
+        let body_dead = game.current_body();
+        assert!(body_dead.contains("The silence where young Toby's voice should be"));
+        assert!(!body_dead.contains("Ahead of you, Jamie and Julian"));
+        assert!(!body_dead.contains('{'));
+        assert!(!body_dead.contains('}'));
+        assert!(!body_dead.contains("- else:"));
+
+        // 2. Toby alive
+        game.flags.insert("toby_alive".into());
+        let body_alive = game.current_body();
+        assert!(
+            body_alive.contains("Ahead of you, Jamie and Julian take turns supporting young Toby")
+        );
+        assert!(!body_alive.contains("The silence where young Toby's voice should be"));
+        assert!(!body_alive.contains('{'));
+        assert!(!body_alive.contains('}'));
+        assert!(!body_alive.contains("- else:"));
     }
 }
