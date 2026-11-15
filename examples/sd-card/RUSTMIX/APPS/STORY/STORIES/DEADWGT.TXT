@@ -8,6 +8,19 @@ VAR mc_gender = "nb"
 VAR mc_subj = "they"
 VAR mc_obj = "them"
 VAR mc_poss = "their"
+VAR mc_poss_adj = "theirs"
+VAR mc_refl = "themselves"
+VAR mc_is_plural = true
+
+VAR empathy = 50
+VAR honesty = 50
+VAR composure = 50
+VAR fatigue = 25
+VAR guilt_weight = 50
+VAR supplies = 3
+VAR ammo = 6
+VAR has_revolver = false
+VAR saved_chart = false
 
 VAR ro1_name = "Julian"
 VAR ro1_subj = "he"
@@ -15,6 +28,11 @@ VAR ro1_obj = "him"
 VAR ro1_poss = "his"
 VAR ro1_Subj = "He"
 VAR ro1_Poss = "His"
+VAR ro1_trust = 40
+VAR ro1_romance = 25
+VAR ro1_tension = 65
+VAR ro1_suspicion = 15
+VAR ro1_knows_bite = false
 
 VAR ro2_name = "Sloane"
 VAR ro2_subj = "she"
@@ -22,6 +40,11 @@ VAR ro2_obj = "her"
 VAR ro2_poss = "her"
 VAR ro2_Subj = "She"
 VAR ro2_Poss = "Her"
+VAR ro2_trust = 35
+VAR ro2_romance = 0
+VAR ro2_tension = 50
+VAR ro2_suspicion = 10
+VAR ro2_knows_bite = false
 
 VAR ro3_name = "Harry"
 VAR ro3_subj = "he"
@@ -29,6 +52,11 @@ VAR ro3_obj = "him"
 VAR ro3_poss = "his"
 VAR ro3_Subj = "He"
 VAR ro3_Poss = "His"
+VAR ro3_trust = 65
+VAR ro3_romance = 15
+VAR ro3_tension = 10
+VAR ro3_suspicion = 10
+VAR ro3_knows_bite = false
 
 VAR ro4_name = "Kieran"
 VAR ro4_subj = "he"
@@ -36,6 +64,23 @@ VAR ro4_obj = "him"
 VAR ro4_poss = "his"
 VAR ro4_Subj = "He"
 VAR ro4_Poss = "His"
+VAR ro4_trust = 20
+VAR ro4_romance = 0
+VAR ro4_tension = 80
+VAR ro4_suspicion = 20
+VAR ro4_knows_bite = false
+
+VAR triage_choice = "none"
+VAR toby_status = "alive"
+VAR tunnel_catcher = "none"
+VAR wearing_kieran_jacket = false
+VAR has_lemon_tin = false
+VAR ch2_talk_count = 0
+VAR talked_ro1_ch2 = false
+VAR talked_ro2_ch2 = false
+VAR talked_ro3_ch2 = false
+VAR talked_ro4_ch2 = false
+VAR route_choice = "none"
 
 == start ==
 DEAD WEIGHT: BOOK ONE - THE TRIAGE OF ASH
@@ -44,6 +89,7 @@ Chapter 1: Code Black at St. Jude's
 Four hours ago, you were bitten by Patient Zero.
 You are not dead. You are not turning.
 And if your survival group discovers the silvered bite on your left forearm before they trust you, protocol dictates a bullet to the brain.
+
 * [Step up to the locker room mirror (Begin Chapter 1)] -> mirror_customization
 
 == mirror_customization ==
@@ -57,31 +103,40 @@ You wipe the condensation from the glass, looking at the blood-streaked St. Jude
 * [A non-binary resident with tired eyes and steady hands (They / Them)] -> set_mc_nb
 
 == set_mc_female ==
-~ mc_name = "Elena"
 ~ mc_gender = "female"
 ~ mc_subj = "she"
 ~ mc_obj = "her"
 ~ mc_poss = "her"
+~ mc_poss_adj = "hers"
+~ mc_refl = "herself"
+~ mc_is_plural = "false"
+~ mc_name = "Elena"
 +mc_female
 You steady your breath and straighten your scrubs in the mirror.
 * [Continue] -> select_mc_name
 
 == set_mc_male ==
-~ mc_name = "Alex"
 ~ mc_gender = "male"
 ~ mc_subj = "he"
 ~ mc_obj = "him"
 ~ mc_poss = "his"
+~ mc_poss_adj = "his"
+~ mc_refl = "himself"
+~ mc_is_plural = "false"
+~ mc_name = "Alex"
 +mc_male
 You steady your breath and straighten your scrubs in the mirror.
 * [Continue] -> select_mc_name
 
 == set_mc_nb ==
-~ mc_name = "Alex"
 ~ mc_gender = "nb"
 ~ mc_subj = "they"
 ~ mc_obj = "them"
 ~ mc_poss = "their"
+~ mc_poss_adj = "theirs"
+~ mc_refl = "themselves"
+~ mc_is_plural = "true"
+~ mc_name = "Alex"
 +mc_nb
 You steady your breath and straighten your scrubs in the mirror.
 * [Continue] -> select_mc_name
@@ -106,7 +161,7 @@ Three months ago, after an accidental needlestick in the ER, you completed an ag
 How do you prepare your arm before unlocking the door?
 * [Wind a double layer of flesh-toned Coban wrap over the scar and tug your scrub sleeve down tight] -> chapter_one_start_c1
 * [Press your thumb hard into the silvered bite to test your pain response, then tape fresh gauze over it] -> chapter_one_start_c2
-* [Examine Patient Zero's bloodstained admission chart on the sink edge before wrapping your wrist] -> chapter_one_start_c3
+* [Examine Patient Zero's bloodstained admission chart on the sink edge before wrapping your wrist] +saved_chart $saved_chart=true -> chapter_one_start_c3
 
 == chapter_one_start_c1 ==
 You bind the silvered crescent beneath two tight layers of medical wrap and button your heavy scrub cuff over your wrist bone. If anyone asks, you wrenched a tendon moving a crash cart.
@@ -117,7 +172,6 @@ You jam your thumb into the deepest puncture. A white-hot lance of nerve pain sh
 * [Continue] -> locker_knock
 
 == chapter_one_start_c3 ==
-+saved_chart
 *Maya Lin, age 7. Admitted 21:40 from the Eastside Free Clinic.*
 
 Before the fever stole her voice, Maya grabbed your coat and begged you to find her big sister Mara by the ferry terminal. Ten minutes later, she bit through your latex glove. Fifteen minutes after that, bio-containment soldiers welded the steel shutters over Exam Room 4 with Maya still inside.
@@ -139,8 +193,9 @@ Whose voice calls your name through the brushed steel of the locker room door?
 
 == locker_door_choice ==
 "{mc_name}?" {ro1_name}'s voice filters through the steel door, ragged with smoke and exhaustion. "I know you're in there! The stairwell to the roof is choked—hundreds of them pressed against the third-floor landing. The military demolition team is wiring the basement pillars with C4! Open the door, please!"
+
 * [Unlock the door immediately and let {ro1_name} in] +ro1_high_rel -> julian_entrance
-* [Slide Maya Lin's chart into your trauma bag first, then unlock the door] +saved_chart -> locker_door_choice_c1
+* [Slide Maya Lin's chart into your trauma bag first, then unlock the door] +saved_chart $saved_chart=true -> locker_door_choice_c1
 * ["Are you alone, {ro1_name}? Who else is out in that corridor?"] -> locker_door_choice_c2
 
 == locker_door_choice_c1 ==
@@ -159,6 +214,7 @@ Six months of silence haven't dulled the sharp angles of {ro1_poss} jaw or the w
 For a fraction of a second, {ro1_poss} hand reaches up as if to cup your jaw the way {ro1_subj} used to after a bad code—before {ro1_subj} catches {ro1_obj}self and curls {ro1_poss} fingers into a tight fist at {ro1_poss} side.
 
 "You're pale," {ro1_name} whispers. "When Ward B went dark, I thought—" {ro1_Subj} swallows hard, then {ro1_poss} surgeon's gaze drops to the bulky wrap peeking beneath your left cuff. "What happened to your forearm?"
+
 * ["Wrenched my wrist pulling a crash cart across the fire door. It's nothing."] -> julian_entrance_c1
 * ["You kept the watch." (Touch {ro1_poss} wrist gently to distract {ro1_obj})] +ro1_high_rel -> julian_entrance_c2
 * ["I'm fine, {ro1_name}. Did you get the kids out of Pediatric ICU?"] +ro1_high_rel -> julian_entrance_c3
@@ -185,123 +241,125 @@ Standing guard by the freight junction is your twenty-four-year-old paramedic pa
 
 As your partner spins around in the amber strobe light and spots you alive, who barrels into your good shoulder with watery relief?
 * [Harry—broad-shouldered, messy hair under his EMT cap, eyes bright with fierce devotion (He / Him)] $ro3_name=Harry $ro3_subj=he $ro3_obj=him $ro3_poss=his $ro3_Subj=He $ro3_Poss=His -> hallway_ro2_intro
-* [Harriet—warm-eyed, a smudge of soot across her freckled cheek, fierce and devoted (She / Her)] $ro3_name=Harriet $ro3_subj=she $ro3_obj=her $ro3_poss=her $ro3_Subj=She $ro3_Poss=Her -> hallway_ro2_intro
+* [Harriet—warm-eyed, a smudge of soot across her freckled cheek, curls tucked under her EMT cap (She / Her)] $ro3_name=Harriet $ro3_subj=she $ro3_obj=her $ro3_poss=her $ro3_Subj=She $ro3_Poss=Her -> hallway_ro2_intro
 
 == hallway_ro2_intro ==
-"{mc_name}!" {ro3_name} lets out a choked laugh, squeezing your uninjured shoulder before catching {ro3_obj}self. "Thank God. {ro1_name} swore you were alive, the Commander said we were four minutes from blowing the ceiling without you, and I was about thirty seconds from stress-eating gauze pads."
+"I looked everywhere for Rig 9," {ro3_name} gasps against your neck, trembling. "When Dispatch went dead, I thought you were trapped in Trauma Bay 1."
 
-Ten feet ahead, kneeling beside a matte-black military demolition case at the foundation pillars, is the head of Strike Team Seven of the Municipal Bio-Containment Taskforce.
+A calm, razor-sharp voice cuts through the alarms from the junction ahead.
+"Secure that corridor! We detonate the structural charges in four minutes!"
 
-Carved out of pure tactical pragmatism, wearing matte-black kevlar rigging with a faint silver scar bisecting one eyebrow, the Commander lost all six soldiers of Strike Team Seven on the fourth floor an hour ago—yet those kevlar-gloved hands are steady as stone as they prime the C4 charges for *Operation Cinderblock*.
-
-When the Commander rises and turns those cool, calculating grey eyes on you, who is giving the orders?
-* [Commander Sloane—tall, austere, her voice like cold steel and velvet (She / Her)] $ro2_name=Sloane $ro2_subj=she $ro2_obj=her $ro2_poss=her $ro2_Subj=She $ro2_Poss=Her -> hallway_ro4_intro
-* [Commander Ronan—broad-shouldered, austere, his voice like cold gravel and iron (He / Him)] $ro2_name=Ronan $ro2_subj=he $ro2_obj=him $ro2_poss=his $ro2_Subj=He $ro2_Poss=His -> hallway_ro4_intro
+Stepping backward from the heavy concrete fire door is the Quarantine Zone's tactical commander. Black combat armor smeared with drywall dust, an M4 carbine slung across their chest, and a military demolition detonator coiled in their gloved fist. Who stands between your group and the blast wall?
+* [Commander Sloane—tall, austere, her voice like cold steel over granite (She / Her)] $ro2_name=Sloane $ro2_subj=she $ro2_obj=her $ro2_poss=her $ro2_Subj=She $ro2_Poss=Her -> hallway_ro4_intro
+* [Commander Ronan—broad-shouldered, austere, his voice like cold steel over granite (He / Him)] $ro2_name=Ronan $ro2_subj=he $ro2_obj=him $ro2_poss=his $ro2_Subj=He $ro2_Poss=His -> hallway_ro4_intro
 
 == hallway_ro4_intro ==
-"Dr. {mc_surname}," Commander {ro2_name} says evenly. "Listen closely, because I am only explaining *Operation Cinderblock* once: there are four thousand slow, bite-vector hostiles inside this building. If they breach the sub-basement, they spill into the metro subway grid and the eastern seaboard falls by noon. In five minutes, these C4 charges drop St. Jude's into its own footprint while we extract through the municipal storm drain."
+Commander {ro2_name}'s cold, tactical gaze locks onto you.
+"Chief Resident Vance," {ro2_subj} barks, tapping {ro2_poss} combat watch. "You're our fifth survivor. We have an escape route into the storm drain—if we breach the freight doors before Sub-Level 2 caves in."
 
-Before you can answer, a tin cup scrapes violently across the iron bars of Security Holding Cell B inside the adjacent bullpen.
+"There's someone else in the security holding pen!" a low, smoky rasp calls from behind the reinforced observation glass down the hall.
 
-Your blood runs cold. Six months ago, when you forged that pharmaceutical log to save {ro1_name}, the hospital's corrupt legal board needed a scapegoat for the clinic's missing *Hemovax-9* vials. They used your falsified signature to frame the lead homicide detective who was forty-eight hours away from exposing their illegal drug trials. Stripped of their badge and pension because of your pen, the disgraced detective came to St. Jude's ER tonight to beat the truth out of the Chief of Staff—only to get tased by security and chained to Cell B's wall pipe an hour before the outbreak hit.
-
-Who is leaning against the iron bars of Holding Cell B, watching you through the glass with a bruised cheekbone, a split lip, and wolfish dark eyes?
-* [Kieran Mercer—lean, dangerous, with a raspy voice and a wicked smirk (He / Him)] $ro4_name=Kieran $ro4_subj=he $ro4_obj=him $ro4_poss=his $ro4_Subj=He $ro4_Poss=His -> hallway_prep_hub
-* [Kiera Mercer—lithe, dangerous, with a smoky rasp and a razor-sharp smirk (She / Her)] $ro4_name=Kiera $ro4_subj=she $ro4_obj=her $ro4_poss=her $ro4_Subj=She $ro4_Poss=Her -> hallway_prep_hub
+Locked inside the barred cell is the former lead detective from City Homicide—disgraced four months ago when the department scapegoated them for leaking the *Hemovax-9* trial records to the press. The detective who spent three weeks interrogating you across a metal table about your forged signatures before Internal Affairs stripped their gold shield. Who leans against the cell bars with dangerous, mocking composure?
+* [Kieran Mercer—lean, dangerous, with a raspy voice and sharp, observant eyes (He / Him)] $ro4_name=Kieran $ro4_subj=he $ro4_obj=him $ro4_poss=his $ro4_Subj=He $ro4_Poss=His -> hallway_prep_hub
+* [Kiera Mercer—lithe, dangerous, with a smoky rasp and sharp, observant eyes (She / Her)] $ro4_name=Kiera $ro4_subj=she $ro4_obj=her $ro4_poss=her $ro4_Subj=She $ro4_Poss=Her -> hallway_prep_hub
 
 == hallway_prep_hub ==
-"Well, look who it is—Dr. Perjury and the Golden Surgeon!" {ro4_name} shouts through the bullpen vent, holding up a heavy brass keyring stripped off a dead security sergeant. "{ro2_name}'s C4 only blows the inner door! The street grate at the end of the storm drain is padlocked, and I've got the master key right here!"
+"Well, look who made it through triage," {ro4_name} murmurs, scarred fingers loosely hooked through the cage wire. "Always said it'd take more than a code black to put down St. Jude's most loyal liar."
 
-You have ninety seconds while {ro2_name} finishes splicing the primary detonator wire. Who do you focus on before entering the bullpen?
-* [Kneel beside {ro2_name} to help brace the C4 det-cord along the pillar] +ro2_high_rel -> prep_with_sloane
-* [Step over to {ro3_name} to clean {ro3_poss} scraped knuckles and steady {ro3_poss} nerves] +ro3_high_rel -> prep_with_harry
-* [Check the subterranean sewer blueprint on the wall with {ro1_name}] +ro1_high_rel -> prep_with_julian
-* [Step up to the Security Bullpen glass to speak with {ro4_name} face-to-face] +ro4_high_rel -> prep_with_kieran
+Dust rains from the ceiling as secondary detonations rattle the concrete beams above.
+"Two minutes until the perimeter collapses!" {ro2_name} yells. "Final preparations—move!"
+
+Who do you coordinate with before the breach?
+* [Kneel beside {ro2_name} to help brace the C4 det-cord] +ro2_high_rel -> prep_with_sloane
+* [Step over to {ro3_name} to clean {ro3_poss} scraped knuckles with an alcohol wipe] +ro3_high_rel -> prep_with_harry
+* [Check the subterranean sewer blueprint on the wall beside {ro1_name}] +ro1_high_rel -> prep_with_julian
+* [Step up to the Security Bullpen glass to speak with {ro4_name}] +ro4_high_rel -> prep_with_kieran
 
 == prep_with_sloane ==
-You kneel beside {ro2_name}, holding the crimping pliers steady with your right hand while {ro2_subj} threads the copper blasting cap into the C4 block.
++ro2_high_rel
+You steady the heavy spool of military det-cord as {ro2_name} crimps the blast cap with {ro2_poss} multitool.
 {ro2_name} glances sideways at you—noting the steadiness of your fingers while the concrete ceiling groans under thousands of shuffling feet above.
-"Most trauma doctors shake when the shooting starts," {ro2_name} murmurs quietly. "You're favoring your left arm, though. Keep your head down in the drain, Dr. {mc_surname}. I don't like losing people who actually know how to keep their nerve."
-* [Continue into the bullpen as the ceiling cracks] -> bullpen_crisis
+"You don't freeze under fire, Doctor," {ro2_subj} murmurs, securing the primer. "Hold onto that. The city above us is ten times worse than this basement."
+* [Continue] -> bullpen_crisis
 
 == prep_with_harry ==
-You step close to {ro3_name}, pulling an antiseptic wipe from your pocket to clean a jagged glass scrape across {ro3_poss} knuckles.
-"Rule number one of Ambulance Rig 9," you murmur softly. "Paramedic doesn't bleed on the attending's shoes."
++ro3_high_rel
+You tear open an alcohol swab, gently cleaning the raw gravel scrapes on {ro3_name}'s knuckles before pressing clean gauze into {ro3_poss} palm.
 {ro3_name} lets out a quiet, watery laugh, leaning {ro3_poss} forehead briefly against your good shoulder. "I keep seeing little Maya's face in Exam 4, {mc_name}," {ro3_subj} whispers. "We brought her in. Whatever happens out there tonight... don't let me turn into someone who just walks past people screaming, okay?"
-* [Continue into the bullpen as the ceiling cracks] -> bullpen_crisis
+* [Continue] -> bullpen_crisis
 
 == prep_with_julian ==
-You lean over the laminated city sewer map with {ro1_name}, your shoulders brushing just like they did during hundreds of midnight trauma shifts.
-"The Eastside Overpass is twelve blocks north of the surface grate," you say quietly. "Right on the way to St. Catherine's Prep—where your little sister Clara boards."
++ro1_high_rel
+You unroll the water-damaged architectural schematic across the desk.
+"The storm drain connects to the Eastside tunnel near St. Catherine's School," you say quietly. "Where your sister Clara was evacuated."
 {ro1_name} looks at you, a fierce ache in {ro1_poss} dark eyes. "You remembered Clara's school schedule," {ro1_subj} whispers. "After everything I put you through in October... you're still looking out for my family."
-* [Continue into the bullpen as the ceiling cracks] -> bullpen_crisis
+* [Continue] -> bullpen_crisis
 
 == prep_with_kieran ==
-You walk up to the reinforced glass of the Security Bullpen. Inside Holding Cell B, {ro4_name}'s dark eyes glint like razors as {ro4_subj} takes in your name badge—and the way you hold your left arm slightly against your ribs.
-"Well, well. Dr. {mc_name} {mc_surname} in the flesh," {ro4_name} drawls in a low, raspy voice. "Get this cell door open before the ceiling drops, Doc, and maybe I won't ask the trigger-happy Commander why you're cradling your left wrist like a trauma patient."
-* [Continue into the bullpen as the ceiling cracks] -> bullpen_crisis
++ro4_high_rel
+You step to the observation window, meeting {ro4_name}'s piercing gaze.
+"You're not dying in a county cell, Detective," you say evenly.
+{ro4_name} chuckles—a low, ragged rumble. "Still playing martyr, Vance? The key to the storm drain floodgate is in the evidence safe behind my desk. Let me out, and I'll unlock that tunnel before {ro2_name}'s dynamite turns us all into strawberry jam."
+* [Continue] -> bullpen_crisis
 
 == bullpen_crisis ==
-Suddenly, a deafening, wet *CRACK* echoes from the ceiling transom above the Security Bullpen.
+A deafening screech of ripping metal echoes through the service corridor!
+The heavy chain-link partition at the far end buckles inward as twenty infected surge into the hallway.
 
-The wire-glass skylight separating the bullpen from the upper morgue chute shatters under the crushing weight of dozens of bodies. Six slow, rotting orderlies tumble down into the bullpen in a tangle of snapped limbs and snapping jaws.
+In the chaos:
+- Nineteen-year-old nursing intern Toby is pinned beneath an overturned steel filing cabinet directly in the path of the oncoming swarm!
+- Detective {ro4_name} is trapped inside the locked security bullpen, shouting for someone to hit the electronic release before the infected swarm the bars!
+- Commander {ro2_name} is shouting for everyone to fall back through the storm drain bulkhead before the blast charges trigger!
 
-Two emergencies erupt at the exact same second:
-1. On the left side of the bullpen, nineteen-year-old nursing intern Toby screams as a heavy steel specimen locker topples across his leg, pinning him ten feet from the crawling infected.
-2. On the right side, inside Holding Cell B, {ro4_name} yanks against {ro4_poss} handcuffs as two turned guards shamble toward the open cell bars—while the brass master key to the storm drain dangles from {ro4_name}'s belt.
-
-"{mc_name}, we have to lift that locker off Toby! His mom packed him a lunchbox in the breakroom today!" {ro3_name} pleads, gripping {ro3_poss} pry-bar.
-"Shoot the padlock on my cuffs, Doc!" {ro4_name} yells over the snarls. "I've got the storm drain master key and the sergeant's Glock!"
-"Leave the kid!" {ro2_name} barks, hand hovering over the steel fire-shutter switch. "Drop the containment shutter on the left bullpen now or the horde floods the junction!"
-
-You only have time for one move before the ceiling gives way completely:
-* [Grab a fallen .38 revolver and sprint left with {ro3_name} to haul the locker off young Toby] -> branch_save_toby
-* [Snatch the .38 revolver and sprint right to shoot {ro4_name}'s chains off and secure the key] -> branch_free_kieran
-* [Slam the fire-shutter switch beside {ro2_name}, sealing Toby behind steel while {ro4_name} breaks free alone] -> branch_ruthless_containment
+You have seconds to act.
+* [Grab a fallen .38 revolver and sprint left with {ro3_name} to haul Toby free from the cabinet] -> branch_save_toby
+* [Snatch the .38 revolver and sprint right to shoot the bullpen lock, freeing {ro4_name}] -> branch_free_kieran
+* [Slam the fire-shutter switch beside {ro2_name}, sealing Toby and {ro4_name} in the hallway to guarantee the core group's survival] -> branch_ruthless_containment
 
 == branch_save_toby ==
 +toby_alive
-+has_revolver
-+ro3_high_rel
-"Nobody dies on my shift if we can reach them!" you shout.
-You snatch the .38 service revolver off the security desk and charge into the glass-strewn bullpen alongside {ro3_name}. You put a single round through the skull of an infected orderly lunging for Toby's throat, then wedge your shoulder beside {ro3_name}'s pry-bar to heave the three-hundred-pound locker off Toby's crushed ankle.
+$toby_status=alive
+~ toby_status = "alive"
+~ triage_choice = "save_toby"
+~ has_revolver = "true"
+~ ammo = "4"
+You dive toward the fallen cabinet, firing two deafening rounds into the nearest infected's chest. {ro3_name} jams the Halligan bar under the cabinet lip, heaving upward with a ragged roar of adrenaline.
+Between the two of you, you drag Toby out by his scrub collar. His ankle is broken, but his breathing is clear.
 
-Pulling with your injured left forearm tears the silvered scab beneath your bandage—you feel a warm trickle of blood soak into your inner gauze inside your sleeve as {ro3_name} hauls the sobbing intern onto {ro3_poss} back.
+"I've got him! I've got him!" {ro3_name} shouts, throwing Toby's arm over {ro3_poss} shoulder.
 
-Across the bullpen, {ro4_name} curses viciously, deliberately slamming a steel chair leg against {ro4_poss} own thumb to dislocate the joint, wrenching {ro4_poss} bloodied hand out of the cuffs and snatching the sergeant's Glock off the floor to fight {ro4_poss} way out behind you.
-
-"Into the storm drain! Move!" {ro2_name} roars, firing three-round bursts to cover your retreat.
-* [Retreat into the storm drain] -> storm_drain_march
+Behind you, the bullpen cell door gives way under {ro4_name}'s own desperate kicks—the detective rolls out into the hall just as the partition collapses, clutching a heavy brass floodgate key in {ro4_poss} bloody hands.
+"Move, you idiots! The fuse is lit!" {ro4_name} snarls, sprinting for the storm drain.
+* [Continue] -> storm_drain_march
 
 == branch_free_kieran ==
 +toby_dead
--toby_alive
-+has_revolver
-+ro4_high_rel
-"If that street grate is padlocked, we're all dead in a pipe! I'm getting {ro4_name}!" you bark, snatching the .38 revolver off the desk and sprinting right toward Cell B.
-"{mc_name}, no—what about Toby?!" {ro3_name} cries out, trying to run toward the screaming intern before {ro1_name} and {ro2_name} physically haul the paramedic backward behind the blast threshold.
+$toby_status=dead
+~ toby_status = "dead"
+~ triage_choice = "free_kieran"
+~ has_revolver = "true"
+~ ammo = "5"
+You sprint right, leveling the .38 at the heavy brass padlock on {ro4_name}'s cell door and squeezing the trigger. The lock shatters in a shower of sparks.
+{ro4_name} kicks the iron gate wide, snatching the brass floodgate key from {ro4_poss} desk and hauling you backward by your scrub shirt just as an infected swipes at your ear.
 
-You brace your wrist—pain lancing up your silvered bite—and fire two point-blank rounds into the iron chain linking {ro4_name}'s cuffs to the pipe. The steel snaps. {ro4_name} explodes out of the cell, scooping up the dead sergeant's Glock in one hand and catching you hard by the waist with the other to yank you clear of a lunging orderly's jaws.
-
-Behind the shattering glass, Toby's terrified screams are cut short beneath a slow wave of grey bodies. {ro3_name} stares at you from the threshold, chalk-white with horror.
-
-"Took you six months to finally do something honest for me, Doc," {ro4_name} rasps against your ear as you bolt into the tunnel. "I don't forget debts."
-* [Retreat into the storm drain] -> storm_drain_march
+Behind you, a horrifying scream tears through the dust as the swarm overtakes the overturned filing cabinet.
+"Toby!" {ro3_name} screams, clawing forward—but {ro1_name} tackles {ro3_name} around the waist, hauling {ro3_obj} toward the drainage shaft as tears stream down your partner's soot-streaked face.
+* [Continue] -> storm_drain_march
 
 == branch_ruthless_containment ==
 +toby_dead
--toby_alive
-+has_revolver
-+sealed_doors
-+ro2_high_rel
-"Drop the inner fire shutter on the left bullpen! Now!" you command, your voice cutting through the chaos like a scalpel as you slam your palm onto the hydraulic release beside {ro2_name}.
-"{mc_name}, no! He's nineteen!" {ro3_name} lunges for the switch, tears spilling down {ro3_poss} cheeks, forcing you to physically catch {ro3_obj} around the chest as the solid steel curtain slams down.
+$toby_status=dead
+~ toby_status = "dead"
+~ triage_choice = "containment"
+~ ammo = "6"
+You slam your palm down onto the emergency fire-shutter release.
+With a thunderous crash, two tons of reinforced steel drop from the ceiling, shearing the corridor in half. On the far side of the glass, Toby's terrified face vanishes behind the swarm.
 
-At the last split second, {ro4_name}—having brutally dislocated {ro4_poss} own thumb to slip the handcuff chain—dives beneath the descending steel barrier with the brass key and the sergeant's Glock, glaring up at you from the concrete floor. Behind the sealed steel, Toby pounds once, cries your name, and is gone.
+{ro3_name} collapses against the wall in trembling, horrified silence, staring at your face as if {ro3_subj} has never seen you before.
 
-{ro2_name} steps beside you, pressing a spare .38 revolver into your hand, {ro2_poss} gloved fingers lingering firmly against yours.
-"Most civilians freeze the first time they have to do the math on who lives," {ro2_name} murmurs for your ears alone. "You just saved this unit, Vance. Into the drain—now!"
-* [Retreat into the storm drain] -> storm_drain_march
+Miraculously, an air vent grate above the ceiling pops open—and {ro4_name} drops to the floor on your side of the shutter, covered in insulation and bleeding from a cut across {ro4_poss} brow.
+"Cold-blooded, Doctor," {ro4_name} whispers roughly, holding up the brass storm drain key with trembling fingers. "Remind me never to get on your bad side."
+* [Continue] -> storm_drain_march
 
 == storm_drain_march ==
 Seconds after {ro4_name}'s brass key unlocks the subterranean floodgate, {ro2_name}'s C4 charges detonate behind you.
@@ -309,527 +367,405 @@ Seconds after {ro4_name}'s brass key unlocks the subterranean floodgate, {ro2_na
 A concussion wave of warm dust roars down the brick tunnel as St. Jude's Hospital collapses into its own foundation footprint, burying four thousand infected forever. Ankle-deep black rainwater swirls around your boots as your group pushes half a mile north through the dark storm drain toward the Mercer Street surface ladder.
 
 { toby_status == "alive":
-Ahead of you, Toby limps between {ro3_name} and {ro1_name}, whispering quiet thank-yous in the dark.
+    Ahead of you, Toby limps between {ro3_name} and {ro1_name}, whispering quiet thank-yous in the dark.
 - else:
-Ahead of you, {ro3_name} walks ten paces in front in rigid, devastated silence, refusing to look back at you.
+    Ahead of you, {ro3_name} walks ten paces in front in rigid, devastated silence, refusing to look back at you.
 }
 
 Halfway to the ladder shaft, your body finally cashes the check your adrenaline wrote.
 A violent wave of vertigo slams into your skull. Beneath your wet scrub sleeve, the dormant pathogen in your silvered bite triggers a sudden vasovagal drop in blood pressure. The brick walls spin, and your knees buckle in the freezing water.
 
 Who lunges through the dark water to catch you before you collapse?
-* [{ro1_name} lunges forward to catch your shoulders] +caught_by_julian +ro1_high_rel -> tunnel_caught_by_julian
-* [Commander {ro2_name} hauls you upright with an iron grip] +caught_by_sloane +has_lemon_tin +ro2_high_rel -> tunnel_caught_by_sloane
-* [{ro3_name} catches you with steady, desperate hands] +caught_by_harry +ro3_high_rel -> tunnel_caught_by_harry
-* [Detective {ro4_name} hooks a wiry arm around your waist] +caught_by_kieran +wearing_kieran_jacket +ro4_high_rel -> tunnel_caught_by_kieran
+* [{ro1_name} lunges forward to catch your shoulders] $tunnel_catcher=julian +caught_by_julian +ro1_high_rel -> tunnel_caught_by_julian
+* [Commander {ro2_name} hauls you upright with an iron grip] $tunnel_catcher=sloane +caught_by_sloane +has_lemon_tin +ro2_high_rel -> tunnel_caught_by_sloane
+* [{ro3_name} catches you with steady, desperate hands] $tunnel_catcher=harry +caught_by_harry +ro3_high_rel -> tunnel_caught_by_harry
+* [Detective {ro4_name} hooks a wiry arm around your waist] $tunnel_catcher=kieran +caught_by_kieran +wearing_kieran_jacket +ro4_high_rel -> tunnel_caught_by_kieran
 
 == tunnel_caught_by_julian ==
-Because you've stayed close to {ro1_name}'s side since the locker room, {ro1_subj} reacts before your knee even touches the water.
-Warm, familiar hands catch you under the ribs, easing your back against a dry brick recess while the others pause twenty feet ahead by the ladder shaft.
++caught_by_julian
+$tunnel_catcher=julian
+~ tunnel_catcher = "julian"
+Two strong hands hook under your armpits, pulling your chest flush against {ro1_name}'s wool surgical fleece before your knees hit the water.
+{ro1_name}'s heart is hammering like a trapped bird against your ear, {ro1_poss} breath hot and shaky against your temple.
+"I've got you," {ro1_subj} whispers, {ro1_poss} voice raw with terror. "I've got you, {mc_name}. Lean on me."
 
-"{mc_name}," {ro1_name} breathes, pressing the back of {ro1_poss} hand to your clammy forehead. "Whoa, hey—I've got you. Your pulse is racing."
-In the dim green glow-stick light, {ro1_poss} fingers brush your left sleeve to steady you, and you flinch slightly before tucking your forearm against your chest. {ro1_name}'s eyes narrow with sharp medical concern—{ro1_subj} doesn't see what's under the bandage yet, but {ro1_poss} suspicion deepens.
-* ["Just an adrenaline crash from the C4 blast, {ro1_name}. I'm steady."] -> tunnel_caught_by_julian_c1
-* [Lean your forehead against {ro1_poss} shoulder for three seconds to catch your breath] +ro1_high_rel -> tunnel_caught_by_julian_c2
+* ["Just an adrenaline crash from the C4 blast, {ro1_name}. I'm alright."] -> tunnel_caught_by_julian_c1
+* [Lean your forehead against {ro1_poss} shoulder for three seconds before standing] +ro1_high_rel -> tunnel_caught_by_julian_c2
 
 == tunnel_caught_by_julian_c1 ==
-"Don't play tough with me, {mc_name}," {ro1_subj} murmurs softly, keeping an arm securely around your waist all the way to the ladder rungs.
-* [Continue to the ladder] -> chapter_one_ending
+"Adrenaline my ass," {ro1_name} murmurs, but {ro1_subj} tucks {ro1_poss} shoulder under your good arm anyway, carrying half your weight toward the ladder.
+* [Continue] -> chapter_one_ending
 
 == tunnel_caught_by_julian_c2 ==
 {ro1_name}'s breath hitches in the dark; {ro1_subj} holds you tighter for a heartbeat before whispering, "Stay right in front of me on the ladder. I won't let you fall."
-* [Continue to the ladder] -> chapter_one_ending
+* [Continue] -> chapter_one_ending
 
 == tunnel_caught_by_sloane ==
-Because you backed {ro2_name}'s tactical lead in the basement, the Commander is walking rear-guard right at your shoulder.
-A kevlar-clad arm hooks effortlessly beneath your right elbow before you hit the water, hauling you upright into a narrow maintenance alcove. {ro2_name} kills {ro2_poss} rifle light instantly so the rest of the group doesn't see you falter.
++caught_by_sloane
++has_lemon_tin
+$tunnel_catcher=sloane
+~ tunnel_catcher = "sloane"
+~ has_lemon_tin = "true"
+A steel-grip gauntlet catches your shoulder strap, hauling you upright before your boots drag the mud.
+Commander {ro2_name} steps between you and the rushing water, {ro2_poss} tactical helmet lamp angled downward so the others won't see your glazed eyes.
 
-"Easy, Dr. {mc_surname}," {ro2_name} murmurs, {ro2_poss} low voice vibrating against your ear in the pitch black as {ro2_subj} presses a metal canteen to your lips. "Drink. Every rookie hits the wall after their first breach."
-As {ro2_subj} lowers the canteen, {ro2_poss} gloved thumb brushes cold sweat from your jawline. {ro2_Subj} notices how stiffly you're guarding your left forearm against your ribs—filing the detail away without knowing what lies under your cuff yet.
-
-{ro2_Subj} presses a small, battered tin of sour lemon drops into your right palm. "Sugar keeps shock off. Stay on your feet, Doctor—I need you sharp topside."
-* ["Thanks for the catch, Commander. Nobody else saw."] -> chapter_one_ending
-* ["Your hands weren't shaking at all back there, {ro2_name}. How do you do it?"] +ro2_high_rel -> tunnel_caught_by_sloane_c1
+* ["Thanks for the catch, Commander. Nobody else saw."] -> tunnel_caught_by_sloane_c1
+* ["Your hands weren't shaking at all back there, {ro2_name}."] +ro2_high_rel -> tunnel_caught_by_sloane_c2
 
 == tunnel_caught_by_sloane_c1 ==
-"Practice," {ro2_name} replies quietly in the dark. "And having someone worth keeping alive on my six. Move out."
-* [Continue to the ladder] -> chapter_one_ending
+"Eyes forward, Doctor," {ro2_name} says in a low, conspiratorial murmur. "We die when we stop moving."
+* [Continue] -> chapter_one_ending
+
+== tunnel_caught_by_sloane_c2 ==
+"Practice," {ro2_name} murmurs, {ro2_poss} stern gaze lingering on your face. {ro2_Subj} presses a small, battered tin of sour lemon drops into your right palm. "Sugar keeps shock off. Stay on your feet, Doctor—I need you sharp topside."
+* [Continue] -> chapter_one_ending
 
 == tunnel_caught_by_harry ==
-Because you prioritized {ro3_name} and your shared oath in the basement, your paramedic partner is walking right beside your elbow.
-"{mc_name}! Whoa, easy, partner, I've got you!" {ro3_name} catches you with both warm arms around your shoulders, bracing your weight against {ro3_poss} hip so you don't go down in the filthy runoff.
++caught_by_harry
+$tunnel_catcher=harry
+~ tunnel_catcher = "harry"
+"{mc_name}!"
+A flash of yellow turnout gear lunges through the spray—{ro3_name} catches your elbows, wrapping {ro3_poss} arms around your torso with frantic, bone-deep devotion.
+"Hey, hey—look at me," {ro3_subj} gasps, searching your eyes with {ro3_poss} small medical flashlight. "You're burning up. Did you inhale smoke?"
 
-"Rule number one of the night shift: the Chief Resident isn't allowed to faint before the paramedic does," {ro3_name} whispers with a shaky, affectionate smile, wiping soot from your cheek with {ro3_poss} thumb. When {ro3_subj} reaches to check your left radial pulse out of sheer EMT habit, you pull your left wrist back against your stomach. {ro3_name} blinks in confusion—not knowing about the bite yet, though {ro3_subj} notices how protective you are of that arm.
-* ["Just dizzy from the blast concussion, {ro3_name}. Keep your voice down so {ro2_name} doesn't hear."] -> tunnel_caught_by_harry_c1
-* [Squeeze {ro3_poss} hand tightly: "I wouldn't have made it out of that basement without you, {ro3_name}."] +ro3_high_rel -> tunnel_caught_by_harry_c2
+* ["Just dizzy from the blast concussion, {ro3_name}. Keep moving."] -> tunnel_caught_by_harry_c1
+* [Squeeze {ro3_poss} hand tightly: "I wouldn't have made it out of that ER without you."] +ro3_high_rel -> tunnel_caught_by_harry_c2
 
 == tunnel_caught_by_harry_c1 ==
-"Lips are sealed, boss," {ro3_name} whispers warmly, keeping a supportive hand at the small of your back all the way to the ladder.
-* [Continue to the ladder] -> chapter_one_ending
+{ro3_name} bites {ro3_poss} lip, throwing your left arm over {ro3_poss} neck and bracing you against the tunnel current.
+* [Continue] -> chapter_one_ending
 
 == tunnel_caught_by_harry_c2 ==
 {ro3_name}'s ears turn warm even in the dim glow-stick light. "Always on your rig, {mc_name}. Come on, surface grate's right ahead."
-* [Continue to the ladder] -> chapter_one_ending
+* [Continue] -> chapter_one_ending
 
 == tunnel_caught_by_kieran ==
-Because you focused on {ro4_name} in the basement, the former detective is prowling directly behind your shoulder in the dark.
-A lean, iron-hard grip catches the front of your scrub jacket before your knees hit the water, hauling you sideways against the dry brickwork while the others reach the ladder shaft ahead.
++caught_by_kieran
++wearing_kieran_jacket
+$tunnel_catcher=kieran
+~ tunnel_catcher = "kieran"
+~ wearing_kieran_jacket = "true"
+A wiry, muscular arm hooks around your waist from behind, wrenching you backward against the brick wall.
+Detective {ro4_name} traps you against {ro4_poss} chest, {ro4_poss} rough stubble grazing your temple as {ro4_poss} calloused fingers instinctively find the racing radial pulse in your left wrist.
+{ro4_name} inhales sharply through {ro4_poss} teeth, {ro4_poss} dark eyes locking onto yours from six inches away without making a sound.
+{ro4_subj} strips {ro4_poss} heavy wool detective's overcoat off {ro4_poss} own shoulders and drapes it over your trembling frame, buttoning it high over your wrists before anyone else turns around.
 
-"Easy there, Doc," {ro4_name} murmurs, {ro4_poss} raspy voice a low purr against your ear as {ro4_subj} braces a knee between yours to keep your shaking legs upright. "You go down in this sewer muck, I'm not carrying you."
-Despite the harsh words, {ro4_name} shrugs out of {ro4_poss} heavy dark jacket and drapes it over your shivering shoulders. {ro4_Poss} sharp detective's eyes flick down to the way you're cradling your left forearm inside the sleeve—{ro4_subj} doesn't know it's a bite yet, but {ro4_subj} knows you're hiding an injury.
 * ["Didn't peg you for the chivalrous type, Detective."] +ro4_high_rel -> tunnel_caught_by_kieran_c1
-* ["Keep quiet about my arm and we're even for the basement, {ro4_name}."] -> tunnel_caught_by_kieran_c2
+* ["Keep quiet about my arm and we're even for the badge you lost in October."] -> tunnel_caught_by_kieran_c2
 
 == tunnel_caught_by_kieran_c1 ==
 {ro4_name} smirks in the shadow, calloused thumb grazing your jaw. "Don't let it go to your head, {mc_surname}. I just need my star witness alive."
-* [Continue to the ladder] -> chapter_one_ending
+* [Continue] -> chapter_one_ending
 
 == tunnel_caught_by_kieran_c2 ==
-"Interesting," {ro4_name} whispers, dark eyes glinting. "We'll talk about what you're hiding under that sleeve once we're off the street."
-* [Continue to the ladder] -> chapter_one_ending
+"We're never even, Doc," {ro4_name} whispers roughly into your hair. "Not by a long shot."
+* [Continue] -> chapter_one_ending
 
 == chapter_one_ending ==
 {ro2_name} puts {ro2_poss} shoulder into the iron street grate above your heads and heaves it aside. Cold night air—thick with woodsmoke, distant sirens, and rain—rushes down into the shaft.
 
-One by one, you climb out of the earth into a narrow alley on Mercer Street, three blocks east of the collapsed hospital.
-You stop dead on the wet asphalt.
+One by one, your group scrambles up into the rain-slicked alleyway behind Mercer Street. Behind you, the city skyline burns in ragged pillars of orange flame.
+St. Jude's Metro Hospital is gone. You survived the initial outbreak.
 
-The city skyline is burning. Across the river, high-rise towers are engulfed in jagged orange fire. Closer—blocking the main avenues—the street is a slow, surging sea of thousands of silhouettes shuffling through stalled traffic.
-
-"We can't move a wounded team through ten thousand hostiles in the dark," you say, pointing up toward the dark second-story apartment above the corner Mercer Street Pharmacy. "We barricade the high ground for two hours until dawn, patch everyone up, and decide our route."
-
-"Agreed," {ro2_name} nods grimly. "Up the fire escape. Quietly."
 * [Climb the iron fire escape into Chapter 2: The Weight of Watch] -> chapter_two_start
 
 == chapter_two_start ==
-CHAPTER 2: THE WEIGHT OF WATCH (03:40 AM)
-
-The second-floor apartment above the Mercer Street Pharmacy smells of dust, rain, and cold radiators. {ro2_name} and {ro4_name} wedge a heavy oak sideboard across the stairwell door, while {ro3_name} draws the blackout curtains so not a sliver of light leaks down to the shuffling horde on the avenue below.
+You climb through the third-floor fire exit into Safehouse 3B—a vacant four-room dental office overlooking the smoldering skyline of St. Jude's.
 
 { wearing_kieran_jacket:
-As you set your trauma bag on the kitchen table, {ro1_name}'s dark eyes lock onto {ro4_name}'s heavy jacket draped over your shoulders. A sharp, unmistakable flash of jealousy tightens {ro1_name}'s jaw.
-"Didn't realize you and Detective Mercer were trading wardrobe items now, {mc_name}," {ro1_name} mutters under {ro1_poss} breath.
+    As you set your trauma bag on the kitchen table, {ro1_name} immediately notices the oversized dark wool detective's coat draped over your shoulders.
 }
 
-Before anyone can rest, there is medical work to do.
 { toby_status == "alive":
-Young Toby is propped on the sofa with a severe compound ankle sprain and a deep laceration from the bullpen locker. Meanwhile, in the kitchen corner, {ro4_name} is quietly cursing over the thumb {ro4_subj} dislocated breaking out of Holding Cell B.
+    Young Toby is propped on the sofa with a severe compound ankle sprain, his face pale and clammy under the greasy emergency blanket.
 - else:
-With Toby gone, the apartment feels suffocatingly quiet. {ro3_name} sits frozen on the edge of a radiator by the hallway, staring at {ro3_poss} bloodstained boots, while in the kitchen corner, {ro4_name} is nursing a bruised, dislocated thumb from the cell escape.
+    With Toby gone, the apartment feels suffocatingly quiet. His empty yellow EMT windbreaker sits on the armchair where {ro3_name} left it.
 }
 
-As the group's Chief Resident, how do you handle the immediate medical triage?
-* { toby_status == "alive" } [Kneel beside {ro3_name} to stitch and splint Toby's leg together] +ro3_high_rel -> ch2_triage_toby
-* [Go to the kitchen to reset {ro4_name}'s dislocated thumb and bandage {ro4_poss} hand] +ro4_high_rel -> ch2_triage_kieran
-* [Ask {ro1_name} to help you inventory the scavenged pharmacy kits and painkillers] +ro1_high_rel -> ch2_triage_julian
+Supplies are dangerously thin: exactly two rolls of sterile gauze, one suture kit, and half a bottle of lidocaine. Who receives your priority attention before dawn?
+
+* { toby_status == "alive" } [Kneel beside {ro3_name} to stitch and splint Toby's ankle] -> ch2_triage_toby
+* [Go to the kitchen to reset {ro4_name}'s dislocated shoulder] -> ch2_triage_kieran
+* [Ask {ro1_name} to help you inventory the scavenged antibiotics and plasma] -> ch2_triage_julian
 
 == ch2_triage_toby ==
-You work side-by-side with {ro3_name}, injecting the last of your lidocaine to numb Toby's ankle before setting the splint.
-"Look at your stitches, {mc_name}," {ro3_name} whispers fondly as you tie off the suture with one-handed precision. "Even at the end of the world, you're still showing off."
-Toby drifts into an exhausted sleep, and {ro3_name} looks at you with warm gratitude.
-* [Continue to night watch] -> ch2_watch_intro
+You work swiftly with {ro3_name}, setting Toby's distal fibula into a rigid aluminum splint before running four neat nylon interrupted sutures through the skin tear over his malleolus.
+Toby grips {ro3_name}'s hand through his tears, whispering gratitude until the exhaustion pulls him under into a deep, feverless sleep.
+{ro3_name} looks up at you across the couch, eyes glistening with deep affection. "You saved him twice tonight, {mc_name}. Thank you."
+* [Continue] -> ch2_watch_intro
 
 == ch2_triage_kieran ==
-You take {ro4_name}'s bruised hand in yours. "On three," you say—and snap the thumb joint cleanly back into its socket on *one*.
-{ro4_name} inhales sharply through {ro4_poss} teeth, {ro4_poss} dark eyes locking onto yours from six inches away without making a sound.
-"Cold-blooded, Doc," {ro4_name} murmurs, watching how carefully you keep your left forearm angled away while wrapping {ro4_poss} palm. "I'm starting to see how you signed that October clearance report without blinking."
-* [Continue to night watch] -> ch2_watch_intro
+In the darkened kitchen, you brace your boot against {ro4_name}'s ribs and pull his humeral head back into the glenoid socket with a dull, sickening *pop*.
+{ro4_name} doesn't scream; {ro4_subj} merely bites {ro4_poss} lower lip until a bead of dark blood appears, {ro4_poss} pupils blown wide with pain.
+"Nice leverage, Vance," {ro4_subj} groans through gritted teeth, rotating {ro4_poss} arm with grim approval. "You handle pain like someone who's lived with it for a long time."
+* [Continue] -> check_any_suspicion_mid
 
 == ch2_triage_julian ==
-You and {ro1_name} sort the gauze and morphine ampoules at the counter. When your hands brush over the last suture kit, {ro1_name} catches your right fingers briefly.
-"Your skin feels cool, {mc_name}, like you're coming off a fever," {ro1_subj} whispers, studying your eyes closely. "Promise me you aren't hiding something from me tonight."
-* [Continue to night watch] -> ch2_watch_intro
+You and {ro1_name} clear the glass counter together, checking expiration codes on five vials of ceftriaxone and two bags of 5% dextrose in water by flashlight.
+Working side by side brings back four years of instinctive surgical rhythm—the silent hand-offs, the matching cadences of your breathing.
+For a moment, {ro1_poss} fingers brush over yours as you both reach for the same roll of surgical tape. Neither of you pulls away for three full seconds.
+* [Continue] -> check_any_suspicion_mid
+
+== check_any_suspicion_mid ==
+The quiet in the safehouse is heavy. Outside, rain drums against the soot-streaked glass.
+* [Step out into the living room as night watch begins] -> ch2_watch_intro
 
 == ch2_watch_intro ==
-It is 04:15 AM. Dawn breaks in ninety minutes.
-You have time for private conversations while the others rest or keep watch around the dark apartment.
-* [Begin Night Watch (First Conversation)] -> ch2_talk_hub
+The rain intensifies outside, drumming against the dark windows of Safehouse 3B.
+You have time for private conversations while the others rest or keep lookout before first light.
+* [Begin your watch round] -> ch2_talk_hub
 
 == ch2_talk_hub ==
-[Night Watch: First Conversation]
 Who do you approach in the quiet before dawn?
-* [Slip into the candlelit bathroom to speak with {ro1_name}] +talked_ro1_ch2 -> talk_ro1_scene
-* [Join Commander {ro2_name} at the darkened front window] +talked_ro2_ch2 -> talk_ro2_scene
-* [Sit with {ro3_name} on the hallway fire-escape landing] +talked_ro3_ch2 -> talk_ro3_scene
-* [Corner Detective {ro4_name} by the shadowed stairwell landing] +talked_ro4_ch2 -> talk_ro4_scene
+
+* {not talked_ro1_ch2} [Slip into the candlelit bathroom to speak with {ro1_name}] +talked_ro1_ch2 -> talk_ro1_scene
+* {not talked_ro2_ch2} [Join Commander {ro2_name} at the darkened front window] +talked_ro2_ch2 -> talk_ro2_scene
+* {not talked_ro3_ch2} [Sit with {ro3_name} on the hallway fire-escape landing] +talked_ro3_ch2 -> talk_ro3_scene
+* {not talked_ro4_ch2} [Corner Detective {ro4_name} by the shadowed stairwell landing] +talked_ro4_ch2 -> talk_ro4_scene
+* [Rest and wait for dawn with the group (Proceed to Dawn)] -> ch2_dawn_breach
 
 == talk_ro1_scene ==
++talked_ro1_ch2
+~ talked_ro1_ch2 = "true"
 {ro1_name} stands by the narrow bathroom sink, staring into the candlelit mirror while unconsciously turning the silver watch on {ro1_poss} wrist around and around.
 
 When you step inside and push the door nearly shut, {ro1_name} looks at your reflection.
 "When I walked out of our apartment in October, {mc_name}," {ro1_subj} whispers rawly, "you thought I left because I couldn't stand looking at you after you falsified that report. Didn't you? I didn't leave because I was disgusted with you. A child died on my table, and instead of letting me pay for it, you put your own neck in a noose for me. Every time I looked at you across our kitchen table, I was terrified that {ro4_name} Mercer was going to kick our door in and drag *you* away in handcuffs for my mistake."
 
 { saved_chart:
-You pull Maya Lin's bloodstained chart from your bag and lay it on the porcelain sink beside {ro1_obj}, pointing to the batch stamp: *HEMOVAX-9*.
-{ro1_name}'s breath catches. "That's... that's the exact same synthetic blood-expander lot they gave the councilman's nephew on my table in October," {ro1_subj} whispers, stunned. "It wasn't surgical error. The hospital board was running human bio-trials at our free clinic."
+    You pull Maya Lin's bloodstained chart from your bag and lay it on the porcelain sink beside {ro1_obj}, pointing to the batch stamp: *HEMOVAX-9*.
+    {ro1_name}'s breath catches. "That's... that's the exact same synthetic blood-expander lot they gave the councilman's nephew on my table in October," {ro1_subj} whispers, stunned. "It wasn't surgical error. The hospital board was running human bio-trials at our free clinic."
 }
 
 {ro1_name} turns to face you in the cramped candlelight, stepping close enough that you can feel the heat radiating off {ro1_poss} skin.
+
 * ["I forged that signature because I loved you, {ro1_name}. Pull me closer and stop running from me."] +ro1_high_rel -> talk_ro1_kiss
 * [Roll up your left cuff voluntarily and show {ro1_name} the silvered bite mark in the candlelight] +ro1_knows_bite -> suspicion_trigger_ro1
-* [Pull your left arm back defensively when {ro1_name} reaches for your frayed wrist bandage] -> talk_ro1_deflect
+* [Pull your left arm back defensively when {ro1_name} reaches for your frayed wrist bandage] -> check_ro1_suspicion_watch
 
 == talk_ro1_kiss ==
++ro1_high_rel
 You close the last two inches and press your mouth to {ro1_poss}s. {ro1_name} makes a low, starved sound in the back of {ro1_poss} throat, {ro1_poss} hands tangling in your hair as {ro1_subj} kisses you back with six months of pent-up desperation before resting {ro1_poss} forehead against yours.
 "Never lock me out again, {mc_name}," {ro1_subj} whispers fiercely. "We're finding my sister at that ferry, and we're starting over."
-* [Step out into the hallway as time passes] -> ch2_talk_hub_2
+* [Continue] -> ch2_talk_hub
 
-== talk_ro1_deflect ==
-{ro1_name} studies your guarded posture, a pained shadow crossing {ro1_poss} face. {ro1_Subj} lets {ro1_poss} hand drop.
-"Get some rest, {mc_name}," {ro1_subj} murmurs softly. "We're going to need everything you've got when the sun comes up."
-* [Step out into the hallway as time passes] -> ch2_talk_hub_2
+== check_ro1_suspicion_watch ==
+{ro1_name}'s eyes linger on your guarded posture with quiet concern before {ro1_subj} nods slowly.
+* [Return to the night watch hub] -> ch2_talk_hub
 
 == suspicion_trigger_ro1 ==
++ro1_knows_bite
+~ ro1_knows_bite = "true"
 In the dim candlelight by the sink, {ro1_name}'s fingers catch the edge of your sleeve and peel the Coban wrap back an inch—revealing the raised, silvery-grey crescent of human teeth marks from Exam Room 4.
 
 For two full seconds, {ro1_name} stops breathing.
 
 { ro1_high_rel:
-Instead of backing away or calling for {ro2_name}, {ro1_name} immediately pulls your arm flush against {ro1_poss} chest to shield it from the doorway, {ro1_poss} dark eyes wide with fierce, protective terror.
-"Maya Lin. Four hours ago," {ro1_name} deduces in a trembling whisper, pressing two fingers to your steady carotid pulse. "The retro-antivirals you took after that needlestick in January—they arrested the pathogen. God Almighty, {mc_name}... you're immune."
-{ro1_Subj} binds fresh sterile tape over your sleeve and presses a reverent kiss to your knuckles. "If {ro2_name} or anyone else tries to touch you over this, they shoot through me first."
+    Instead of backing away or calling for {ro2_name}, {ro1_name} immediately pulls your arm flush against {ro1_poss} chest to shield it from the doorway, {ro1_poss} dark eyes wide with fierce, protective terror.
+    "Maya Lin. Four hours ago," {ro1_name} deduces in a trembling whisper, pressing two fingers to your steady carotid pulse. "The retro-antivirals you took after that needlestick in January—they arrested the pathogen. God Almighty, {mc_name}... you're immune."
+    {ro1_Subj} binds fresh sterile tape over your sleeve and presses a reverent kiss to your knuckles. "If {ro2_name} or anyone else tries to touch you over this, they shoot through me first."
 - else:
-{ro1_name} recoils half a step against the sink, staring at the bite mark with pale, betrayed horror.
-"You were bitten in Exam 4," {ro1_subj} whispers harshly. "You walked into that tunnel with us carrying a bite mark and didn't say a word?!"
-"It's been six hours, {ro1_name}—I'm not turning!" you hiss back.
-{ro1_name} stares at your clear pupils, jaw trembling, before looking away. "Keep your damn sleeve down. I won't tell {ro2_name} tonight—but if your fever spikes by one degree, I swear to God I won't let you take the rest of them down."
+    {ro1_name} recoils half a step against the sink, staring at the bite mark with pale, betrayed horror.
+    "You were bitten in Exam 4," {ro1_subj} whispers harshly. "You walked into that tunnel with us carrying a bite mark and didn't say a word?!"
+    "It's been six hours, {ro1_name}—I'm not turning!" you hiss back.
+    {ro1_name} stares at your clear pupils, jaw trembling, before looking away. "Keep your damn sleeve down. I won't tell {ro2_name} tonight—but if your fever spikes by one degree, I swear to God I won't let you take the rest of them down."
 }
-* [Step out into the hallway as time passes] -> ch2_talk_hub_2
+* [Return to the night watch hub] -> ch2_talk_hub
 
 == talk_ro2_scene ==
++talked_ro2_ch2
+~ talked_ro2_ch2 = "true"
 Commander {ro2_name} is standing by the front window, stripped of {ro2_poss} outer kevlar vest, trying to stitch a four-inch metal laceration across {ro2_poss} tricep one-handed while watching the horde below. Inside {ro2_poss} collar hang five stainless-steel dog tags taped together with black electrical tape so they don't clink.
 
 "Give me the needle-driver, Commander," you say quietly, taking the forceps from {ro2_poss} hand and tying off the suture with practiced precision.
 
 { has_lemon_tin:
-You also hold out the battered tin of sour lemon drops {ro2_subj} gave you in the storm drain, offering one back.
-The corner of {ro2_name}'s austere mouth softens. "Those tags inside my shirt were Strike Team Seven," {ro2_name} confesses in a low murmur as you finish the stitch. "Two years ago in Kivu, my commanding officer hid a bite for six hours. He carried that lemon tin. When he turned inside our perimeter tent, we lost fourteen people before I had to put a round through his head myself. People think I'm made of concrete, {mc_name}—they don't realize that if I stop doing the cold math for five seconds, I'll never get back up."
+    You also hold out the battered tin of sour lemon drops {ro2_subj} gave you in the storm drain, offering one back.
+    The corner of {ro2_name}'s austere mouth softens. "Those tags inside my shirt were Strike Team Seven," {ro2_name} confesses in a low murmur as you finish the stitch. "Two years ago in Kivu, my commanding officer hid a bite for six hours. He carried that lemon tin. When he turned inside our perimeter tent, we lost fourteen people before I had to put a round through his head myself. People think I'm made of concrete, {mc_name}—they don't realize that if I stop doing the cold math for five seconds, I'll never get back up."
 - else:
-"Cleanest field suture I've ever had, Doctor," {ro2_name} murmurs, watching your face in the orange glow of the burning skyline. "Thirty minutes before I wired the basement, District Command's radio went dead. There's no cavalry coming for us—just the people in this room."
+    "Cleanest field suture I've ever had, Doctor," {ro2_name} murmurs, watching your face in the orange glow of the burning skyline. "Thirty minutes before I wired the basement, District Command's radio went dead. There's no cavalry coming for us—just the people in this room."
 }
-* [Leave your hand resting on {ro2_poss} warm shoulder: "You don't have to carry the watch alone anymore, {ro2_name}."] +ro2_high_rel -> talk_ro2_bond
-* [Unbutton your left cuff voluntarily and show {ro2_name} the silvered bite mark to prove your immunity] +ro2_knows_bite -> suspicion_trigger_ro2
-* [Flinch as your bandaged left forearm brushes the window latch under {ro2_name}'s sharp tactical gaze] -> talk_ro2_deflect
+
+* [Leave your hand resting on {ro2_poss} warm shoulder: "You don't have to carry the whole city alone tonight."] +ro2_high_rel -> talk_ro2_bond
+* [Unbutton your left cuff voluntarily and show {ro2_name} the silvered bite mark] +ro2_knows_bite -> suspicion_trigger_ro2
+* [Flinch as your bandaged left forearm brushes the window frame, pulling away quickly] -> check_ro2_suspicion_watch
 
 == talk_ro2_bond ==
-{ro2_name} looks down at your hand on {ro2_poss} skin, then covers your fingers with {ro2_poss} rough, steady palm.
-"Careful, {mc_name}," {ro2_subj} whispers, leaning in just enough that {ro2_poss} shoulder brushes yours against the window frame. "Keep patching me up like this and I might start prioritizing one specific doctor over the mission parameters."
-* [Step away from the window as time passes] -> ch2_talk_hub_2
++ro2_high_rel
+{ro2_name} doesn't pull away. {ro2_Subj} reaches up, placing {ro2_poss} bare, calloused hand over yours on {ro2_poss} shoulder, squeezing with quiet, heavy gratitude.
+"Get some sleep, Vance," {ro2_subj} whispers. "I'll take the first watch."
+* [Continue] -> ch2_talk_hub
 
-== talk_ro2_deflect ==
-{ro2_name} tracks the subtle tension in your arm, {ro2_poss} grey eyes narrowing slightly in the dark.
-"You're running on fumes, Doctor," {ro2_subj} says quietly. "Sit down and catch an hour of shut-eye. When we move at dawn, nobody gets carried."
-* [Step away from the window as time passes] -> ch2_talk_hub_2
+== check_ro2_suspicion_watch ==
+{ro2_name} watches your careful movements with narrowed, tactical eyes before turning back to the skyline.
+* [Return to the night watch hub] -> ch2_talk_hub
 
 == suspicion_trigger_ro2 ==
++ro2_knows_bite
+~ ro2_knows_bite = "true"
 With blinding tactical speed, {ro2_name}'s hand locks around your left wrist, peeling the edge of your gauze back to expose the silvered crescent of teeth marks.
 
-The click of {ro2_name}'s sidearm safety coming off sounds like a thunderclap in the quiet room, the muzzle pressed silently beneath your chin so the others won't wake.
-
-"Give me one reason not to pull this trigger in the next three seconds, Dr. {mc_surname}," {ro2_name} breathes, {ro2_poss} grey eyes blazing with betrayal and dread.
-
-"Look at the scar tissue and check your watch!" you whisper without flinching. "Exam Room 4 was locked at ten PM. It's past four in the morning. Every other victim turned in forty minutes—my blood killed the fever!"
+The click of {ro2_name}'s sidearm safety coming off sounds like a thunderclap in the quiet room.
 
 { ro2_high_rel:
-{ro2_name}'s finger stays on the trigger for three agonizing heartbeats while {ro2_subj} presses the back of {ro2_poss} bare wrist against your cool neck, reading your steady pulse. Slowly, {ro2_subj} engages the safety and holsters the weapon, {ro2_poss} breathing ragged.
-"Silvery-grey granulation tissue. No necrosis," {ro2_name} whispers, staring at you in stunned awe. "Command didn't send us into St. Jude's to contain a natural plague—they sent us to bury a trial, and you're the only living survivor with antibodies. Keep that sleeve buttoned, {mc_name}. From this second on, you don't leave my six."
+    {ro2_name}'s gun hand trembles—for the first time tonight.
+    {ro2_Subj} presses {ro2_poss} thumb into your steady radial pulse, watching your unclouded pupils in the dark.
+    "Four hours in that basement... and your vitals are completely normal," {ro2_name} whispers, lowering the barrel. "Kivu protocol says execute on sight. But I've watched you save three people tonight, Doctor. If this is immunity... you might be the only reason any of us get out of this state alive."
 - else:
-{ro2_name} lowers the pistol half an inch, {ro2_poss} expression turning back to ice-cold stone.
-"Six hours without turning makes you a biological anomaly, not a clear asset," {ro2_name} hisses coldly. "I'm not shooting you in the dark while I need a medic—but the second we reach daylight, you walk in front of my rifle barrel. One twitch, and I end it."
+    {ro2_name} presses the cold muzzle of {ro2_poss} .38 directly against your forehead, {ro2_poss} eyes dead and empty.
+    "Give me one reason why I shouldn't blow your brains across this floor right now," {ro2_subj} snarls softly.
+    "I'm immune, Commander! It's been six hours since Exam 4—look at my pupils!"
+    {ro2_name} holds the gun steady for five agonizing seconds before slowly lowering it. "Keep your sleeve down. You walk in front of me tomorrow. One stumble, and you take a round."
 }
-* [Step away from the window as time passes] -> ch2_talk_hub_2
+* [Return to the night watch hub] -> ch2_talk_hub
 
 == talk_ro3_scene ==
++talked_ro3_ch2
+~ talked_ro3_ch2 = "true"
 You step onto the iron fire-escape landing where {ro3_name} is sitting on the top step in the drizzling rain, knees pulled to {ro3_poss} chest.
 
 { toby_status == "alive":
-{ro3_name} looks up and pats the dry iron grate beside {ro3_obj}, offering you half of a protein bar from {ro3_poss} turnout coat.
-"Toby's sleeping like a rock," {ro3_name} says softly, nudging your shoulder with {ro3_poss} own. "When that cabinet fell on him back there... if you hadn't charged in with me, {mc_name}, I think something inside my head would've broken for good. Two years on Rig 9, I've watched you save a hundred people. Tonight it's my turn to look after you."
+    {ro3_name} looks up and pats the dry iron grate beside {ro3_obj}, offering you half of a protein bar from {ro3_poss} turnout coat.
+    "Toby's sleeping like a rock," {ro3_name} says softly, nudging your shoulder with {ro3_poss} own. "When that cabinet fell on him back there... if you hadn't charged in with me, {mc_name}, I think something inside my head would've broken for good. Two years on Rig 9, I've watched you save a hundred people. Tonight it's my turn to look after you."
 - else:
-{ro3_name} doesn't look up at first, picking at a dried flake of blood on {ro3_poss} yellow jacket.
-"I keep hearing Toby calling for us behind that glass, {mc_name}," {ro3_name} whispers, {ro3_poss} voice cracking. "I know you had to make a brutal call so you wouldn't lose the rest of us. I was just so scared that the person I believed in was gone."
+    {ro3_name} doesn't look up at first, picking at a dried flake of blood on {ro3_poss} yellow jacket.
+    "I keep hearing Toby calling for us behind that glass, {mc_name}," {ro3_name} whispers, {ro3_poss} voice cracking. "I know you had to make a brutal call so you wouldn't lose the rest of us. I was just so scared that the person I believed in was gone."
 }
-* [Cup {ro3_name}'s cheek and lean in to kiss the corner of {ro3_poss} mouth in the rain] +ro3_high_rel -> talk_ro3_kiss
-* [Trust {ro3_name} with the truth: peel back your bandage and show your partner the silvered bite] +ro3_knows_bite -> suspicion_trigger_ro3
-* [Let {ro3_name} shine {ro3_poss} EMT penlight across your frayed left wrist wrap while you look away] -> talk_ro3_deflect
+
+* [Cup {ro3_name}'s cheek and lean in to kiss the corner of {ro3_poss} mouth in the quiet rain] +ro3_high_rel -> talk_ro3_kiss
+* [Trust {ro3_name} with the truth: peel back your bandage and show {ro3_obj} the silvered bite] +ro3_knows_bite -> suspicion_trigger_ro3
+* [Let {ro3_name} shine {ro3_poss} EMT penlight across your scrubs, tucking your left arm out of sight] -> check_ro3_suspicion_watch
 
 == talk_ro3_kiss ==
-{ro3_name}'s breath hitches completely. {ro3_Subj} turns {ro3_poss} head half an inch to catch your lips properly—soft, warm, and trembling with two years of unspoken devotion—before resting {ro3_poss} forehead against your shoulder.
-"Best night shift ever, terrible apocalypse," {ro3_subj} whispers with a shaky laugh. "Stay close to me at dawn, {mc_name}."
-* [Step back inside from the rain as time passes] -> ch2_talk_hub_2
++ro3_high_rel
+{ro3_name} gasps softly, {ro3_poss} wet eyelashes fluttering as {ro3_subj} leans into your touch. {ro3_Subj} reaches up, curling {ro3_poss} trembling fingers around your wrist, kissing you back with fierce, tear-streaked sincerity.
+"I'm staying with you until the end, {mc_name}," {ro3_subj} whispers against your lips. "No matter what comes over that wall tomorrow."
+* [Continue] -> ch2_talk_hub
 
-== talk_ro3_deflect ==
-{ro3_name} notices the dark stain on your outer bandage and reaches for his trauma kit.
-"You're bleeding through your wrap, {mc_name}," {ro3_subj} murmurs with quiet worry. "Let me re-dress that for you."
-"Later, {ro3_name}," you whisper gently, pulling your arm back. "Save the sterile pads for the road."
-* [Step back inside from the rain as time passes] -> ch2_talk_hub_2
+== check_ro3_suspicion_watch ==
+{ro3_name} squeezes your shoulder affectionately before you step back inside.
+* [Return to the night watch hub] -> ch2_talk_hub
 
 == suspicion_trigger_ro3 ==
++ro3_knows_bite
+~ ro3_knows_bite = "true"
 Under the beam of {ro3_name}'s small medical penlight, the gauze parts over the silvered crescent of teeth marks on your forearm.
 {ro3_name} claps a hand over {ro3_poss} own mouth to stifle a gasp, tears springing to {ro3_poss} eyes.
 
-"Maya," {ro3_name} whispers, horrified. "When she bit through your glove in Exam 4... {mc_name}, why didn't you tell me?! Wait—that was over six hours ago!"
+"Maya," {ro3_name} whispers, trembling violently. "She bit you in Exam 4."
 
 { ro3_high_rel:
-{ro3_name} grabs both your cheeks with warm, trembling hands, looking deep into your clear eyes before letting out a choked laugh of sheer disbelief and relief.
-"Your pupils are normal. Your skin is cool. You're immune!" {ro3_name} pulls a heavy black velcro wrist-splint from {ro3_poss} EMT kit and straps it tightly over your bandage so no one else can ever glimpse the scar. "I don't care what {ro2_name}'s protocols say. You're my partner, and I'm guarding this secret with my life."
+    {ro3_name} doesn't pull away. {ro3_Subj} drops to {ro3_poss} knees in the wet iron grating, burying {ro3_poss} face against your good arm, sobbing in choked relief.
+    "You're not burning. Your eyes are completely clear," {ro3_subj} whispers, kissing the fabric of your sleeve. "I won't let {ro2_name} see it. We're getting you to that quarantine research lab if I have to carry you on my back."
 - else:
-{ro3_name} scrambles backward up the iron steps, staring at your arm with wide, devastated eyes.
-"You were already bitten when we left Toby behind?" {ro3_name} whispers, voice shaking with hurt. "You let a nineteen-year-old kid die while you were hiding an infection?!"
-"I'm immune, {ro3_name}—it's been six hours!" you say urgently.
-{ro3_name} swallows hard, wiping a tear from {ro3_poss} cheek before turning toward the window. "I won't rat you out to {ro2_name}. Not yet. But don't ask me to lie for you when daylight comes."
+    {ro3_name} drops the penlight, scrambling back against the iron railing.
+    "You lied to me," {ro3_subj} gasps, hurt cutting deeper than fear. "Two years on Rig 9, {mc_name}... and you hid an infection from me?!"
+    "I'm immune, {ro3_name}—it's been six hours!"
+    {ro3_name} wipes {ro3_poss} face, turning away in the rain. "I won't tell {ro2_name}. But don't ask me to look at you right now."
 }
-* [Step back inside from the rain as time passes] -> ch2_talk_hub_2
+* [Return to the night watch hub] -> ch2_talk_hub
 
 == talk_ro4_scene ==
++talked_ro4_ch2
+~ talked_ro4_ch2 = "true"
 {ro4_name} is leaning against the shadowed stairwell railing outside the apartment door, where a red EXIT sign casts dramatic shadows across {ro4_poss} bruised cheekbone.
 
 "You want the truth about October, Doc?" {ro4_name} whispers in a low, gravelly rasp as you step up to the railing. "Four months ago, when Internal Affairs took my badge based on that forged safety clearance with *Dr. {mc_name} {mc_surname}* signed at the bottom, I sat in an unmarked car across from St. Jude's ER entrance for three nights in the rain, watching you work. Watched you run out without a coat to do chest compressions on a John Doe nobody else wanted to touch. And I realized you didn't falsify that log for money—and that you were the worst possible enemy I could have, because I couldn't even make myself hate you."
-* [Grab the front of {ro4_name}'s shirt and kiss {ro4_obj} under the red exit sign—sharp, reckless, and electric] +ro4_high_rel -> talk_ro4_kiss
-* [Show {ro4_name} the silvered bite under your sleeve and make a deal with the detective] +ro4_knows_bite -> suspicion_trigger_ro4
-* [Let {ro4_name}'s calloused fingers slide down your left forearm toward your hidden bandage] -> talk_ro4_deflect
+
+* [Grab the front of {ro4_name}'s shirt and kiss {ro4_obj} under the red exit light] +ro4_high_rel -> talk_ro4_kiss
+* [Show {ro4_name} the silvered bite under your sleeve: "You wanted leverage, Detective? Here it is."] +ro4_knows_bite -> suspicion_trigger_ro4
+* [Let {ro4_name}'s calloused fingers slide down your forearm, then step back into the doorway] -> check_ro4_suspicion_watch
 
 == talk_ro4_kiss ==
-You close your fist in {ro4_poss} shirt and pull {ro4_poss} mouth to yours. {ro4_name} curses softly against your lips before {ro4_poss} arm bands around your waist, pinning you flush against the iron banister as {ro4_subj} kisses you back—rough, intoxicating, and tasting of smoke and adrenaline.
-When you break apart, {ro4_poss} thumb traces your lower lip, dark eyes blazing. "Yeah," {ro4_subj} rasps breathlessly. "Definitely worth losing the badge."
-* [Step back into the apartment corridor as time passes] -> ch2_talk_hub_2
++ro4_high_rel
+{ro4_name} lets out a low, rough growl against your mouth, pulling you hard against the brick stairwell wall. {ro4_Poss} kiss is hungry, rough, and fierce—all sharp edges and bruised desperation.
+"You're completely out of your mind, Vance," {ro4_name} murmurs against your lips, breathless. "Good thing I like crazy doctors."
+* [Continue] -> ch2_talk_hub
 
-== talk_ro4_deflect ==
-{ro4_name}'s fingers stop just short of your wrist. {ro4_Subj} offers a slow, crooked smirk in the red light.
-"Still playing your cards close to your chest, Doc?" {ro4_subj} murmurs. "Fair enough. But out on those streets, secrets have a way of getting people killed."
-* [Step back into the apartment corridor as time passes] -> ch2_talk_hub_2
+== check_ro4_suspicion_watch ==
+{ro4_name} smirks in the shadow, tapping {ro4_poss} cigarette pack.
+* [Return to the night watch hub] -> ch2_talk_hub
 
 == suspicion_trigger_ro4 ==
++ro4_knows_bite
+~ ro4_knows_bite = "true"
 With the effortless sleight-of-hand of a veteran homicide detective, {ro4_name}'s fingers hook beneath your left cuff and slide the bandage up two inches—exposing the silvered crescent of teeth marks in the red stairwell shadow.
 
-You stiffen, reaching for your holster, but {ro4_name} simply catches your right wrist and presses a thumb gently against your lips to keep you quiet.
-
-"Relax, Doc. If I wanted {ro2_name} to paint the wall with your brains, I'd have yelled five minutes ago," {ro4_name} whispers against your ear. "I watched you in Holding. You've had that bite since before midnight, and your pupils are still crystal clear."
+You stiffen, reaching for your pocket—but {ro4_name} merely catches your wrist, holding it up to {ro4_poss} eyes with cool, professional fascination.
 
 { ro4_high_rel:
-{ro4_name} tugs your sleeve back down and buttons the cuff for you with surprisingly gentle fingers, {ro4_poss} thumb lingering over your pulse.
-"The hospital board's *Hemovax* trial created this plague, and your blood is the only thing on earth that beats it," {ro4_name} murmurs, dark eyes fierce and protective. "Stick with me, {mc_name}. Nobody touches a hair on your head while I'm breathing."
+    {ro4_name} lets out a low, appreciative whistle, tracing the silver edge with {ro4_poss} thumb.
+    "Patient Zero's teeth," {ro4_name} murmurs, looking up into your eyes with fierce respect. "You're walking around with a million-dollar biological miracle in your veins, Vance. Keep your mouth shut and let me handle {ro2_name}. We get you across that river, and we write our own tickets."
 - else:
-A cold, calculating smirk curves across {ro4_name}'s mouth as {ro4_subj} releases your wrist.
-"Well, well. Looks like I finally have leverage over Dr. {mc_surname}," {ro4_name} whispers. "You help me get into the 14th Precinct evidence locker to clear my name, and I keep your little silver bite mark between the two of us. Deal?"
+    {ro4_name}'s grip turns to iron, pinning your wrist against the brick wall.
+    "Well, well, well," {ro4_subj} whispers coldly. "Looks like I finally caught you red-handed after all, Chief Resident. One word to {ro2_name}, and {ro2_subj} puts you down like a rabid dog."
+    "And who unlocks the 14th Precinct evidence safe for you tomorrow without my medical badge, Mercer?" you snap back.
+    {ro4_name} stares at you, a slow, grim smirk touching {ro4_poss} lips. "Touche, Doc. Keep your sleeve down."
 }
-* [Step back into the apartment corridor as time passes] -> ch2_talk_hub_2
-
-== ch2_talk_hub_2 ==
-[Night Watch: Final Conversation (04:45 AM)]
-You have time for one final private conversation before dawn breaks.
-* [Slip into the bathroom to speak with {ro1_name}] ?!talked_ro1_ch2 -> talk_ro1_scene_2
-* [Join Commander {ro2_name} at the darkened front window] ?!talked_ro2_ch2 -> talk_ro2_scene_2
-* [Sit with {ro3_name} on the hallway fire-escape landing] ?!talked_ro3_ch2 -> talk_ro3_scene_2
-* [Corner Detective {ro4_name} by the shadowed stairwell] ?!talked_ro4_ch2 -> talk_ro4_scene_2
-* [Rest and wait for dawn with the group] -> ch2_dawn_breach
-
-== talk_ro1_scene_2 ==
-{ro1_name} stands by the narrow bathroom sink, staring into the candlelit mirror while turning the silver watch on {ro1_poss} wrist.
-
-When you step inside, {ro1_name} looks at your reflection.
-"When I walked out of our apartment in October, {mc_name}," {ro1_subj} whispers rawly, "I didn't leave because I was disgusted with you. A child died on my table, and instead of letting me pay for it, you put your own neck in a noose for me. Every time I looked at you across our kitchen table, I was terrified that {ro4_name} Mercer was going to kick our door in and drag *you* away in handcuffs for my mistake."
-
-{ saved_chart:
-You pull Maya Lin's bloodstained chart from your bag, pointing to the batch stamp: *HEMOVAX-9*.
-{ro1_name}'s breath catches. "That's... the exact same synthetic blood lot they gave the councilman's nephew in October. It wasn't surgical error. The hospital board was running human bio-trials at our free clinic."
-}
-
-{ro1_name} turns to face you in the cramped candlelight.
-* ["I forged that signature because I loved you, {ro1_name}. Pull me closer."] +ro1_high_rel -> talk_ro1_kiss_2
-* [Roll up your left cuff voluntarily and show {ro1_name} the silvered bite mark] +ro1_knows_bite -> suspicion_trigger_ro1_2
-* [Pull your left arm back defensively as {ro1_subj} steps close] -> talk_ro1_deflect_2
-
-== talk_ro1_kiss_2 ==
-You close the last two inches and press your mouth to {ro1_poss}s. {ro1_name} makes a low, starved sound, tangling fingers in your hair and kissing you with six months of pent-up desperation.
-"Never lock me out again, {mc_name}," {ro1_subj} whispers fiercely. "We're finding my sister at that ferry, and we're starting over."
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== talk_ro1_deflect_2 ==
-{ro1_name} lets {ro1_poss} hand drop with a quiet, understanding sigh.
-"Stay safe out there, {mc_name}," {ro1_subj} murmurs softly.
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== suspicion_trigger_ro1_2 ==
-{ro1_name} peels the Coban wrap back an inch—revealing the raised, silvery-grey crescent of human teeth marks.
-{ro1_Subj} stops breathing.
-
-{ ro1_high_rel:
-{ro1_name} immediately pulls your arm flush against {ro1_poss} chest to shield it from the doorway, {ro1_poss} eyes wide with fierce, protective terror.
-"Maya Lin. Four hours ago. The retro-antivirals arrested the pathogen... God Almighty, {mc_name}, you're immune." {ro1_Subj} binds fresh tape over your sleeve. "If anyone tries to touch you over this, they shoot through me first."
-- else:
-{ro1_name} recoils half a step, staring with pale, betrayed horror.
-"You were bitten in Exam 4 and didn't say a word?! Keep your damn sleeve down. I won't tell {ro2_name} tonight—but if your fever spikes by one degree, I won't let you take the rest down."
-}
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== talk_ro2_scene_2 ==
-Commander {ro2_name} is standing by the front window, tying off a field suture on {ro2_poss} arm.
-
-{ has_lemon_tin:
-You hold out the battered tin of sour lemon drops {ro2_subj} gave you in the drain.
-{ro2_name} softens. "Those dog tags inside my shirt were Strike Team Seven. Two years ago in Kivu, my commander hid a bite for six hours. When he turned inside our tent, we lost fourteen people before I had to put him down myself. People think I'm made of concrete, {mc_name}—they don't realize that if I stop doing the cold math for five seconds, I'll never get back up."
-- else:
-"Cleanest field suture I've ever had, Doctor," {ro2_name} murmurs, watching the burning skyline. "Thirty minutes before I wired the basement, District Command went dead. There's no cavalry coming for us—just the people in this room."
-}
-* [Leave your hand resting on {ro2_poss} warm shoulder: "You don't have to carry the watch alone, {ro2_name}."] +ro2_high_rel -> talk_ro2_bond_2
-* [Unbutton your left cuff voluntarily and show {ro2_name} the silvered bite mark] +ro2_knows_bite -> suspicion_trigger_ro2_2
-* [Step back quietly as {ro2_name} scans the street below] -> talk_ro2_deflect_2
-
-== talk_ro2_bond_2 ==
-{ro2_name} covers your fingers with {ro2_poss} rough, steady palm.
-"Careful, {mc_name}," {ro2_subj} whispers. "Keep patching me up like this and I might start prioritizing one specific doctor over the mission parameters."
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== talk_ro2_deflect_2 ==
-"Get ready, {mc_surname}," {ro2_name} says without turning. "The horde is starting to shift."
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== suspicion_trigger_ro2_2 ==
-{ro2_name}'s hand locks around your wrist, exposing the silver teeth marks. {ro2_Poss} sidearm clicks beneath your chin.
-"Give me one reason not to pull this trigger, Dr. {mc_surname}."
-"Look at the scar! Exam Room 4 was locked at ten PM. It's past four in the morning. My blood killed the fever!"
-
-{ ro2_high_rel:
-{ro2_name} reads your steady pulse, then holsters the weapon with ragged breath.
-"Silvery granulation tissue. Command sent us to bury a trial, and you're the only living survivor with antibodies. Keep that sleeve buttoned, {mc_name}. You don't leave my six."
-- else:
-{ro2_name} lowers the pistol slightly, expression turning to ice.
-"Six hours without turning makes you an anomaly, not an asset. Walk in front of my rifle barrel at dawn. One twitch, and I end it."
-}
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== talk_ro3_scene_2 ==
-You step out onto the fire escape landing with {ro3_name} in the rain.
-
-{ toby_status == "alive":
-{ro3_name} offers you half of a protein bar.
-"Toby's sleeping like a rock. If you hadn't charged in with me, {mc_name}, something inside my head would've broken for good. Tonight it's my turn to look after you."
-- else:
-{ro3_name} stares at his boots.
-"I keep hearing Toby calling for us behind that glass, {mc_name}. I know you had to make a brutal call, but I was so scared that the person I believed in was gone."
-}
-* [Cup {ro3_name}'s cheek and lean in to kiss {ro3_obj} softly in the rain] +ro3_high_rel -> talk_ro3_kiss_2
-* [Trust {ro3_name} with the truth: show your partner the silvered bite] +ro3_knows_bite -> suspicion_trigger_ro3_2
-* [Sit quietly beside {ro3_obj} in the rain until the sky lightens] -> talk_ro3_deflect_2
-
-== talk_ro3_kiss_2 ==
-{ro3_name} catches your lips properly—warm, soft, and trembling with devotion.
-"Stay close to me at dawn, {mc_name}," {ro3_subj} whispers with a shaky smile.
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== talk_ro3_deflect_2 ==
-{ro3_name} rests {ro3_poss} head against your shoulder as the rain drips off the fire escape.
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== suspicion_trigger_ro3_2 ==
-Under {ro3_name}'s penlight, the gauze parts over the silvered teeth marks.
-"Maya," {ro3_name} gasps. "{mc_name}, why didn't you tell me?! That was over six hours ago!"
-
-{ ro3_high_rel:
-{ro3_name} grabs your cheeks with warm, trembling hands, laughing with pure relief.
-"You're immune!" {ro3_Subj} straps a heavy wrist-splint over your bandage. "I don't care what {ro2_name} says. You're my partner, and I'm guarding this secret with my life."
-- else:
-{ro3_name} scrambles back, hurt and devastated.
-"You were already bitten when we left Toby?! I won't rat you out to {ro2_name} tonight, but don't ask me to lie for you when daylight comes."
-}
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== talk_ro4_scene_2 ==
-{ro4_name} leans against the stairwell railing in the red EXIT sign glow.
-"Four months ago, when Internal Affairs took my badge because of that forged clearance with your name at the bottom, I sat in a car watching you run out in the rain to save people. And I realized you didn't do it for money—and that I couldn't even make myself hate you."
-* [Grab the front of {ro4_name}'s shirt and kiss {ro4_obj} under the red exit sign] +ro4_high_rel -> talk_ro4_kiss_2
-* [Show {ro4_name} the silvered bite and make a deal] +ro4_knows_bite -> suspicion_trigger_ro4_2
-* [Lean against the railing beside {ro4_obj} in silence] -> talk_ro4_deflect_2
-
-== talk_ro4_kiss_2 ==
-{ro4_name} pulls you flush against the banister and kisses you back—rough, intoxicating, and tasting of smoke.
-"Yeah," {ro4_subj} rasps breathlessly. "Definitely worth losing the badge."
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== talk_ro4_deflect_2 ==
-{ro4_name} gives you a knowing smirk. "Keep your head down at dawn, Doc."
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
-
-== suspicion_trigger_ro4_2 ==
-{ro4_name} slides the bandage up, exposing the silvered bite. {ro4_Subj} presses a thumb to your lips.
-"Relax, Doc. If I wanted {ro2_name} to shoot you, I'd have yelled earlier. You've had that bite since before midnight, and your eyes are clear."
-
-{ ro4_high_rel:
-{ro4_name} buttons your cuff with gentle fingers.
-"The *Hemovax* trial created this plague, and your blood is the only thing that beats it. Stick with me, {mc_name}. Nobody touches you while I'm breathing."
-- else:
-{ro4_name} gives a cold, calculating smirk.
-"Looks like I finally have leverage. You help me get into the 14th Precinct evidence locker, and I keep your secret. Deal?"
-}
-* [Dawn approaches as sirens wail outside] -> ch2_dawn_breach
+* [Return to the night watch hub] -> ch2_talk_hub
 
 == ch2_dawn_breach ==
-05:32 AM. Cold grey dawn finally bleeds through the smoke over the river.
+At 5:45 AM, thirty minutes before first light, wood splinters inward with explosive violence!
 
-Before {ro2_name} can call the group together, the street below erupts!
-A runaway municipal evacuation bus—its driver slumped dead over the wheel—barrels down Mercer Street at fifty miles an hour and slams directly into the pharmacy storefront beneath your feet!
+The back kitchen door of the safehouse is kicked off its hinges.
+An infected St. Jude's bio-containment riot officer—clad in full composite tactical body armor, reinforced helmet, and blood-smeared polycarbonate visor—charges into the room. Behind him, the stairwell howls with the shrieks of a secondary pack driven up from the street.
 
-The entire building shudders as the pharmacy's plate-glass facade explodes inward, and the bus's diesel tank catches fire. Drawn by the deafening crash and the ruptured alarm bell, three hundred slow, rotting infected surge into the ground floor like a rising black tide, pressing up the interior wooden staircase against your dresser barricade.
-
-"Stairwell's breached!" {ro2_name} roars, firing two controlled bursts through the splintering oak door as smoke billows up through the floorboards. "Out the back fire escape to the alley garage roof—move!"
+"Out the fire escape!" {ro2_name} roars, leveling her shotgun and blowing the second infected backward down the stairs.
 
 { toby_status == "alive":
-{ro3_name} and {ro1_name} haul Toby out onto the iron fire-escape landing first.
+    {ro3_name} and {ro1_name} haul Toby out onto the fire escape landing between them.
 - else:
-{ro3_name} and {ro1_name} scramble out onto the iron fire-escape landing to drop the counterweighted ladder to the adjacent garage roof.
+    {ro3_name} and {ro1_name} scramble out onto the iron fire-escape landing.
 }
 
-Just as you step onto the iron grating behind them, a turned riot-police officer bursts through the adjacent bathroom window, armored fingers lunging for your throat!
+The armored riot officer lunges straight at you across the kitchen island, his blackened combat knife slashing down toward your throat!
 
-How do you break free on the narrow iron landing while keeping your left sleeve intact?
+How do you break his charge?
 * [Drive your revolver barrel under the riot helmet visor and pull the trigger] -> ch2_dawn_breach_c1
-* [Use your heavy trauma bag to bash the officer's visor sideways off the railing] -> ch2_dawn_breach_c2
-* [Drop low and sweep the officer's legs over the wet iron railing with your boot] -> ch2_dawn_breach_c3
+* [Use your heavy trauma bag to bash the officer's visor sideways and kick him through the door] -> ch2_dawn_breach_c2
+* [Drop low and sweep the officer's legs over the wet linoleum, letting {ro4_name} finish him] -> ch2_dawn_breach_c3
 
 == ch2_dawn_breach_c1 ==
-The .38 cracks against the iron alley walls, dropping the armored corpse backward through the window frame without touching your arm.
-* [Scramble onto the garage roof] -> ch2_route_decision
+Point-blank muzzle blast illuminates the kitchen. The .38 slug punches upward through the polycarbonate seal; the officer collapses like a dropped sack of wet cement.
+* [Follow the group onto the roof] -> ch2_route_decision
 
 == ch2_dawn_breach_c2 ==
-You slam the canvas kit into the officer's helmet, sending the body tumbling two stories down into the burning bus wreckage—though the impact jars your bandaged left arm, earning a sharp glance from {ro2_name}.
-* [Scramble onto the garage roof] -> ch2_route_decision
+The heavy brass buckles on your medical bag shatter the visor. You drive your heel into his chest plate, tumbling him down the stairwell into the oncoming horde.
+* [Follow the group onto the roof] -> ch2_route_decision
 
 == ch2_dawn_breach_c3 ==
-The top-heavy riot gear carries the corpse headfirst over the iron rail into the flames below.
-* [Scramble onto the garage roof] -> ch2_route_decision
+You slide beneath his reach, kicking his knee backward. As he crashes hard onto the tiles, {ro4_name} steps forward with the Halligan bar and drives the wedge through his throat with ruthless efficiency.
+* [Follow the group onto the roof] -> ch2_route_decision
 
 == ch2_route_decision ==
 Your group drops onto the flat tar roof of the adjacent parking garage as flames lick out of the pharmacy windows behind you.
 
 Below the garage ramp, two clear paths cut through the morning fog before the horde surrounds the block:
-1. **North toward the Eastside Overpass**—an elevated highway leading directly toward St. Catherine's Prep and the Fort Marrow Quarantine Ferry, where {ro1_name}'s sister Clara and Maya Lin's older sister were evacuated.
-2. **South toward the 14th Precinct Station**—two blocks away, housing an armored SWAT transport van, heavy rifles, and {ro4_name}'s locked October investigation files.
+1. **North toward the Eastside Overpass**—an elevated highway leading directly toward St. Catherine's Prep and the Fort Marrow Quarantine Ferry, where **{ro1_name}**'s sister Clara and **Maya Lin**'s older sister were evacuated.
+2. **South toward the 14th Precinct Station**—two blocks away, housing an armored SWAT transport van, heavy rifles, and **{ro4_name}**'s locked October investigation files.
 
 Everyone turns to look at you in the grey dawn rain. Beneath your sleeve, your silvered bite mark throbs like a quiet compass—still hidden from anyone who hasn't crossed your suspicion threshold.
 
 "Your call, Dr. {mc_surname}," {ro2_name} says over the crackle of the burning pharmacy. "Which way do we break?"
-* [Lead the group North onto the Eastside Overpass toward the school and ferry ({ro1_name} & {ro3_name} approve)] +route_overpass -> ch2_ending_summary
-* [Lead the group South to raid the 14th Precinct Armory and evidence locker ({ro4_name} & {ro2_name} approve)] +route_precinct -> ch2_ending_summary
+
+* [Lead the group North onto the Eastside Overpass toward the school and ferry ({ro1_name} & {ro3_name} approve)] $route_choice=overpass -> ch2_ending_summary
+* [Lead the group South to raid the 14th Precinct Armory and evidence locker ({ro4_name} & {ro2_name} approve)] $route_choice=precinct -> ch2_ending_summary
 
 == ch2_ending_summary ==
-Together, your battered group moves into the ash-grey dawn.
+Together, your battered group moves into the ash-grey dawn along the **{route_choice}** route.
 
 ----------------------------------------------------------------------------
-END OF CHAPTER 2: STATE & ALLIANCE LEDGER
+END OF CHAPTER 2: STATE & SURVIVAL LEDGER
 ----------------------------------------------------------------------------
-PROTAGONIST: Dr. {mc_name} {mc_surname} (Chief ER Resident)
-- Pathogen Immunity: Silvered bite mark dormant & asymptomatic
-- Patient Zero Chart: { saved_chart: Preserved in trauma bag (Hemovax-9 lot confirmed) | Lost in Sub-Level 2 }
-- Intern Toby: { toby_status == "alive": Rescued and stabilized on splint | Lost in the hospital collapse }
-- Storm Drain Rescue: { caught_by_julian: {ro1_name} caught you | { caught_by_sloane: Commander {ro2_name} caught you (Lemon tin acquired) | { caught_by_harry: {ro3_name} caught you | Detective {ro4_name} caught you (Leather jacket worn) } } }
-- Strategic Route Chosen: { route_overpass: North via Eastside Overpass toward Clara & the Ferry | South via 14th Precinct Armory & Evidence Locker }
+PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
+* Route Chosen: {route_choice}
+* Intern Toby Status: {toby_status}
+* Patient Zero Chart: {saved_chart:Preserved in trauma bag|- else:Left in Sub-Level 2}
+* Storm Drain Rescuer: {tunnel_catcher}
 
-COMPANION ALLIANCES & BITE SECRET:
-- {ro1_name}: { ro1_knows_bite: Discovered your bite ({ ro1_high_rel: Allied & fiercely protective | Suspicious and guarded }) | Secret kept safe ({ ro1_high_rel: Warm & reconciled | Distant }) }
-- Commander {ro2_name}: { ro2_knows_bite: Discovered your bite ({ ro2_high_rel: Prioritizing you over mission parameters | Keeping you under armed watch }) | Secret kept safe ({ ro2_high_rel: Deep professional bond | Formal }) }
-- {ro3_name}: { ro3_knows_bite: Discovered your bite ({ ro3_high_rel: Sworn to guard your secret with his life | Distant and heartbroken }) | Secret kept safe ({ ro3_high_rel: Devoted partner bond | Shaken }) }
-- Detective {ro4_name}: { ro4_knows_bite: Discovered your bite ({ ro4_high_rel: Vowed nobody touches you while {ro4_subj} breathes | Holding it as leverage }) | Secret kept safe ({ ro4_high_rel: Intoxicating mutual respect | Calculating }) }
+COMPANION BOND & TRUST STATUS:
+* Pediatric Surgeon {ro1_name}: {ro1_knows_bite:Knows your bite immunity and protects you|- else:Bite kept secret}
+* Tactical Commander {ro2_name}: {ro2_knows_bite:Discovered your silvered bite mark|- else:Bite kept secret}
+* Paramedic Partner {ro3_name}: {ro3_knows_bite:Shared the secret of Exam Room 4|- else:Bite kept secret}
+* Detective {ro4_name}: {ro4_knows_bite:Holds the leverage of your immunity|- else:Bite kept secret}
 ----------------------------------------------------------------------------
-To be continued in Chapter 3: The Ferry Crossing...
-* [Restart Story] -> start

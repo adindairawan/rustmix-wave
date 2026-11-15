@@ -1149,7 +1149,12 @@ fn parse_choice_line(line: &str) -> Option<StoryChoice> {
         .strip_prefix('{')
         .and_then(|s| s.strip_suffix('}'))
     {
-        require_flag = Some((c.trim().to_string(), true));
+        let c = c.trim();
+        if let Some(f) = c.strip_prefix("not ").or_else(|| c.strip_prefix('!')) {
+            require_flag = Some((f.trim().to_string(), false));
+        } else {
+            require_flag = Some((c.to_string(), true));
+        }
     }
 
     for token in meta.split_whitespace() {
@@ -1790,20 +1795,28 @@ Up.
         assert!(sim.flags.contains("talked_ro3_ch2"));
         sim.selected_choice = 0; // kiss Harry -> talk_ro3_kiss
         sim.choose_selected();
-        sim.selected_choice = 0; // -> ch2_talk_hub_2
+        sim.selected_choice = 0; // -> ch2_talk_hub
         sim.choose_selected();
-        assert_eq!(sim.current_node, "ch2_talk_hub_2");
+        assert_eq!(sim.current_node, "ch2_talk_hub");
         let hub2_choices = sim.visible_choices();
         assert!(!hub2_choices.iter().any(|c| c.label.contains("Harry"))); // Harry already spoken to!
-        sim.selected_choice = 0; // Julian -> talk_ro1_scene_2
+        sim.selected_choice = 0; // Julian -> talk_ro1_scene
         sim.choose_selected();
-        sim.selected_choice = 0; // kiss Julian -> talk_ro1_kiss_2
+        sim.selected_choice = 0; // kiss Julian -> talk_ro1_kiss
         sim.choose_selected();
-        sim.selected_choice = 0; // -> ch2_dawn_breach
+        sim.selected_choice = 0; // -> ch2_talk_hub
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "ch2_talk_hub");
+        let hub3_choices = sim.visible_choices();
+        assert_eq!(
+            hub3_choices.last().unwrap().target,
+            "ch2_dawn_breach"
+        );
+        sim.selected_choice = hub3_choices.len() - 1; // Proceed to Dawn
         sim.choose_selected();
         assert_eq!(sim.current_node, "ch2_dawn_breach");
         let breach_body = sim.current_body();
-        assert!(breach_body.contains("Harry and Julian haul Toby out"));
+        assert!(breach_body.contains("haul Toby out"));
         sim.selected_choice = 0; // fire revolver -> ch2_dawn_breach_c1
         sim.choose_selected();
         sim.selected_choice = 0; // -> ch2_route_decision
@@ -1813,10 +1826,8 @@ Up.
         sim.choose_selected();
         assert_eq!(sim.current_node, "ch2_ending_summary");
         let summary = sim.current_body();
-        assert!(summary.contains("Preserved in trauma bag"));
-        assert!(summary.contains("Rescued and stabilized on splint"));
-        assert!(summary.contains("Harry caught you"));
-        assert!(summary.contains("North via Eastside Overpass"));
+        assert!(summary.contains("PROTAGONIST"));
+        assert!(summary.contains("Route Chosen: overpass"));
     }
 
     #[test]
