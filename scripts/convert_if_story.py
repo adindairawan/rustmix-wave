@@ -82,58 +82,233 @@ def convert_twee(text: str, title: str, author: str) -> str:
 
 
 def convert_ink(text: str, title: str, author: str) -> str:
-    out = [f"TITLE: {title}", f"AUTHOR: {author}"]
-    current_node = "start"
-    started_knot = False
-    body_lines: list[str] = []
-    choices: list[str] = []
+    lines = text.splitlines()
+    start_node = "start"
 
-    def flush() -> None:
-        nonlocal body_lines, choices
-        if not started_knot and not body_lines and not choices:
-            return
+    # Extract Title/Author from header if present
+    for line in lines[:25]:
+        s = line.strip()
+        if s.startswith("TITLE:"):
+            title = s.split(":", 1)[1].strip()
+        elif s.startswith("AUTHOR:"):
+            author = s.split(":", 1)[1].strip()
+        elif s.startswith("START:"):
+            start_node = s.split(":", 1)[1].strip()
+
+    # Parse into knots
+    knots: list[tuple[str, list[str]]] = []
+    cur_id: str | None = None
+    cur_lines: list[str] = []
+
+    for line in lines:
+        s = line.strip()
+        if s.startswith("==") and s.endswith("==") and len(s) > 4:
+            if cur_id is not None:
+                knots.append((cur_id, cur_lines))
+            cur_id = sanitize_node_id(s.strip("=").strip())
+            cur_lines = []
+        elif cur_id is not None:
+            cur_lines.append(line)
+    if cur_id is not None:
+        knots.append((cur_id, cur_lines))
+
+    if not knots:
+        # Single implicit passage if no == knots == were defined
+        knots.append(("start", lines))
+
+    choice_pat = re.compile(r"^\s*[*+]\s*(\{[^}]+\})?\s*\[([^\]]+)\](.*)$")
+
+    out_passages: dict[str, dict] = {}
+    extra_passages: dict[str, dict] = {}
+
+    for knot_id, klines in knots:
+        p_flags: list[str] = []
+        p_body: list[str] = []
+        p_choices: list[str] = []
+
+        i = 0
+        while i < len(klines):
+            raw = klines[i]
+            s = raw.strip()
+
+            # Skip comments and variable declarations
+            if s.startswith("//") or s.startswith("--") or s.startswith("VAR "):
+                i += 1
+                continue
+
+            # Node-level flag assignments (~ flag = val)
+            if s.startswith("~"):
+                assign = s[1:].strip()
+                if "saved_chart = true" in assign:
+                    p_flags.append("+saved_chart")
+                elif "julian_knows_bite = true" in assign:
+                    p_flags.append("+julian_knows_bite")
+                elif "jamie_knows_bite = true" in assign:
+                    p_flags.append("+jamie_knows_bite")
+                elif "kieran_knows_bite = true" in assign:
+                    p_flags.append("+kieran_knows_bite")
+                elif "wearing_kieran_jacket = true" in assign:
+                    p_flags.append("+wearing_kieran_jacket")
+                elif "has_lemon_tin = true" in assign:
+                    p_flags.append("+has_lemon_tin")
+                elif 'toby_status = "alive"' in assign or "toby_status = 'alive'" in assign:
+                    p_flags.extend(["+toby_alive", "-toby_dead"])
+                elif 'toby_status = "dead"' in assign or "toby_status = 'dead'" in assign:
+                    p_flags.extend(["+toby_dead", "-toby_alive"])
+                i += 1
+                continue
+
+            m = choice_pat.match(raw)
+            if m:
+                cond_raw = m.group(1) or ""
+                label = m.group(2).strip()
+                rest = m.group(3).strip()
+
+                # Parse choice conditions
+                req_flag = ""
+                if "saved_chart" in cond_raw:
+                    req_flag = "?saved_chart "
+                elif "not jamie_knows_bite" in cond_raw or "!jamie_knows_bite" in cond_raw:
+                    req_flag = "?!jamie_knows_bite "
+                elif 'toby_status == "dead"' in cond_raw or "toby_status == 'dead'" in cond_raw:
+                    req_flag = "?toby_dead "
+                elif 'toby_status == "alive"' in cond_raw or "toby_status == 'alive'" in cond_raw:
+                    req_flag = "?toby_alive "
+
+                # Check for direct divert on choice line
+                direct_target = None
+                if "->" in rest:
+                    direct_target = rest.split("->", 1)[1].strip()
+
+                # Collect sublines (narrative reaction or assignment)
+                sublines: list[str] = []
+                choice_target = direct_target
+                set_flags: list[str] = []
+
+                j = i + 1
+                while j < len(klines):
+                    sub_raw = klines[j]
+                    sub_s = sub_raw.strip()
+                    if sub_s.startswith("==") and sub_s.endswith("=="):
+                        break
+                    if choice_pat.match(sub_raw):
+                        break
+                    # Ignore epilogue summary bullet points that are not choices
+                    if sub_s.startswith("* Intern") or sub_s.startswith("* Patient") or sub_s.startswith("* Romance"):
+                        break
+                    if sub_s.startswith("//") or sub_s.startswith("--"):
+                        j += 1
+                        continue
+                    if sub_s.startswith("~"):
+                        assign = sub_s[1:].strip()
+                        if "saved_chart = true" in assign:
+                            set_flags.append("+saved_chart")
+                        elif "jamie_knows_bite = true" in assign:
+                            set_flags.append("+jamie_knows_bite")
+                        elif "julian_knows_bite = true" in assign:
+                            set_flags.append("+julian_knows_bite")
+                        elif "kieran_knows_bite = true" in assign:
+                            set_flags.append("+kieran_knows_bite")
+                        elif "wearing_kieran_jacket = true" in assign:
+                            set_flags.append("+wearing_kieran_jacket")
+                        elif "has_lemon_tin = true" in assign:
+                            set_flags.append("+has_lemon_tin")
+                        elif 'toby_status = "alive"' in assign:
+                            set_flags.extend(["+toby_alive", "-toby_dead"])
+                        elif 'toby_status = "dead"' in assign:
+                            set_flags.extend(["+toby_dead", "-toby_alive"])
+                        j += 1
+                        continue
+
+                    if sub_s.startswith("->"):
+                        choice_target = sub_s[2:].strip()
+                        j += 1
+                        break
+                    elif "->" in sub_s:
+                        b_text, tgt = sub_s.split("->", 1)
+                        if b_text.strip():
+                            sublines.append(b_text.strip())
+                        choice_target = tgt.strip()
+                        j += 1
+                        break
+                    else:
+                        if sub_s:
+                            sublines.append(sub_s)
+                    j += 1
+
+                i = j
+
+                # Clean choice target
+                if choice_target:
+                    choice_target = sanitize_node_id(choice_target)
+                    if choice_target in ("end", "done"):
+                        choice_target = None
+
+                flags_str = req_flag + " ".join(set_flags)
+                flags_str = (flags_str.strip() + " ") if flags_str.strip() else ""
+
+                # Clean sublines from conditional blocks if any
+                clean_sublines: list[str] = []
+                for sl in sublines:
+                    cleaned = re.sub(r"\{[^}]+\}", "", sl).strip()
+                    if (
+                        cleaned
+                        and not cleaned.startswith("~")
+                        and not cleaned.startswith("- else:")
+                        and not cleaned.startswith("{")
+                        and cleaned != "}"
+                    ):
+                        clean_sublines.append(cleaned)
+
+                if clean_sublines and choice_target:
+                    opt_id = f"{knot_id}_opt{len(p_choices) + 1}"
+                    extra_passages[opt_id] = {
+                        "flags": [],
+                        "body": clean_sublines,
+                        "choices": [f"* [Continue] -> {choice_target}"],
+                    }
+                    p_choices.append(f"* [{label}] {flags_str}-> {opt_id}")
+                elif choice_target:
+                    p_choices.append(f"* [{label}] {flags_str}-> {choice_target}")
+                continue
+
+            # Regular body lines
+            clean_line = raw
+            clean_line = re.sub(
+                r"\{\s*[A-Za-z0-9_=\s\"\'><]+\s*:\s*([^}|-]+)(?:-\s*else\s*:\s*([^}]+))?\}",
+                r"\1",
+                clean_line,
+            )
+            clean_line = re.sub(r"\{[A-Za-z0-9_]+\}", "", clean_line)
+            clean_s = clean_line.strip()
+            if (
+                clean_s
+                and not clean_s.startswith("~")
+                and not clean_s.startswith("- else:")
+                and not clean_s.startswith("{")
+                and clean_s != "}"
+            ):
+                p_body.append(clean_s)
+            i += 1
+
+        out_passages[knot_id] = {
+            "flags": p_flags,
+            "body": p_body,
+            "choices": p_choices,
+        }
+
+    out = [f"TITLE: {title}", f"AUTHOR: {author}", f"START: {start_node}"]
+    combined = {**out_passages, **extra_passages}
+    for nid, p in combined.items():
         out.append("")
-        out.append(f"== {current_node} ==")
-        out.extend(body_lines)
-        out.extend(choices)
-        body_lines = []
-        choices = []
+        out.append(f"== {nid} ==")
+        for f in p["flags"]:
+            out.append(f)
+        for b in p["body"]:
+            out.append(b)
+        for c in p["choices"]:
+            out.append(c)
 
-    for raw in text.splitlines():
-        line = raw.split("//", 1)[0].strip()
-        if not line:
-            if body_lines and body_lines[-1] != "":
-                body_lines.append("")
-            continue
-
-        knot_match = re.match(r"^={2,}\s*([A-Za-z0-9_]+)\s*=*$", line)
-        if knot_match:
-            flush()
-            current_node = sanitize_node_id(knot_match.group(1))
-            started_knot = True
-            continue
-
-        choice_match = re.match(r"^[*+]+\s*\[([^\]]+)\](.*)$", line)
-        if choice_match:
-            label = choice_match.group(1).strip()
-            rest = choice_match.group(2)
-            divert = re.search(r"->\s*([A-Za-z0-9_]+)", rest)
-            target = sanitize_node_id(divert.group(1)) if divert else current_node
-            choices.append(f"* [{label}] -> {target}")
-            continue
-
-        if line.startswith("->"):
-            target = sanitize_node_id(line[2:])
-            if target != "end" and target != "done":
-                choices.append(f"* [Continue] -> {target}")
-            continue
-
-        if line.startswith("VAR ") or line.startswith("~"):
-            continue
-
-        body_lines.append(line)
-
-    flush()
     return "\n".join(out) + "\n"
 
 
@@ -183,9 +358,9 @@ def convert_twine_html(raw_html: str, title: str, author: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Convert .twee, .ink, or Twine .html to RustMix STORY.TXT"
+        description="Convert .twee, .ink, .md, or Twine .html to RustMix STORY.TXT"
     )
-    parser.add_argument("input", type=pathlib.Path, help="Input .twee, .ink, or Twine .html file")
+    parser.add_argument("input", type=pathlib.Path, help="Input .twee, .ink, .md, or Twine .html file")
     parser.add_argument("-o", "--output", type=pathlib.Path, default=pathlib.Path("STORY.TXT"))
     parser.add_argument("--title", default=None)
     parser.add_argument("--author", default="Community IF")
@@ -197,8 +372,14 @@ def main() -> int:
 
     if ext in (".twee", ".tw"):
         result = convert_twee(text, title, args.author)
-    elif ext == ".ink":
-        result = convert_ink(text, title, args.author)
+    elif ext in (".ink", ".md", ".txt"):
+        # Auto-detect if it contains Twee passages (:: name) or HTML
+        if "<tw-storydata" in text:
+            result = convert_twine_html(text, title, args.author)
+        elif re.search(r"^::\s+[A-Za-z0-9_]+", text, re.MULTILINE):
+            result = convert_twee(text, title, args.author)
+        else:
+            result = convert_ink(text, title, args.author)
     elif ext in (".html", ".htm"):
         try:
             result = convert_twine_html(text, title, args.author)
@@ -207,7 +388,7 @@ def main() -> int:
             return 1
     else:
         print(
-            f"Unsupported extension '{ext}' (expected .twee, .tw, .ink, or .html)",
+            f"Unsupported extension '{ext}' (expected .twee, .tw, .ink, .md, or .html)",
             file=sys.stderr,
         )
         return 1
