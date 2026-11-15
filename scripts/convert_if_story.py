@@ -251,9 +251,12 @@ def convert_ink(text: str, title: str, author: str) -> str:
                 clean_sublines: list[str] = []
                 for sl in sublines:
                     cleaned = re.sub(r"\{[^}]+\}", "", sl).strip()
+                    if not cleaned:
+                        if clean_sublines and clean_sublines[-1] != "":
+                            clean_sublines.append("")
+                        continue
                     if (
-                        cleaned
-                        and not cleaned.startswith("~")
+                        not cleaned.startswith("~")
                         and not cleaned.startswith("- else:")
                         and not cleaned.startswith("{")
                         and cleaned != "}"
@@ -272,8 +275,14 @@ def convert_ink(text: str, title: str, author: str) -> str:
                     p_choices.append(f"* [{label}] {flags_str}-> {choice_target}")
                 continue
 
-            # Regular body lines - preserve conditional blocks { ... } for engine evaluation!
+            # Regular body lines - preserve conditional blocks { ... } and paragraph breaks!
             clean_s = raw.strip()
+            if not clean_s:
+                if p_body and p_body[-1] != "":
+                    p_body.append("")
+                i += 1
+                continue
+
             if (
                 clean_s.startswith("~")
                 or clean_s.startswith("//")
@@ -283,8 +292,7 @@ def convert_ink(text: str, title: str, author: str) -> str:
                 i += 1
                 continue
 
-            if clean_s:
-                p_body.append(raw.rstrip())
+            p_body.append(raw.rstrip())
             i += 1
 
         out_passages[knot_id] = {
