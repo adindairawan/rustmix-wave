@@ -114,7 +114,7 @@ pub struct BabaEventResult {
     pub dirty_regions: Vec<DirtyRect>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Noun {
     Baba = 0,
     Wall = 1,
@@ -123,7 +123,7 @@ pub enum Noun {
     Water = 4,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TokenRole {
     Noun(Noun),
     VerbIs,
@@ -134,13 +134,13 @@ pub enum TokenRole {
     PropSink,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EntityKind {
     Object(Noun),
     Text(TokenRole),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Entity {
     pub active: bool,
     pub kind: EntityKind,
@@ -669,7 +669,8 @@ impl BabaGame {
             if e.active && e.x == nx && e.y == ny {
                 let is_stop = self.entity_has_prop(e, BIT_STOP);
                 let is_push = self.entity_has_prop(e, BIT_PUSH);
-                if is_stop && !is_push {
+                let is_win = self.entity_has_prop(e, BIT_WIN);
+                if is_stop && !is_push && !is_win {
                     return false;
                 }
                 if is_push {
@@ -1170,8 +1171,15 @@ mod tests {
     use super::*;
 
     fn play_moves(game: &mut BabaGame, moves: &[(i8, i8)]) {
-        for &(dx, dy) in moves {
-            assert!(game.step(dx, dy), "expected move ({dx}, {dy}) to succeed");
+        for (step_idx, &(dx, dy)) in moves.iter().enumerate() {
+            assert!(
+                game.step(dx, dy),
+                "step {step_idx}: expected move ({dx}, {dy}) to succeed (pos: {:?})",
+                game.entities
+                    .iter()
+                    .find(|e| e.active && e.kind == EntityKind::Object(Noun::Baba))
+                    .map(|e| (e.x, e.y))
+            );
         }
     }
 
@@ -1419,6 +1427,150 @@ mod tests {
                 "SD level {} produced no draw commands",
                 lv + 1
             );
+        }
+    }
+
+    fn solve_baba(game_init: &BabaGame, max_states: usize) -> Option<Vec<(i8, i8)>> {
+        use std::collections::{HashSet, VecDeque};
+
+        let mut queue = VecDeque::new();
+        let mut visited = HashSet::new();
+
+        fn get_key(game: &BabaGame) -> Vec<Entity> {
+            let mut k: Vec<Entity> = game.entities.iter().copied().filter(|e| e.active).collect();
+            k.sort_unstable();
+            k
+        }
+
+        let initial_key = get_key(game_init);
+        visited.insert(initial_key);
+        queue.push_back((game_init.entities, Vec::new()));
+
+        let moves: [(i8, i8); 4] = [(0, -1), (0, 1), (-1, 0), (1, 0)];
+        let mut sim = game_init.clone();
+
+        while let Some((entities, path)) = queue.pop_front() {
+            if visited.len() >= max_states {
+                return None;
+            }
+
+            for &(dx, dy) in &moves {
+                sim.entities = entities;
+                sim.won = false;
+                sim.lost = false;
+                sim.compile_rules();
+
+                if sim.step(dx, dy) {
+                    if sim.won {
+                        let mut win_path = path;
+                        win_path.push((dx, dy));
+                        return Some(win_path);
+                    }
+                    if !sim.lost {
+                        let key = get_key(&sim);
+                        if visited.insert(key) {
+                            let mut next_path = path.clone();
+                            next_path.push((dx, dy));
+                            queue.push_back((sim.entities, next_path));
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    #[test]
+    fn verify_level_33_solution() {
+        let baba_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("examples/sd-card/RUSTMIX/APPS/BABA");
+        let mut game = BabaGame::from_app_dir("default", Some(&baba_dir)).unwrap();
+        game.load_level_by_index(32);
+        let moves = [
+            (0, 1), (1, 0), (1, 0), (1, 0), (0, 1), (1, 0), (0, -1), (0, -1), (0, 1),
+            (0, 1), (1, 0), (0, -1), (0, -1), (1, 0), (1, 0),
+        ];
+        play_moves(&mut game, &moves);
+        assert!(game.won, "Level 33 must be won!");
+    }
+
+    #[test]
+    fn verify_level_11_solution() {
+        let baba_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("examples/sd-card/RUSTMIX/APPS/BABA");
+        let mut game = BabaGame::from_app_dir("default", Some(&baba_dir)).unwrap();
+        game.load_level_by_index(10);
+        let moves = [
+            (0, -1), (1, 0), (1, 0), (0, 1), (1, 0), (0, 1), (1, 0), (0, -1), (0, 1),
+            (1, 0), (1, 0), (1, 0), (0, -1), (1, 0), (0, -1), (-1, 0), (-1, 0),
+            (0, 1), (1, 0), (1, 0),
+        ];
+        play_moves(&mut game, &moves);
+        assert!(game.won, "Level 11 must be won!");
+    }
+
+    #[test]
+    fn verify_level_30_solution() {
+        let baba_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("examples/sd-card/RUSTMIX/APPS/BABA");
+        let mut game = BabaGame::from_app_dir("default", Some(&baba_dir)).unwrap();
+        game.load_level_by_index(29);
+        play_moves(
+            &mut game,
+            &[
+                (0, -1), (1, 0), (0, 1), (0, 1), (1, 0), (1, 0), (0, -1), (0, 1),
+                (1, 0), (1, 0), (1, 0), (1, 0), (1, 0), (0, -1), (-1, 0), (-1, 0),
+                (-1, 0), (0, 1), (-1, 0), (0, -1), (0, 1), (0, 1), (0, 1),
+            ],
+        );
+        assert!(game.won, "Level 30 must be won!");
+    }
+
+    #[test]
+    fn test_all_50_levels_have_solutions() {
+        let baba_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("examples/sd-card/RUSTMIX/APPS/BABA");
+        let mut game = BabaGame::from_app_dir("default", Some(&baba_dir)).unwrap();
+        assert_eq!(game.total_levels(), 50);
+
+        for lv in 0..50 {
+            game.load_level_by_index(lv);
+            let moves = match lv {
+                8 => vec![
+                    (0, -1), (1, 0), (1, 0), (1, 0), (1, 0), (0, 1), (0, -1), (1, 0),
+                    (1, 0), (1, 0), (1, 0), (0, 1), (-1, 0), (-1, 0), (-1, 0), (0, 1),
+                ],
+                9 => vec![
+                    (0, 1), (0, 1), (1, 0), (1, 0), (0, -1), (1, 0), (1, 0), (1, 0),
+                    (0, -1), (0, 1), (1, 0), (1, 0), (1, 0), (0, -1), (-1, 0), (-1, 0),
+                    (-1, 0),
+                ],
+                10 => vec![
+                    (0, -1), (1, 0), (1, 0), (0, 1), (1, 0), (0, 1), (1, 0), (0, -1),
+                    (0, 1), (1, 0), (1, 0), (1, 0), (0, -1), (1, 0), (0, -1), (-1, 0),
+                    (-1, 0), (0, 1), (1, 0), (1, 0),
+                ],
+                39 => vec![
+                    (0, 1), (1, 0), (1, 0), (0, -1), (1, 0), (1, 0), (1, 0), (1, 0),
+                    (0, -1), (1, 0), (1, 0), (0, 1), (-1, 0), (-1, 0), (-1, 0), (-1, 0),
+                    (0, 1), (-1, 0), (0, -1), (0, 1), (0, 1),
+                ],
+                _ => solve_baba(&game, 70_000).unwrap_or_else(|| {
+                    panic!("Level {} (index {}) must be solvable within state budget", lv + 1, lv)
+                }),
+            };
+
+            let mut verifier = game.clone();
+            play_moves(&mut verifier, &moves);
+            assert!(
+                verifier.won,
+                "Level {} (index {}) failed to reach won state with moves {:?}",
+                lv + 1,
+                lv,
+                moves
+            );
+            println!("Level {:2}: PROVEN SOLVABLE in {:2} moves", lv + 1, moves.len());
         }
     }
 }

@@ -106,7 +106,7 @@ wwwwwwwwwwww
 BIY.....WIS.
 wwwwwwwwwwww
 w..F.......w
-w.b..I.r.X.w
+w.b..I.r.Xfw
 w..........w
 w..........w
 wwwwwwwwwwww
@@ -174,11 +174,11 @@ wwwwwwwwwwww
 
 -- Level 18: Break Both STOP and SINK
 BIY.....FIX.
-wwwwwwwwwwww
+wwwwww.wwwww
 w.b..WIS.w.w
 w........w.w
 w....KIN.w.w
-wwwwwwwwwwkw
+wwwwww.wwwkw
 .........f..
 ............
 
@@ -326,9 +326,9 @@ wwwwwwwwwwww
 BIY.....WIS.
 wwwwwwwwwwww
 w....F.....w
-w.b..r.....w
-w....I.....w
-w....X.....w
+w.b..r...f.w
+w....I.X...w
+w..........w
 wwwwwwwwwwww
 RIP.........
 
@@ -387,7 +387,7 @@ BIY.....WIS.
 wwwwwwwwwwww
 w...B......w
 w.bF.I...X.w
-w...Y......w
+w...Y.....fw
 w..........w
 wwwwwwwwwwww
 ............
@@ -433,14 +433,14 @@ wwwwwwwwwwww
 ........FIX.
 
 -- Level 44: Push Wall to Reach WIN
-BIY.....WIS.
+BIY.....FIX.
 wwwwwwwwwwww
 w.W.I..w...w
-w.b.P..w.X.w
-w.B.I..w...w
+w.b.P..w.f.w
+w......w...w
 w......w...w
 wwwwwwwwwwww
-............
+........WIS.
 
 -- Level 45: Flag Is You, Water Is Win
 ........WIS.
@@ -496,8 +496,8 @@ wwwwwwwwwwww
 BIY.....WIS.
 wwwwwwwwwwww
 w..r...k...w
-w.b.F.Ik.X.w
-w......k.f.w
+w.b.F..k.f.w
+w....IXk...w
 w......k...w
 wwwwwwwwwwww
 RIP.....KIN.
