@@ -69,9 +69,7 @@ where
                 return Err(NamedWorkerError::Start(error));
             }
             if let Some(task_fn) = task_slot.lock().unwrap().take() {
-                log::warn!(
-                    "rustmix-wave=worker-boundary name={name} action=fallback-inline"
-                );
+                log::warn!("rustmix-wave=worker-boundary name={name} action=fallback-inline");
                 task_fn()
             } else {
                 return Err(NamedWorkerError::Start(error));
@@ -104,8 +102,7 @@ mod tests {
 
     #[test]
     fn fails_gracefully_if_large_stack_spawn_fails() {
-        let result =
-            run_named_worker("impossible-worker", usize::MAX / 2, || Ok::<_, String>(999));
+        let result = run_named_worker("impossible-worker", usize::MAX / 2, || Ok::<_, String>(999));
         assert!(matches!(result, Err(super::NamedWorkerError::Start(_))));
     }
 }

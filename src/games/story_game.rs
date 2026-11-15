@@ -17,6 +17,7 @@ pub const STORY_CHARS_PER_LINE: usize = 42;
 pub const STORY_LINES_PER_PAGE: usize = 12;
 pub const STORY_MAX_UNDO: usize = 32;
 pub const STORY_SETTINGS_COUNT: usize = 4;
+pub const STORY_CHOICES_WINDOW_SIZE: usize = 3;
 
 const STORY_FULL_RECT: DirtyRect = DirtyRect::new(0, 0, 480, 800);
 const STORY_BODY_RECT: DirtyRect = DirtyRect::new(16, 110, 448, 600);
@@ -108,6 +109,7 @@ pub struct StoryGame {
     pub status: String,
     pub in_settings: bool,
     pub settings_cursor: usize,
+    pub choice_scroll_offset: usize,
 }
 
 impl Default for StoryGame {
@@ -135,6 +137,7 @@ impl StoryGame {
             status: "Empty story".into(),
             in_settings: false,
             settings_cursor: 0,
+            choice_scroll_offset: 0,
         })
     }
 
@@ -315,9 +318,27 @@ impl StoryGame {
             status: "UP/DN select  SELECT choose  BOOT settings".into(),
             in_settings: false,
             settings_cursor: 0,
+            choice_scroll_offset: 0,
         };
         game.apply_node_flags(&start_node);
         Ok(game)
+    }
+
+    pub fn ensure_choice_visible(&mut self) {
+        let total = self.visible_choices().len();
+        let window_size = STORY_CHOICES_WINDOW_SIZE;
+        if total <= window_size {
+            self.choice_scroll_offset = 0;
+            return;
+        }
+        if self.selected_choice < self.choice_scroll_offset {
+            self.choice_scroll_offset = self.selected_choice;
+        } else if self.selected_choice >= self.choice_scroll_offset + window_size {
+            self.choice_scroll_offset = self.selected_choice + 1 - window_size;
+        }
+        if self.choice_scroll_offset + window_size > total {
+            self.choice_scroll_offset = total.saturating_sub(window_size);
+        }
     }
 
     fn apply_node_flags(&mut self, node_id: &str) {
@@ -380,6 +401,7 @@ impl StoryGame {
         self.flags.clear();
         self.page = 0;
         self.selected_choice = 0;
+        self.choice_scroll_offset = 0;
         self.turns = 0;
         self.undo_stack.clear();
         self.in_settings = false;
@@ -417,6 +439,7 @@ impl StoryGame {
         self.apply_node_flags(&choice.target);
         self.page = 0;
         self.selected_choice = 0;
+        self.choice_scroll_offset = 0;
         self.turns += 1;
         self.status = if self.is_ending() {
             "THE END  SELECT restart  BOOT settings".into()
@@ -435,6 +458,7 @@ impl StoryGame {
         self.flags = prev.flags;
         self.page = 0;
         self.selected_choice = 0;
+        self.choice_scroll_offset = 0;
         self.turns = self.turns.saturating_sub(1);
         self.status = format!("Back to {}", self.current_node);
         self.persist_save();
@@ -535,6 +559,7 @@ impl StoryGame {
                                 self.flags.clear();
                                 self.page = 0;
                                 self.selected_choice = 0;
+                                self.choice_scroll_offset = 0;
                                 self.turns = 0;
                                 self.undo_stack.clear();
                                 self.in_settings = false;
@@ -569,12 +594,16 @@ impl StoryGame {
             ButtonEvent::Up => {
                 if self.page + 1 == pages_len && choices_len > 0 && self.selected_choice > 0 {
                     self.selected_choice -= 1;
+                    self.ensure_choice_visible();
                     "choice-up"
                 } else if self.page > 0 {
                     self.page -= 1;
+                    self.selected_choice = 0;
+                    self.choice_scroll_offset = 0;
                     "page-prev"
                 } else if choices_len > 0 {
                     self.selected_choice = choices_len - 1;
+                    self.ensure_choice_visible();
                     "choice-wrap"
                 } else {
                     "top"
@@ -583,9 +612,12 @@ impl StoryGame {
             ButtonEvent::Down => {
                 if self.page + 1 < pages_len {
                     self.page += 1;
+                    self.selected_choice = 0;
+                    self.choice_scroll_offset = 0;
                     "page-next"
                 } else if choices_len > 0 {
                     self.selected_choice = (self.selected_choice + 1) % choices_len;
+                    self.ensure_choice_visible();
                     "choice-down"
                 } else {
                     "end"
@@ -594,6 +626,8 @@ impl StoryGame {
             ButtonEvent::Select => {
                 if self.page + 1 < pages_len {
                     self.page += 1;
+                    self.selected_choice = 0;
+                    self.choice_scroll_offset = 0;
                     "page-next"
                 } else if choices_len == 0 {
                     self.restart();
@@ -803,8 +837,28 @@ impl StoryGame {
                     CanvasTextStyle::Body,
                 )?;
             } else {
-                let mut cy = 520;
-                for (idx, choice) in choices.iter().take(4).enumerate() {
+                let total_choices = choices.len();
+                let window_size = STORY_CHOICES_WINDOW_SIZE;
+                let start_idx = self
+                    .choice_scroll_offset
+                    .min(total_choices.saturating_sub(1));
+                let end_idx = (start_idx + window_size).min(total_choices);
+
+                let has_above = start_idx > 0;
+                let has_below = end_idx < total_choices;
+
+                if has_above {
+                    canvas.text(
+                        20,
+                        508,
+                        format!("▲ [{} option(s) above - UP to scroll]", start_idx),
+                        CanvasTextStyle::Detail,
+                    )?;
+                }
+
+                let mut cy = if has_above { 530 } else { 514 };
+                for idx in start_idx..end_idx {
+                    let choice = &choices[idx];
                     let is_sel = idx == self.selected_choice;
                     let prefix = if is_sel { ">" } else { " " };
                     let style = if is_sel {
@@ -816,17 +870,42 @@ impl StoryGame {
                     let full_label = format!("{prefix} {}. {}", idx + 1, choice.label);
                     // Word-wrap long choice labels up to 2 lines so they don't bleed off screen
                     let wrapped = wrap_passage(&full_label, 36);
-                    if let Some(first_line) = wrapped.first() {
-                        canvas.text(20, cy, first_line.clone(), style)?;
-                        cy += 24;
+                    for (line_idx, line) in wrapped.iter().take(2).enumerate() {
+                        let text = if line_idx == 0 {
+                            line.clone()
+                        } else {
+                            format!("     {line}")
+                        };
+                        canvas.text(20, cy, text, style)?;
+                        cy += 22;
                     }
-                    if let Some(second_line) = wrapped.get(1) {
-                        let indent = format!("     {second_line}");
-                        canvas.text(20, cy, indent, style)?;
-                        cy += 24;
-                    } else {
-                        cy += 6;
-                    }
+                    cy += 6;
+                }
+
+                if has_below {
+                    let remaining = total_choices - end_idx;
+                    canvas.text(
+                        20,
+                        684,
+                        format!(
+                            "▼ [Option {}/{} - {} more below - DOWN to scroll]",
+                            self.selected_choice + 1,
+                            total_choices,
+                            remaining
+                        ),
+                        CanvasTextStyle::Detail,
+                    )?;
+                } else if has_above {
+                    canvas.text(
+                        20,
+                        684,
+                        format!(
+                            "▲ [Option {}/{} - End of options]",
+                            self.selected_choice + 1,
+                            total_choices
+                        ),
+                        CanvasTextStyle::Detail,
+                    )?;
                 }
             }
         }
@@ -1403,5 +1482,93 @@ Done.
         assert!(!body_alive.contains('{'));
         assert!(!body_alive.contains('}'));
         assert!(!body_alive.contains("- else:"));
+    }
+
+    #[test]
+    fn choice_window_scrolls_down_and_up_beyond_capacity() {
+        let story_text = r#"TITLE: Many Choices Test
+== start ==
+You stand at a crossroads with many paths.
+* [Go North into the dark forest] -> north
+* [Go East toward the windy coast] -> east
+* [Go South into the desert ruins] -> south
+* [Go West toward the snowy mountains] -> west
+* [Descend into the underground catacombs] -> down
+* [Climb the ancient ruined watchtower] -> up
+== north ==
+North.
+== east ==
+East.
+== south ==
+South.
+== west ==
+West.
+== down ==
+Down.
+== up ==
+Up.
+"#;
+        let mut game = StoryGame::from_story_text(story_text).unwrap();
+        assert_eq!(game.visible_choices().len(), 6);
+        assert_eq!(game.selected_choice, 0);
+        assert_eq!(game.choice_scroll_offset, 0);
+
+        let mut canvas = NativeGameCanvas::default();
+        game.render_initial(&mut canvas).unwrap();
+
+        // Down to index 1: window stays at 0
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        assert_eq!(game.selected_choice, 1);
+        assert_eq!(game.choice_scroll_offset, 0);
+
+        // Down to index 2: window stays at 0
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        assert_eq!(game.selected_choice, 2);
+        assert_eq!(game.choice_scroll_offset, 0);
+
+        // Down to index 3: window shifts to offset 1
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        assert_eq!(game.selected_choice, 3);
+        assert_eq!(game.choice_scroll_offset, 1);
+
+        // Down to index 4: window shifts to offset 2
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        assert_eq!(game.selected_choice, 4);
+        assert_eq!(game.choice_scroll_offset, 2);
+
+        // Down to index 5: window shifts to offset 3
+        game.apply_button_and_render(ButtonEvent::Down, &mut canvas)
+            .unwrap();
+        assert_eq!(game.selected_choice, 5);
+        assert_eq!(game.choice_scroll_offset, 3);
+
+        // Up to index 4: window stays at offset 3 (choice 4 is visible in [3, 4, 5])
+        game.apply_button_and_render(ButtonEvent::Up, &mut canvas)
+            .unwrap();
+        assert_eq!(game.selected_choice, 4);
+        assert_eq!(game.choice_scroll_offset, 3);
+
+        // Up to index 3: window stays at offset 3 (choice 3 is visible in [3, 4, 5])
+        game.apply_button_and_render(ButtonEvent::Up, &mut canvas)
+            .unwrap();
+        assert_eq!(game.selected_choice, 3);
+        assert_eq!(game.choice_scroll_offset, 3);
+
+        // Up to index 2: window shifts to offset 2
+        game.apply_button_and_render(ButtonEvent::Up, &mut canvas)
+            .unwrap();
+        assert_eq!(game.selected_choice, 2);
+        assert_eq!(game.choice_scroll_offset, 2);
+
+        // Select on choice 2 (South): navigates and resets offset to 0
+        game.apply_button_and_render(ButtonEvent::Select, &mut canvas)
+            .unwrap();
+        assert_eq!(game.current_node, "south");
+        assert_eq!(game.selected_choice, 0);
+        assert_eq!(game.choice_scroll_offset, 0);
     }
 }
