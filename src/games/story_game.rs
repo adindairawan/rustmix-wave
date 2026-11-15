@@ -66,6 +66,7 @@ pub struct StoryChoice {
     pub target: String,
     pub require_flag: Option<(String, bool)>,
     pub set_flags: Vec<(String, bool)>,
+    pub set_vars: Vec<(String, String)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -73,6 +74,7 @@ pub struct StoryNode {
     pub id: String,
     pub body: String,
     pub set_flags: Vec<(String, bool)>,
+    pub set_vars: Vec<(String, String)>,
     pub choices: Vec<StoryChoice>,
 }
 
@@ -80,6 +82,7 @@ pub struct StoryNode {
 pub struct StorySnapshot {
     pub node_id: String,
     pub flags: BTreeSet<String>,
+    pub vars: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -101,6 +104,8 @@ pub struct StoryGame {
     pub node_order: Vec<String>,
     pub current_node: String,
     pub flags: BTreeSet<String>,
+    pub vars: BTreeMap<String, String>,
+    pub initial_vars: BTreeMap<String, String>,
     pub page: usize,
     pub selected_choice: usize,
     pub turns: u32,
@@ -129,6 +134,8 @@ impl StoryGame {
             node_order: Vec::new(),
             current_node: "start".into(),
             flags: BTreeSet::new(),
+            vars: BTreeMap::new(),
+            initial_vars: BTreeMap::new(),
             page: 0,
             selected_choice: 0,
             turns: 0,
@@ -187,15 +194,18 @@ impl StoryGame {
         let mut start_override: Option<String> = None;
         let mut nodes = BTreeMap::new();
         let mut node_order = Vec::new();
+        let mut initial_vars = BTreeMap::new();
 
         let mut current_id: Option<String> = None;
         let mut current_lines: Vec<String> = Vec::new();
         let mut current_flags: Vec<(String, bool)> = Vec::new();
+        let mut current_vars: Vec<(String, String)> = Vec::new();
         let mut current_choices: Vec<StoryChoice> = Vec::new();
 
         let flush_node = |id_opt: &mut Option<String>,
                           lines: &mut Vec<String>,
                           flags: &mut Vec<(String, bool)>,
+                          vars: &mut Vec<(String, String)>,
                           choices: &mut Vec<StoryChoice>,
                           nodes: &mut BTreeMap<String, StoryNode>,
                           order: &mut Vec<String>| {
@@ -210,6 +220,7 @@ impl StoryGame {
                         id,
                         body,
                         set_flags: std::mem::take(flags),
+                        set_vars: std::mem::take(vars),
                         choices: std::mem::take(choices),
                     },
                 );
@@ -228,6 +239,7 @@ impl StoryGame {
                     &mut current_id,
                     &mut current_lines,
                     &mut current_flags,
+                    &mut current_vars,
                     &mut current_choices,
                     &mut nodes,
                     &mut node_order,
@@ -235,6 +247,18 @@ impl StoryGame {
                 let id = trimmed[2..trimmed.len() - 2].trim().to_string();
                 if !id.is_empty() {
                     current_id = Some(id);
+                }
+                continue;
+            }
+
+            if let Some(rest) = trimmed
+                .strip_prefix("VAR ")
+                .or_else(|| trimmed.strip_prefix("var "))
+            {
+                if let Some((k, v)) = rest.split_once('=') {
+                    let key = k.trim().to_string();
+                    let val = v.trim().trim_matches('"').trim_matches('\'').to_string();
+                    initial_vars.insert(key, val);
                 }
                 continue;
             }
@@ -256,6 +280,18 @@ impl StoryGame {
             if trimmed.starts_with("* ") || trimmed.starts_with("*[") {
                 if let Some(choice) = parse_choice_line(trimmed) {
                     current_choices.push(choice);
+                    continue;
+                }
+            }
+
+            if let Some(rest) = trimmed
+                .strip_prefix('~')
+                .or_else(|| trimmed.strip_prefix('$'))
+            {
+                if let Some((k, v)) = rest.split_once('=') {
+                    let key = k.trim().to_string();
+                    let val = v.trim().trim_matches('"').trim_matches('\'').to_string();
+                    current_vars.push((key, val));
                     continue;
                 }
             }
@@ -282,6 +318,7 @@ impl StoryGame {
             &mut current_id,
             &mut current_lines,
             &mut current_flags,
+            &mut current_vars,
             &mut current_choices,
             &mut nodes,
             &mut node_order,
@@ -310,6 +347,8 @@ impl StoryGame {
             node_order,
             current_node: start_node.clone(),
             flags: BTreeSet::new(),
+            vars: initial_vars.clone(),
+            initial_vars,
             page: 0,
             selected_choice: 0,
             turns: 0,
@@ -350,6 +389,9 @@ impl StoryGame {
                     self.flags.remove(&flag);
                 }
             }
+            for (k, v) in node.set_vars {
+                self.vars.insert(k, v);
+            }
         }
     }
 
@@ -362,9 +404,15 @@ impl StoryGame {
             .iter()
             .filter(|c| match &c.require_flag {
                 None => true,
-                Some((flag, expected)) => eval_condition(flag, &self.flags) == *expected,
+                Some((flag, expected)) => {
+                    eval_condition(flag, &self.flags, &self.vars) == *expected
+                }
             })
-            .cloned()
+            .map(|c| {
+                let mut choice = c.clone();
+                choice.label = evaluate_passage_text(&c.label, &self.flags, &self.vars);
+                choice
+            })
             .collect()
     }
 
@@ -375,7 +423,7 @@ impl StoryGame {
             .get(&self.current_node)
             .map(|n| n.body.as_str())
             .unwrap_or("(Missing passage)");
-        evaluate_passage_text(raw, &self.flags)
+        evaluate_passage_text(raw, &self.flags, &self.vars)
     }
 
     #[must_use]
@@ -399,6 +447,7 @@ impl StoryGame {
     pub fn restart(&mut self) {
         self.current_node = self.start_node.clone();
         self.flags.clear();
+        self.vars = self.initial_vars.clone();
         self.page = 0;
         self.selected_choice = 0;
         self.choice_scroll_offset = 0;
@@ -427,6 +476,7 @@ impl StoryGame {
         self.undo_stack.push(StorySnapshot {
             node_id: self.current_node.clone(),
             flags: self.flags.clone(),
+            vars: self.vars.clone(),
         });
         for (flag, state) in choice.set_flags {
             if state {
@@ -434,6 +484,9 @@ impl StoryGame {
             } else {
                 self.flags.remove(&flag);
             }
+        }
+        for (k, v) in choice.set_vars {
+            self.vars.insert(k, v);
         }
         self.current_node = choice.target.clone();
         self.apply_node_flags(&choice.target);
@@ -456,6 +509,7 @@ impl StoryGame {
         };
         self.current_node = prev.node_id;
         self.flags = prev.flags;
+        self.vars = prev.vars;
         self.page = 0;
         self.selected_choice = 0;
         self.choice_scroll_offset = 0;
@@ -473,6 +527,9 @@ impl StoryGame {
         for flag in &self.flags {
             out.push_str(&format!("FLAG={flag}\n"));
         }
+        for (k, v) in &self.vars {
+            out.push_str(&format!("VAR={k}={v}\n"));
+        }
         let _ = std::fs::write(path, out);
     }
 
@@ -486,6 +543,7 @@ impl StoryGame {
         let mut node: Option<String> = None;
         let mut turns = 0u32;
         let mut flags = BTreeSet::new();
+        let mut vars = self.initial_vars.clone();
         for line in raw.lines() {
             let line = line.trim();
             if let Some(n) = line.strip_prefix("NODE=") {
@@ -498,12 +556,17 @@ impl StoryGame {
                 if !f.is_empty() {
                     flags.insert(f.to_string());
                 }
+            } else if let Some(v) = line.strip_prefix("VAR=") {
+                if let Some((k, val)) = v.split_once('=') {
+                    vars.insert(k.to_string(), val.to_string());
+                }
             }
         }
         if let Some(n) = node {
             self.current_node = n;
             self.turns = turns;
             self.flags = flags;
+            self.vars = vars;
             self.status = format!("Resumed: {}", self.current_node);
         }
     }
@@ -921,13 +984,20 @@ impl StoryGame {
     }
 }
 
-pub fn eval_condition(cond: &str, flags: &BTreeSet<String>) -> bool {
+pub fn eval_condition(
+    cond: &str,
+    flags: &BTreeSet<String>,
+    vars: &BTreeMap<String, String>,
+) -> bool {
     let cond = cond.trim();
     let cond = cond.strip_prefix('?').unwrap_or(cond).trim();
 
     if let Some((left, right)) = cond.split_once("==") {
         let left = left.trim();
         let right = right.trim().trim_matches('"').trim_matches('\'');
+        if let Some(val) = vars.get(left) {
+            return val == right;
+        }
         let combined = format!("{left}_{right}");
         return flags.contains(right)
             || flags.contains(&combined)
@@ -937,6 +1007,9 @@ pub fn eval_condition(cond: &str, flags: &BTreeSet<String>) -> bool {
     if let Some((left, right)) = cond.split_once("!=") {
         let left = left.trim();
         let right = right.trim().trim_matches('"').trim_matches('\'');
+        if let Some(val) = vars.get(left) {
+            return val != right;
+        }
         let combined = format!("{left}_{right}");
         let eq = flags.contains(right)
             || flags.contains(&combined)
@@ -946,16 +1019,24 @@ pub fn eval_condition(cond: &str, flags: &BTreeSet<String>) -> bool {
     }
 
     if let Some(rest) = cond.strip_prefix('!') {
-        return !eval_condition(rest, flags);
+        return !eval_condition(rest, flags, vars);
     }
     if let Some(rest) = cond.strip_prefix("not ") {
-        return !eval_condition(rest, flags);
+        return !eval_condition(rest, flags, vars);
+    }
+
+    if let Some(val) = vars.get(cond) {
+        return val != "false" && val != "0" && !val.is_empty();
     }
 
     flags.contains(cond)
 }
 
-pub fn evaluate_passage_text(text: &str, flags: &BTreeSet<String>) -> String {
+pub fn evaluate_passage_text(
+    text: &str,
+    flags: &BTreeSet<String>,
+    vars: &BTreeMap<String, String>,
+) -> String {
     let mut out = String::with_capacity(text.len());
     let mut chars = text.chars().peekable();
 
@@ -979,7 +1060,7 @@ pub fn evaluate_passage_text(text: &str, flags: &BTreeSet<String>) -> String {
             }
 
             if let Some((cond_part, rest)) = block.split_once(':') {
-                let cond_active = eval_condition(cond_part, flags);
+                let cond_active = eval_condition(cond_part, flags, vars);
 
                 let (true_part, false_part) = if let Some((t, f)) = rest.split_once("\n- else:") {
                     (t, Some(f))
@@ -997,7 +1078,7 @@ pub fn evaluate_passage_text(text: &str, flags: &BTreeSet<String>) -> String {
                     false_part.unwrap_or("")
                 };
 
-                let evaluated = evaluate_passage_text(chosen.trim(), flags);
+                let evaluated = evaluate_passage_text(chosen.trim(), flags, vars);
                 if !evaluated.is_empty() {
                     if !out.is_empty()
                         && !out.ends_with('\n')
@@ -1011,7 +1092,25 @@ pub fn evaluate_passage_text(text: &str, flags: &BTreeSet<String>) -> String {
                 }
             } else {
                 let trimmed = block.trim();
-                if flags.contains(trimmed) {
+                let (is_cap, var_key) = if let Some(inner) =
+                    trimmed.strip_prefix("Cap(").and_then(|s| s.strip_suffix(')'))
+                {
+                    (true, inner.trim())
+                } else {
+                    (false, trimmed)
+                };
+
+                if let Some(val) = vars.get(var_key) {
+                    if is_cap {
+                        let mut c_iter = val.chars();
+                        if let Some(first) = c_iter.next() {
+                            out.extend(first.to_uppercase());
+                            out.push_str(c_iter.as_str());
+                        }
+                    } else {
+                        out.push_str(val);
+                    }
+                } else if flags.contains(trimmed) {
                     out.push_str(trimmed);
                 }
             }
@@ -1044,6 +1143,7 @@ fn parse_choice_line(line: &str) -> Option<StoryChoice> {
 
     let mut require_flag = None;
     let mut set_flags = Vec::new();
+    let mut set_vars = Vec::new();
 
     if let Some(c) = prefix_part
         .strip_prefix('{')
@@ -1069,6 +1169,13 @@ fn parse_choice_line(line: &str) -> Option<StoryChoice> {
             if is_flag_ident(f) {
                 set_flags.push((f.to_string(), false));
             }
+        } else if let Some(assign) = token.strip_prefix('$').or_else(|| token.strip_prefix('~')) {
+            if let Some((k, v)) = assign.split_once('=') {
+                set_vars.push((
+                    k.trim().to_string(),
+                    v.trim().trim_matches('"').trim_matches('\'').to_string(),
+                ));
+            }
         }
     }
 
@@ -1077,6 +1184,7 @@ fn parse_choice_line(line: &str) -> Option<StoryChoice> {
         target,
         require_flag,
         set_flags,
+        set_vars,
     })
 }
 
@@ -1135,7 +1243,8 @@ fn build_story_hub_text(dir: &Path) -> Option<String> {
         return None;
     }
 
-    let mut hub = String::from("TITLE: Story Collection\nAUTHOR: SD Stories\nSTART: start\n\n== start ==\nSelect a story to play:\n");
+    let mut hub_header = String::from("TITLE: Story Collection\nAUTHOR: SD Stories\nSTART: start\n");
+    let mut hub_menu = String::from("\n== start ==\nSelect a story to play:\n");
     let mut stories_content = String::new();
 
     for (idx, path) in files.iter().enumerate() {
@@ -1161,7 +1270,7 @@ fn build_story_hub_text(dir: &Path) -> Option<String> {
             }
         }
 
-        hub.push_str(&format!("* [Play: {}] -> {prefix}_start\n", title));
+        hub_menu.push_str(&format!("* [Play: {}] -> {prefix}_start\n", title));
 
         // Prefix all node identifiers in this story to avoid collision
         let mut current_node = String::new();
@@ -1180,6 +1289,9 @@ fn build_story_hub_text(dir: &Path) -> Option<String> {
                 continue;
             }
             if current_node.is_empty() {
+                if trimmed.starts_with("VAR ") || trimmed.starts_with("var ") {
+                    hub_header.push_str(&format!("{trimmed}\n"));
+                }
                 continue;
             }
             if let Some((before_arrow, target)) = line.split_once("->") {
@@ -1191,6 +1303,8 @@ fn build_story_hub_text(dir: &Path) -> Option<String> {
         }
     }
 
+    let mut hub = hub_header;
+    hub.push_str(&hub_menu);
     hub.push_str(&stories_content);
     Some(hub)
 }
@@ -1713,6 +1827,16 @@ Up.
             .join("RUSTMIX")
             .join("APPS")
             .join("STORY");
+        let save_file = story_app_dir.join("SAVE.TXT");
+        let _ = std::fs::remove_file(&save_file);
+        struct SaveCleanup(std::path::PathBuf);
+        impl Drop for SaveCleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0);
+            }
+        }
+        let _guard = SaveCleanup(save_file);
+
         let mut game = StoryGame::from_app_dir("default", Some(&story_app_dir)).unwrap();
         assert_eq!(game.current_node, "start");
         let choices = game.visible_choices();
@@ -1731,6 +1855,102 @@ Up.
         assert_eq!(
             sub_choices[0].label,
             "Step up to the locker room mirror (Begin Chapter 1)"
+        );
+    }
+
+    #[test]
+    fn dead_weight_dynamic_character_variables_and_locker_voice_interpolation() {
+        let deadwgt_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("examples")
+            .join("sd-card")
+            .join("RUSTMIX")
+            .join("APPS")
+            .join("STORY")
+            .join("STORIES")
+            .join("DEADWGT.TXT");
+        let content = std::fs::read_to_string(deadwgt_path).unwrap();
+        let mut sim = StoryGame::from_story_text(&content).unwrap();
+        assert_eq!(sim.current_node, "start");
+
+        // start -> mirror_customization
+        sim.selected_choice = 0;
+        assert!(sim.choose_selected());
+        assert_eq!(sim.current_node, "mirror_customization");
+
+        // Choose Female MC (Elena / She / Her)
+        sim.selected_choice = 0;
+        assert!(sim.choose_selected());
+        assert_eq!(sim.current_node, "set_mc_female");
+        assert_eq!(sim.vars.get("mc_name").map(|s| s.as_str()), Some("Elena"));
+        assert_eq!(sim.vars.get("mc_subj").map(|s| s.as_str()), Some("she"));
+
+        // Continue -> select_mc_name
+        sim.selected_choice = 0;
+        assert!(sim.choose_selected());
+        assert_eq!(sim.current_node, "select_mc_name");
+
+        // Keep Dr. Elena Vance -> chapter_one_start
+        sim.selected_choice = 0;
+        assert!(sim.choose_selected());
+        assert_eq!(sim.current_node, "chapter_one_start");
+
+        // Bind arm with Coban wrap -> chapter_one_start_c1
+        sim.selected_choice = 0;
+        assert!(sim.choose_selected());
+        assert_eq!(sim.current_node, "chapter_one_start_c1");
+
+        // Continue -> locker_knock
+        sim.selected_choice = 0;
+        assert!(sim.choose_selected());
+        assert_eq!(sim.current_node, "locker_knock");
+
+        // Pick Juliet (index 1) -> locker_door_choice
+        sim.selected_choice = 1;
+        assert!(sim.choose_selected());
+        assert_eq!(sim.current_node, "locker_door_choice");
+        assert_eq!(sim.vars.get("ro1_name").map(|s| s.as_str()), Some("Juliet"));
+        assert_eq!(sim.vars.get("ro1_subj").map(|s| s.as_str()), Some("she"));
+
+        // Verify "{mc_name}?" {ro1_name}'s voice...
+        let body = sim.current_body();
+        assert!(
+            body.contains("\"Elena?\" Juliet's voice filters through the steel door"),
+            "Expected interpolated quote, got:\n{}",
+            body
+        );
+
+        // Verify choices interpolate {ro1_name}
+        let choices = sim.visible_choices();
+        assert_eq!(
+            choices[0].label,
+            "Unlock the door immediately and let Juliet in"
+        );
+        assert_eq!(
+            choices[2].label,
+            "\"Are you alone, Juliet? Who else is out in that corridor?\""
+        );
+
+        // Test undo restores previous node & variable state
+        assert!(sim.undo());
+        assert_eq!(sim.current_node, "locker_knock");
+
+        // Now pick Julian (index 0)
+        sim.selected_choice = 0;
+        assert!(sim.choose_selected());
+        assert_eq!(sim.current_node, "locker_door_choice");
+        assert_eq!(sim.vars.get("ro1_name").map(|s| s.as_str()), Some("Julian"));
+        assert_eq!(sim.vars.get("ro1_subj").map(|s| s.as_str()), Some("he"));
+
+        let julian_body = sim.current_body();
+        assert!(
+            julian_body.contains("\"Elena?\" Julian's voice filters through the steel door"),
+            "Expected Julian interpolated quote, got:\n{}",
+            julian_body
+        );
+        let julian_choices = sim.visible_choices();
+        assert_eq!(
+            julian_choices[0].label,
+            "Unlock the door immediately and let Julian in"
         );
     }
 }
