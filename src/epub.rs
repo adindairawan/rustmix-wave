@@ -30,9 +30,9 @@ pub const EPUB_SPINE_LIMIT: usize = 128;
 /// Maximum TOC records rendered by the Reader UI.
 pub const EPUB_TOC_LIMIT: usize = 128;
 /// Dedicated parser-worker stack budget.
-pub const EPUB_PARSER_WORKER_STACK_BYTES: usize = 64 * 1024;
+pub const EPUB_PARSER_WORKER_STACK_BYTES: usize = 24 * 1024;
 /// Lightweight OPF-title worker stack budget.
-pub const EPUB_TITLE_WORKER_STACK_BYTES: usize = 32 * 1024;
+pub const EPUB_TITLE_WORKER_STACK_BYTES: usize = 16 * 1024;
 
 /// AO3 work metadata for the mobile AO3 Meta Box & Preface layout.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1367,12 +1367,12 @@ mod tests {
 
     #[test]
     fn parser_worker_stack_budget_is_explicit() {
-        assert_eq!(EPUB_PARSER_WORKER_STACK_BYTES, 64 * 1024);
+        assert_eq!(EPUB_PARSER_WORKER_STACK_BYTES, 24 * 1024);
     }
 
     #[test]
     fn title_worker_uses_a_smaller_bounded_stack() {
-        assert_eq!(EPUB_TITLE_WORKER_STACK_BYTES, 32 * 1024);
+        assert_eq!(EPUB_TITLE_WORKER_STACK_BYTES, 16 * 1024);
         assert!(EPUB_TITLE_WORKER_STACK_BYTES < EPUB_PARSER_WORKER_STACK_BYTES);
     }
 
