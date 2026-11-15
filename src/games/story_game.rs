@@ -1704,4 +1704,33 @@ Up.
         assert!(summary.contains("Harry caught you"));
         assert!(summary.contains("North via Eastside Overpass"));
     }
+
+    #[test]
+    fn sd_story_app_loads_hub_with_deadwgt_and_beacon() {
+        let story_app_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("examples")
+            .join("sd-card")
+            .join("RUSTMIX")
+            .join("APPS")
+            .join("STORY");
+        let mut game = StoryGame::from_app_dir("default", Some(&story_app_dir)).unwrap();
+        assert_eq!(game.current_node, "start");
+        let choices = game.visible_choices();
+        assert_eq!(choices.len(), 2);
+        assert_eq!(choices[0].label, "Play: The Saltmire Beacon");
+        assert_eq!(choices[1].label, "Play: Dead Weight: Ch 1 & 2");
+
+        // Pick Dead Weight
+        game.selected_choice = 1;
+        assert!(game.choose_selected());
+        assert_eq!(game.current_node, "s2_start");
+        let body = game.current_body();
+        assert!(body.contains("DEAD WEIGHT: BOOK ONE - THE TRIAGE OF ASH"));
+        let sub_choices = game.visible_choices();
+        assert_eq!(sub_choices.len(), 1);
+        assert_eq!(
+            sub_choices[0].label,
+            "Step up to the locker room mirror (Begin Chapter 1)"
+        );
+    }
 }
