@@ -1571,4 +1571,40 @@ Up.
         assert_eq!(game.selected_choice, 0);
         assert_eq!(game.choice_scroll_offset, 0);
     }
+
+    #[test]
+    fn parses_and_verifies_dead_weight_story_chapters_1_and_2() {
+        let story_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("examples")
+            .join("sd-card")
+            .join("RUSTMIX")
+            .join("APPS")
+            .join("STORY")
+            .join("STORIES")
+            .join("DEADWGT.TXT");
+        let content = std::fs::read_to_string(&story_path)
+            .expect("examples/sd-card/RUSTMIX/APPS/STORY/STORIES/DEADWGT.TXT must exist");
+        let game = StoryGame::from_story_text(&content)
+            .expect("DEADWGT.TXT must parse cleanly without syntax errors");
+
+        assert_eq!(game.start_node, "start");
+        assert!(game.nodes.contains_key("start"));
+        assert!(game.nodes.contains_key("mirror_customization"));
+        assert!(game.nodes.contains_key("chapter_one_start"));
+        assert!(game.nodes.contains_key("bullpen_crisis"));
+        assert!(game.nodes.contains_key("storm_drain_march"));
+        assert!(game.nodes.contains_key("chapter_two_start"));
+        assert!(game.nodes.contains_key("ch2_ending_summary"));
+
+        // Verify every choice target in every node resolves to a valid node
+        for (node_id, node) in &game.nodes {
+            for choice in &node.choices {
+                assert!(
+                    game.nodes.contains_key(&choice.target),
+                    "Node '{node_id}' has choice pointing to non-existent node '{}'",
+                    choice.target
+                );
+            }
+        }
+    }
 }
