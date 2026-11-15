@@ -445,10 +445,11 @@ fn parse_navigation_toc(
     chapter_offsets: &BTreeMap<String, (usize, u64)>,
 ) -> Result<Vec<EpubTocEntry>, String> {
     let mut candidates: Vec<(&ManifestItem, bool)> = Vec::new();
-    if let Some(item) = manifest
-        .values()
-        .find(|item| item.properties.split_whitespace().any(|value| value == "nav"))
-    {
+    if let Some(item) = manifest.values().find(|item| {
+        item.properties
+            .split_whitespace()
+            .any(|value| value == "nav")
+    }) {
         candidates.push((item, true));
     }
     let spine_toc = first_open_tag(package, "spine").and_then(|tag| attribute(tag, "toc"));
@@ -550,7 +551,10 @@ fn anchor_links(xml: &str) -> Vec<(String, String)> {
 }
 
 fn ncx_links(xml: &str) -> Vec<(String, String)> {
-    let starts: Vec<usize> = xml.match_indices("<navPoint").map(|(index, _)| index).collect();
+    let starts: Vec<usize> = xml
+        .match_indices("<navPoint")
+        .map(|(index, _)| index)
+        .collect();
     let mut links = Vec::new();
     for (position, &start) in starts.iter().enumerate() {
         let end = starts.get(position + 1).copied().unwrap_or(xml.len());
@@ -579,20 +583,24 @@ pub fn open_epub_on_worker(path: impl AsRef<Path>) -> Result<EpubDocument, Strin
         "rustmix-wave=epub-parser-worker status=starting stack-bytes={}",
         EPUB_PARSER_WORKER_STACK_BYTES
     );
+    let path_clone = path.clone();
     let worker = std::thread::Builder::new()
         .name("epub-parser".into())
         .stack_size(EPUB_PARSER_WORKER_STACK_BYTES)
-        .spawn(move || open_epub(path))
-        .map_err(|error| {
-            let message = format!("EPUB parser worker start failed: {error}");
-            log::warn!("rustmix-wave=epub-parser-worker status=start-failed error={message}");
+        .spawn(move || open_epub(path));
+    let result = match worker {
+        Ok(handle) => handle.join().map_err(|_| {
+            let message = "EPUB parser worker panicked".to_string();
+            log::warn!("rustmix-wave=epub-parser-worker status=panicked");
             message
-        })?;
-    let result = worker.join().map_err(|_| {
-        let message = "EPUB parser worker panicked".to_string();
-        log::warn!("rustmix-wave=epub-parser-worker status=panicked");
-        message
-    })?;
+        })?,
+        Err(error) => {
+            log::warn!(
+                "rustmix-wave=epub-parser-worker status=start-failed error={error} fallback=inline"
+            );
+            open_epub(path_clone)
+        }
+    };
     match &result {
         Ok(document) => log::info!(
             "rustmix-wave=epub-parser-worker status=completed spine-items={} toc-entries={} text-bytes={}",
@@ -613,45 +621,62 @@ fn read_epub_title(path: impl AsRef<Path>) -> Result<String, String> {
 
 pub fn read_epub_title_on_worker(path: impl AsRef<Path>) -> Result<String, String> {
     let path = path.as_ref().to_path_buf();
+    let path_clone = path.clone();
     let worker = std::thread::Builder::new()
         .name("epub-title".into())
         .stack_size(EPUB_TITLE_WORKER_STACK_BYTES)
-        .spawn(move || read_epub_title(path))
-        .map_err(|error| format!("EPUB title worker start failed: {error}"))?;
-    worker
-        .join()
-        .map_err(|_| "EPUB title worker panicked".to_string())?
+        .spawn(move || read_epub_title(path));
+    match worker {
+        Ok(handle) => handle
+            .join()
+            .map_err(|_| "EPUB title worker panicked".to_string())?,
+        Err(error) => {
+            log::warn!(
+                "rustmix-wave=epub-title-worker status=start-failed error={error} fallback=inline"
+            );
+            read_epub_title(path_clone)
+        }
+    }
 }
 
 pub fn read_epub_ao3_on_worker(path: impl AsRef<Path>) -> Result<(String, EpubAo3Meta), String> {
     let path = path.as_ref().to_path_buf();
-    let worker = std::thread::Builder::new()
-        .name("epub-ao3".into())
-        .stack_size(EPUB_TITLE_WORKER_STACK_BYTES)
-        .spawn(move || -> Result<(String, EpubAo3Meta), String> {
-            let archive = ZipArchive::open(path)?;
-            let (_, package, package_dir) = epub_package(&archive)?;
-            let title = package_title(&package);
-            let mut preface_text = String::new();
-            if let (Ok(manifest), Ok(spine_ids)) =
-                (parse_manifest(&package), parse_spine_ids(&package))
-            {
-                if let Some(first_id) = spine_ids.first() {
-                    if let Some(item) = manifest.get(first_id) {
-                        let member = normalize_archive_path(&package_dir, &item.href);
-                        if let Ok(xhtml) = utf8_member(&archive, &member) {
-                            preface_text = html_to_text(&xhtml);
-                        }
+    let path_clone = path.clone();
+    let read_fn = |p: std::path::PathBuf| -> Result<(String, EpubAo3Meta), String> {
+        let archive = ZipArchive::open(p)?;
+        let (_, package, package_dir) = epub_package(&archive)?;
+        let title = package_title(&package);
+        let mut preface_text = String::new();
+        if let (Ok(manifest), Ok(spine_ids)) = (parse_manifest(&package), parse_spine_ids(&package))
+        {
+            if let Some(first_id) = spine_ids.first() {
+                if let Some(item) = manifest.get(first_id) {
+                    let member = normalize_archive_path(&package_dir, &item.href);
+                    if let Ok(xhtml) = utf8_member(&archive, &member) {
+                        preface_text = html_to_text(&xhtml);
                     }
                 }
             }
-            let ao3 = parse_ao3_opf_metadata(&package, &preface_text, 0, 1);
-            Ok((title, ao3))
-        })
-        .map_err(|error| format!("EPUB AO3 worker start failed: {error}"))?;
-    worker
-        .join()
-        .map_err(|_| "EPUB AO3 worker panicked".to_string())?
+        }
+        let ao3 = parse_ao3_opf_metadata(&package, &preface_text, 0, 1);
+        Ok((title, ao3))
+    };
+
+    let worker = std::thread::Builder::new()
+        .name("epub-ao3".into())
+        .stack_size(EPUB_TITLE_WORKER_STACK_BYTES)
+        .spawn(move || read_fn(path));
+    match worker {
+        Ok(handle) => handle
+            .join()
+            .map_err(|_| "EPUB AO3 worker panicked".to_string())?,
+        Err(error) => {
+            log::warn!(
+                "rustmix-wave=epub-ao3-worker status=start-failed error={error} fallback=inline"
+            );
+            read_fn(path_clone)
+        }
+    }
 }
 
 /// Detect whether spine item 0 is AO3's auto-generated preface page (`*_split_000.xhtml`).
@@ -817,7 +842,9 @@ fn strip_leading_duplicate_preface<'a>(chapter: &'a str, title: &str) -> &'a str
 // ---------------------------------------------------------------------------
 
 fn strip_any<'a>(line: &'a str, prefixes: &[&str]) -> Option<&'a str> {
-    prefixes.iter().find_map(|prefix| line.strip_prefix(*prefix))
+    prefixes
+        .iter()
+        .find_map(|prefix| line.strip_prefix(*prefix))
 }
 
 fn stat_value(line: &str, next: &str, key: &str) -> Option<String> {
@@ -883,7 +910,10 @@ fn parse_ao3_opf_metadata(
             || lower.contains("non-con")
         {
             meta.warning_text = subj;
-        } else if matches!(subj.as_str(), "Gen" | "F/F" | "F/M" | "M/M" | "Multi" | "Other") {
+        } else if matches!(
+            subj.as_str(),
+            "Gen" | "F/F" | "F/M" | "M/M" | "Multi" | "Other"
+        ) {
             meta.category_text = subj;
         } else if subj.contains('/') || subj.contains(" & ") {
             ships.push(subj);
@@ -1202,9 +1232,13 @@ fn all_element_texts(xml: &str, local_name: &str) -> Vec<String> {
     let mut results = Vec::new();
     let mut cursor = 0;
     while cursor < xml.len() {
-        let Some(start_rel) = xml[cursor..].find('<') else { break };
+        let Some(start_rel) = xml[cursor..].find('<') else {
+            break;
+        };
         let start = cursor + start_rel;
-        let Some(end_rel) = xml[start + 1..].find('>') else { break };
+        let Some(end_rel) = xml[start + 1..].find('>') else {
+            break;
+        };
         let end = start + 1 + end_rel;
         let tag = &xml[start + 1..end];
         let trimmed = tag.trim_start();

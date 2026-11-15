@@ -16,7 +16,7 @@ use super::{
 /// Explicit stack budget for script preload, safe-subset parsing and native
 /// canvas construction. The worker terminates immediately after returning one
 /// compact session.
-pub const LUA_LOADER_WORKER_STACK_BYTES: usize = 32 * 1024;
+pub const LUA_LOADER_WORKER_STACK_BYTES: usize = 16 * 1024;
 
 pub fn open_entry_on_worker(entry: LuaAppEntry) -> Result<LuaAppSession, String> {
     log::info!(
@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn loader_uses_explicit_worker_stack_and_returns_native_canvas() {
-        assert_eq!(LUA_LOADER_WORKER_STACK_BYTES, 32 * 1024);
+        assert_eq!(LUA_LOADER_WORKER_STACK_BYTES, 16 * 1024);
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()

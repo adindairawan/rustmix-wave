@@ -5,6 +5,7 @@
 //! on the main task.
 
 use core::fmt::{self, Display};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub enum NamedWorkerError<E> {
@@ -39,20 +40,39 @@ where
         "rustmix-wave=worker-boundary name={name} status=starting stack-bytes={stack_bytes}"
     );
     crate::runtime_memory::log_runtime_memory(&format!("before-worker-{name}"));
+
+    let task_slot = Arc::new(Mutex::new(Some(task)));
+    let task_for_worker = Arc::clone(&task_slot);
+
     let worker = std::thread::Builder::new()
         .name(name.into())
         .stack_size(stack_bytes)
-        .spawn(task)
-        .map_err(|error| {
+        .spawn(move || {
+            let task_fn = task_for_worker
+                .lock()
+                .unwrap()
+                .take()
+                .expect("worker task must be available in spawned thread");
+            task_fn()
+        });
+
+    let result = match worker {
+        Ok(handle) => handle.join().map_err(|_| {
+            log::warn!("rustmix-wave=worker-boundary name={name} status=panicked");
+            NamedWorkerError::Panicked
+        })?,
+        Err(error) => {
             log::warn!(
-                "rustmix-wave=worker-boundary name={name} status=start-failed error={error}"
+                "rustmix-wave=worker-boundary name={name} status=start-failed error={error} action=fallback-inline"
             );
-            NamedWorkerError::Start(error)
-        })?;
-    let result = worker.join().map_err(|_| {
-        log::warn!("rustmix-wave=worker-boundary name={name} status=panicked");
-        NamedWorkerError::Panicked
-    })?;
+            if let Some(task_fn) = task_slot.lock().unwrap().take() {
+                task_fn()
+            } else {
+                return Err(NamedWorkerError::Start(error));
+            }
+        }
+    };
+
     crate::runtime_memory::log_runtime_memory(&format!("after-worker-{name}"));
     match result {
         Ok(value) => {
@@ -74,5 +94,13 @@ mod tests {
     fn returns_compact_result_from_named_short_lived_worker() {
         let result = run_named_worker("unit-worker", 16 * 1024, || Ok::<_, String>(42)).unwrap();
         assert_eq!(result, 42);
+    }
+
+    #[test]
+    fn falls_back_to_inline_if_spawn_fails() {
+        // Requesting an impossible stack size to trigger OS spawn failure
+        let result =
+            run_named_worker("impossible-worker", usize::MAX / 2, || Ok::<_, String>(999)).unwrap();
+        assert_eq!(result, 999);
     }
 }
