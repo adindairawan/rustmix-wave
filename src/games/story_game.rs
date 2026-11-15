@@ -1606,5 +1606,102 @@ Up.
                 );
             }
         }
+
+        // Simulate Playthrough 1: Save Toby -> Caught by Harry -> Stitch Toby -> Overpass Route
+        let mut sim = game.clone();
+        assert_eq!(sim.current_node, "start");
+        sim.selected_choice = 0; // mirror
+        sim.choose_selected();
+        sim.selected_choice = 0; // female
+        sim.choose_selected();
+        sim.selected_choice = 0; // continue to name
+        sim.choose_selected();
+        sim.selected_choice = 0; // Dr. Alex Vance -> chapter_one_start
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "chapter_one_start");
+        sim.selected_choice = 2; // examine Maya Lin chart (+saved_chart)
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "chapter_one_start_c3");
+        assert!(sim.flags.contains("saved_chart"));
+        sim.selected_choice = 0; // continue -> locker_knock
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "locker_knock");
+        sim.selected_choice = 0; // -> locker_door_choice
+        sim.choose_selected();
+        sim.selected_choice = 0; // unlock -> julian_entrance
+        sim.choose_selected();
+        sim.selected_choice = 1; // touch watch clasp -> julian_entrance_c2
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> hallway_ro3_intro
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> hallway_ro2_intro
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> hallway_ro4_intro
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> hallway_prep_hub
+        sim.choose_selected();
+        sim.selected_choice = 1; // prep with Harry -> prep_with_harry
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> bullpen_crisis
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "bullpen_crisis");
+        sim.selected_choice = 0; // Save Toby -> branch_save_toby
+        sim.choose_selected();
+        assert!(sim.flags.contains("toby_alive"));
+        sim.selected_choice = 0; // -> storm_drain_march
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "storm_drain_march");
+        let march_body = sim.current_body();
+        assert!(march_body.contains("whispering quiet thank-yous"));
+        sim.selected_choice = 2; // Harry catches you -> tunnel_caught_by_harry
+        sim.choose_selected();
+        sim.selected_choice = 1; // squeeze hand -> tunnel_caught_by_harry_c2
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> chapter_one_ending
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> chapter_two_start
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "chapter_two_start");
+        let ch2_start_body = sim.current_body();
+        assert!(ch2_start_body.contains("severe compound ankle sprain"));
+        sim.selected_choice = 0; // stitch Toby -> ch2_triage_toby
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> ch2_watch_intro
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> ch2_talk_hub
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "ch2_talk_hub");
+        sim.selected_choice = 2; // Harry -> talk_ro3_scene
+        sim.choose_selected();
+        assert!(sim.flags.contains("talked_ro3_ch2"));
+        sim.selected_choice = 0; // kiss Harry -> talk_ro3_kiss
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> ch2_talk_hub_2
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "ch2_talk_hub_2");
+        let hub2_choices = sim.visible_choices();
+        assert!(!hub2_choices.iter().any(|c| c.label.contains("Harry"))); // Harry already spoken to!
+        sim.selected_choice = 0; // Julian -> talk_ro1_scene_2
+        sim.choose_selected();
+        sim.selected_choice = 0; // kiss Julian -> talk_ro1_kiss_2
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> ch2_dawn_breach
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "ch2_dawn_breach");
+        let breach_body = sim.current_body();
+        assert!(breach_body.contains("Harry and Julian haul Toby out"));
+        sim.selected_choice = 0; // fire revolver -> ch2_dawn_breach_c1
+        sim.choose_selected();
+        sim.selected_choice = 0; // -> ch2_route_decision
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "ch2_route_decision");
+        sim.selected_choice = 0; // North Overpass -> ch2_ending_summary
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "ch2_ending_summary");
+        let summary = sim.current_body();
+        assert!(summary.contains("Preserved in trauma bag"));
+        assert!(summary.contains("Rescued and stabilized on splint"));
+        assert!(summary.contains("Harry caught you"));
+        assert!(summary.contains("North via Eastside Overpass"));
     }
 }
