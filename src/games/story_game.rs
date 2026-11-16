@@ -1964,4 +1964,68 @@ Up.
             "Unlock the door immediately and let Julian in"
         );
     }
+
+    #[test]
+    fn dead_weight_renders_every_node_without_errors() {
+        let deadwgt_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("examples")
+            .join("sd-card")
+            .join("RUSTMIX")
+            .join("APPS")
+            .join("STORY")
+            .join("STORIES")
+            .join("DEADWGT.TXT");
+        let content = std::fs::read_to_string(deadwgt_path).unwrap();
+        let mut game = StoryGame::from_story_text(&content).unwrap();
+
+        // 1. Verify start node initial render
+        let mut canvas = NativeGameCanvas::default();
+        game.render_initial(&mut canvas).expect("start render failed");
+        assert!(!canvas.commands().is_empty());
+
+        // 2. Iterate through EVERY node in node_order and render
+        let nodes = game.node_order.clone();
+        assert!(nodes.len() >= 50, "Expected at least 50 nodes, got {}", nodes.len());
+
+        for node_id in &nodes {
+            game.current_node = node_id.clone();
+            game.page = 0;
+            game.selected_choice = 0;
+            game.choice_scroll_offset = 0;
+
+            let mut c = NativeGameCanvas::default();
+            game.render_initial(&mut c)
+                .unwrap_or_else(|e| panic!("Failed to render node {}: {}", node_id, e));
+            assert!(
+                !c.commands().is_empty(),
+                "Node {} produced zero draw commands",
+                node_id
+            );
+
+            // If node has multi-page text, render each page
+            let num_pages = game.wrapped_pages().len();
+            for p in 1..num_pages {
+                game.page = p;
+                let mut page_canvas = NativeGameCanvas::default();
+                game.render_initial(&mut page_canvas)
+                    .unwrap_or_else(|e| panic!("Failed to render node {} page {}: {}", node_id, p, e));
+            }
+
+            // If node has choices, test Up/Down navigation render
+            let choices_count = game.visible_choices().len();
+            if choices_count > 1 {
+                let mut nav_canvas = NativeGameCanvas::default();
+                game.apply_button_and_render(ButtonEvent::Down, &mut nav_canvas)
+                    .unwrap_or_else(|e| panic!("Failed Down navigation on node {}: {}", node_id, e));
+                game.apply_button_and_render(ButtonEvent::Up, &mut nav_canvas)
+                    .unwrap_or_else(|e| panic!("Failed Up navigation on node {}: {}", node_id, e));
+            }
+        }
+
+        // 3. Test settings screen rendering inside dead weight
+        let mut settings_canvas = NativeGameCanvas::default();
+        game.apply_boot_short_press_and_render(&mut settings_canvas)
+            .expect("Settings menu render failed");
+        assert!(!settings_canvas.commands().is_empty());
+    }
 }
