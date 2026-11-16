@@ -270,10 +270,10 @@ Dust rains from the ceiling as secondary detonations rattle the concrete beams a
 "Two minutes until the perimeter collapses!" {ro2_name} yells. "Final preparations—move!"
 
 Who do you coordinate with before the breach?
-* [Kneel beside {ro2_name} to help brace the C4 det-cord] +ro2_high_rel -> prep_with_sloane
-* [Step over to {ro3_name} to clean {ro3_poss} scraped knuckles with an alcohol wipe] +ro3_high_rel -> prep_with_harry
-* [Check the subterranean sewer blueprint on the wall beside {ro1_name}] +ro1_high_rel -> prep_with_julian
-* [Step up to the Security Bullpen glass to speak with {ro4_name}] +ro4_high_rel -> prep_with_kieran
+* [Kneel beside {ro2_name} to help brace the C4 det-cord] +ro2_high_rel +prep_sloane -> prep_with_sloane
+* [Step over to {ro3_name} to clean {ro3_poss} scraped knuckles with an alcohol wipe] +ro3_high_rel +prep_harry -> prep_with_harry
+* [Check the subterranean sewer blueprint on the wall beside {ro1_name}] +ro1_high_rel +prep_julian -> prep_with_julian
+* [Step up to the Security Bullpen glass to speak with {ro4_name}] +ro4_high_rel +prep_kieran -> prep_with_kieran
 
 == prep_with_sloane ==
 +ro2_high_rel
@@ -330,7 +330,7 @@ Between the two of you, you drag Toby out by his scrub collar. His ankle is brok
 
 Behind you, the bullpen cell door gives way under {ro4_name}'s own desperate kicks—the detective rolls out into the hall just as the partition collapses, clutching a heavy brass floodgate key in {ro4_poss} bloody hands.
 "Move, you idiots! The fuse is lit!" {ro4_name} snarls, sprinting for the storm drain.
-* [Continue] -> storm_drain_march
+* [Continue] +catcher_harry $tunnel_catcher=harry -> storm_drain_march
 
 == branch_free_kieran ==
 +toby_dead
@@ -344,7 +344,8 @@ You sprint right, leveling the .38 at the heavy brass padlock on {ro4_name}'s ce
 
 Behind you, a horrifying scream tears through the dust as the swarm overtakes the overturned filing cabinet.
 "Toby!" {ro3_name} screams, clawing forward—but {ro1_name} tackles {ro3_name} around the waist, hauling {ro3_obj} toward the drainage shaft as tears stream down your partner's soot-streaked face.
-* [Continue] -> storm_drain_march
+* [Continue] ?prep_julian +catcher_julian $tunnel_catcher=julian -> storm_drain_march
+* [Continue] ?!prep_julian +catcher_kieran $tunnel_catcher=kieran -> storm_drain_march
 
 == branch_ruthless_containment ==
 +toby_dead
@@ -359,7 +360,8 @@ With a thunderous crash, two tons of reinforced steel drop from the ceiling, she
 
 Miraculously, an air vent grate above the ceiling pops open—and {ro4_name} drops to the floor on your side of the shutter, covered in insulation and bleeding from a cut across {ro4_poss} brow.
 "Cold-blooded, Doctor," {ro4_name} whispers roughly, holding up the brass storm drain key with trembling fingers. "Remind me never to get on your bad side."
-* [Continue] -> storm_drain_march
+* [Continue] ?prep_sloane +catcher_sloane $tunnel_catcher=sloane -> storm_drain_march
+* [Continue] ?!prep_sloane +catcher_julian $tunnel_catcher=julian -> storm_drain_march
 
 == storm_drain_march ==
 Seconds after {ro4_name}'s brass key unlocks the subterranean floodgate, {ro2_name}'s C4 charges detonate behind you.
@@ -375,11 +377,11 @@ A concussion wave of warm dust roars down the brick tunnel as St. Jude's Hospita
 Halfway to the ladder shaft, your body finally cashes the check your adrenaline wrote.
 A violent wave of vertigo slams into your skull. Beneath your wet scrub sleeve, the dormant pathogen in your silvered bite triggers a sudden vasovagal drop in blood pressure. The brick walls spin, and your knees buckle in the freezing water.
 
-Who lunges through the dark water to catch you before you collapse?
-* [{ro1_name} lunges forward to catch your shoulders] $tunnel_catcher=julian +caught_by_julian +ro1_high_rel -> tunnel_caught_by_julian
-* [Commander {ro2_name} hauls you upright with an iron grip] $tunnel_catcher=sloane +caught_by_sloane +has_lemon_tin +ro2_high_rel -> tunnel_caught_by_sloane
-* [{ro3_name} catches you with steady, desperate hands] $tunnel_catcher=harry +caught_by_harry +ro3_high_rel -> tunnel_caught_by_harry
-* [Detective {ro4_name} hooks a wiry arm around your waist] $tunnel_catcher=kieran +caught_by_kieran +wearing_kieran_jacket +ro4_high_rel -> tunnel_caught_by_kieran
+* [Reach out into the dark as your knees buckle] ?catcher_kieran -> tunnel_caught_by_kieran
+* [Reach out into the dark as your knees buckle] ?catcher_sloane -> tunnel_caught_by_sloane
+* [Reach out into the dark as your knees buckle] ?catcher_harry -> tunnel_caught_by_harry
+* [Reach out into the dark as your knees buckle] ?catcher_julian -> tunnel_caught_by_julian
+* [Reach out into the dark as your knees buckle] ?!catcher_kieran ?!catcher_sloane ?!catcher_harry ?!catcher_julian -> tunnel_caught_by_julian
 
 == tunnel_caught_by_julian ==
 +caught_by_julian

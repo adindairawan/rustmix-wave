@@ -1772,12 +1772,15 @@ Up.
         assert_eq!(sim.current_node, "storm_drain_march");
         let march_body = sim.current_body();
         assert!(march_body.contains("whispering quiet thank-yous"));
-        sim.selected_choice = 2; // Harry catches you -> tunnel_caught_by_harry
+        sim.selected_choice = 0; // Deterministic calculation: Harry catches you (single auto-choice) -> tunnel_caught_by_harry
         sim.choose_selected();
+        assert_eq!(sim.current_node, "tunnel_caught_by_harry");
         sim.selected_choice = 1; // squeeze hand -> tunnel_caught_by_harry_c2
         sim.choose_selected();
+        assert_eq!(sim.current_node, "tunnel_caught_by_harry_c2");
         sim.selected_choice = 0; // -> chapter_one_ending
         sim.choose_selected();
+        assert_eq!(sim.current_node, "chapter_one_ending");
         sim.selected_choice = 0; // -> chapter_two_start
         sim.choose_selected();
         assert_eq!(sim.current_node, "chapter_two_start");
