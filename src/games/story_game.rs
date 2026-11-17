@@ -1831,6 +1831,40 @@ Up.
         let summary = sim.current_body();
         assert!(summary.contains("PROTAGONIST"));
         assert!(summary.contains("Route Chosen: overpass"));
+
+        // Play into Chapter 3
+        sim.selected_choice = 0; // -> chapter_three_start
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "chapter_three_start");
+        sim.selected_choice = 0; // Overpass route -> ch3_overpass_route
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "ch3_overpass_route");
+        sim.selected_choice = 0; // save Paige -> overpass_save_paige
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "overpass_save_paige");
+        assert!(sim.flags.contains("saved_overpass_bus"));
+        assert!(sim.flags.contains("clara_ferry_clue"));
+        sim.selected_choice = 0; // -> check_ch3_mid_suspicion
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "check_ch3_mid_suspicion");
+        sim.selected_choice = 0; // Julian confronts you in culvert -> ch3_suspicion_ro1
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "ch3_suspicion_ro1");
+        assert!(sim.flags.contains("ro1_knows_bite"));
+        sim.selected_choice = 0; // -> railyard_convergence
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "railyard_convergence");
+        sim.selected_choice = 0; // rescue workers -> railyard_flare_climax
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "railyard_flare_climax");
+        sim.selected_choice = 0; // climb into boxcar
+        sim.choose_selected();
+        assert!(sim.current_node.starts_with("boxcar_scene"));
+        sim.selected_choice = 0; // -> ch3_ending_summary
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "ch3_ending_summary");
+        let ch3_summary = sim.current_body();
+        assert!(ch3_summary.contains("END OF CHAPTER 3"));
     }
 
     #[test]
@@ -1856,7 +1890,7 @@ Up.
         let choices = game.visible_choices();
         assert_eq!(choices.len(), 2);
         assert_eq!(choices[0].label, "Play: The Saltmire Beacon");
-        assert_eq!(choices[1].label, "Play: Dead Weight: Ch 1 & 2");
+        assert_eq!(choices[1].label, "Play: Dead Weight: Ch 1 - 3");
 
         // Pick Dead Weight
         game.selected_choice = 1;

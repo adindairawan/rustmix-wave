@@ -1,4 +1,4 @@
-TITLE: Dead Weight: Ch 1 & 2
+TITLE: Dead Weight: Ch 1 - 3
 AUTHOR: Inkle Interactive Novel
 START: start
 
@@ -81,6 +81,13 @@ VAR talked_ro2_ch2 = false
 VAR talked_ro3_ch2 = false
 VAR talked_ro4_ch2 = false
 VAR route_choice = "none"
+VAR railyard_choice = "none"
+VAR boxcar_caretaker = "none"
+VAR recovered_october_files = false
+VAR clara_ferry_clue = false
+VAR saved_overpass_bus = false
+VAR has_swat_rifles = false
+VAR paige_rescued = false
 
 == start ==
 DEAD WEIGHT: BOOK ONE - THE TRIAGE OF ASH
@@ -743,18 +750,18 @@ You slide beneath his reach, kicking his knee backward. As he crashes hard onto 
 Your group drops onto the flat tar roof of the adjacent parking garage as flames lick out of the pharmacy windows behind you.
 
 Below the garage ramp, two clear paths cut through the morning fog before the horde surrounds the block:
-1. **North toward the Eastside Overpass**—an elevated highway leading directly toward St. Catherine's Prep and the Fort Marrow Quarantine Ferry, where **{ro1_name}**'s sister Clara and **Maya Lin**'s older sister were evacuated.
-2. **South toward the 14th Precinct Station**—two blocks away, housing an armored SWAT transport van, heavy rifles, and **{ro4_name}**'s locked October investigation files.
+1. North toward the Eastside Overpass—an elevated highway leading directly toward St. Catherine's Prep and the Fort Marrow Quarantine Ferry, where {ro1_name}'s sister Clara and Maya Lin's older sister were evacuated.
+2. South toward the 14th Precinct Station—two blocks away, housing an armored SWAT transport van, heavy rifles, and {ro4_name}'s locked October investigation files.
 
 Everyone turns to look at you in the grey dawn rain. Beneath your sleeve, your silvered bite mark throbs like a quiet compass—still hidden from anyone who hasn't crossed your suspicion threshold.
 
 "Your call, Dr. {mc_surname}," {ro2_name} says over the crackle of the burning pharmacy. "Which way do we break?"
 
-* [Lead the group North onto the Eastside Overpass toward the school and ferry ({ro1_name} & {ro3_name} approve)] $route_choice=overpass -> ch2_ending_summary
-* [Lead the group South to raid the 14th Precinct Armory and evidence locker ({ro4_name} & {ro2_name} approve)] $route_choice=precinct -> ch2_ending_summary
+* [Lead the group North onto the Eastside Overpass toward the school and ferry ({ro1_name} & {ro3_name} approve)] $route_choice=overpass +route_overpass +prep_julian +boxcar_julian $boxcar_caretaker=Julian -> ch2_ending_summary
+* [Lead the group South to raid the 14th Precinct Armory and evidence locker ({ro4_name} & {ro2_name} approve)] $route_choice=precinct +route_precinct +prep_kieran +boxcar_kieran $boxcar_caretaker=Kieran -> ch2_ending_summary
 
 == ch2_ending_summary ==
-Together, your battered group moves into the ash-grey dawn along the **{route_choice}** route.
+Together, your battered group moves into the ash-grey dawn along the {route_choice} route.
 
 ----------------------------------------------------------------------------
 END OF CHAPTER 2: STATE & SURVIVAL LEDGER
@@ -771,3 +778,387 @@ COMPANION BOND & TRUST STATUS:
 * Paramedic Partner {ro3_name}: {ro3_knows_bite:Shared the secret of Exam Room 4|- else:Bite kept secret}
 * Detective {ro4_name}: {ro4_knows_bite:Holds the leverage of your immunity|- else:Bite kept secret}
 ----------------------------------------------------------------------------
+
+* [Descend from the roof into Chapter 3: The Fog of Iron] -> chapter_three_start
+
+== chapter_three_start ==
+CHAPTER 3: THE FOG OF IRON (06:15 AM)
+
+Rain turns to a cold, greasy mist as daylight exposes the corpse of the city.
+Down on the surface streets, the infected don't run—they drift in dense, slow-moving shoals between burned-out sedans, drawn toward every car alarm, every shattering window, every distant gunshot.
+
+{ triage_choice == "freed_kieran":
+As you descend the garage service stairwell, {ro4_name} falls into step beside your shoulder, flipping a compact matte-black Gerber folding knife in {ro4_poss} palm before slipping it into your coat pocket.
+"Picked it off the desk sergeant before the basement blew," {ro4_name} murmurs low enough that only you can hear. "You shot my chains off back there, Doc. Keep that blade close in case my trigger-happy friends get nervous."
+}
+
+{ triage_choice == "sealed_doors":
+At the bottom of the ramp, Commander {ro2_name} pauses beside you, handing you a loaded speed-loader for your .38 revolver.
+"Six extra rounds," {ro2_name} says quietly. "You kept a cool head when we sealed that bullpen. Don't make me regret trusting your judgment today."
+}
+
+{ toby_status == "alive":
+Behind you, {ro3_name} and {ro1_name} take turns supporting young Toby, who uses a scavenged aluminum crutch to keep weight off his splinted ankle.
+"I can keep up, Dr. {mc_surname}," Toby whispers fiercely, his face pale but determined. "I won't slow you down—I swear."
+}
+
+* [Press onward along the northern highway into the fog] ?route_overpass -> ch3_overpass_route
+* [Press onward toward the southern police station into the fog] ?route_precinct -> ch3_precinct_route
+* [Press onward along the chosen route into the fog] ?!route_overpass ?!route_precinct -> ch3_overpass_route
+
+== ch3_overpass_route ==
+You lead the group up the concrete maintenance embankment onto the elevated Eastside Interstate—thirty feet above the flooded, corpse-choked avenues.
+
+Up here in the fog, the three-lane highway is a graveyard of abandoned evacuation traffic. Luggage lies spilled across the wet asphalt; car doors hang open to the rain. Half a mile north, where the highway curves toward the bay, the steel towers of the Eastside Suspension Bridge rise out of the mist.
+
+{ro1_name} moves straight to the concrete parapet beside you, straining {ro1_poss} eyes toward the red brick bell-tower of St. Catherine's Preparatory School four blocks east of the off-ramp.
+
+"No smoke from the school dormitories," {ro1_name} breathes, {ro1_poss} hand gripping the wet concrete so hard {ro1_poss} knuckles turn white. "When I spoke to Clara on the landline at eight PM, the Coast Guard was busing the boarding students down to Pier 9 for the Fort Marrow Quarantine Ferry."
+
+{ ro1_knows_bite:
+{ro1_name} glances sideways at your left sleeve, lowering {ro1_poss} voice so {ro2_name} and {ro4_name} can't hear: "How's the arm holding up? Any numbness in your fingers?"
+"Still cold. Still clear," you whisper back.
+{ro1_Subj} brushes {ro1_poss} pinky against your right hand—a silent anchor.
+}
+
+Suddenly, fifty yards ahead on the elevated span, a rhythmic THUMP-THUMP-THUMP echoes through the fog.
+
+Wedged diagonally across the center lane is an overturned yellow St. Catherine's school bus. Around its shattered lower windshield, roughly forty slow-moving infected—commuters pulled from stalled cars—are pressing their rotting weight against the bus's undercarriage.
+
+Pinned on the high aluminum roof of the overturned bus is a teenage girl in a torn St. Catherine's navy blazer, swinging a lacrosse stick at the decaying hands clawing up the emergency roof hatch.
+
+"That's—that's Paige! She's Clara's roommate!" {ro1_name} gasps, already taking a step forward.
+"{ro3_name}, {mc_name}, we can reach her if we climb across the box truck behind the bus!" {ro3_name} says urgently.
+
+Commander {ro2_name} grabs {ro1_name}'s shoulder in an iron grip. "Look at the expansion joint beneath that bus, Surgeon! The interstate concrete deck is cracked clean through from a tanker explosion. If you add three hundred pounds of movement on top of that bus, or fire an unsuppressed weapon, the whole forty-man cluster turns on us on a narrow bridge!"
+
+"She's fourteen years old, {ro2_name}!" {ro1_name} snarls, whirling on you with raw desperation in {ro1_poss} dark eyes. "{mc_name}—she knows if Clara made it onto the ferry! Please, don't let her die up there!"
+
+How do you handle the overturned school bus on the overpass?
+
+* [Climb the box truck with {ro1_name} and {ro3_name} to pull Paige off the bus roof silently] +boxcar_julian $boxcar_caretaker=Julian -> overpass_save_paige
+* [Order {ro4_name} and {ro2_name} to lure the horde away using car horns, then climb up safely] +boxcar_sloane $boxcar_caretaker=Sloane -> overpass_tactical_lure
+* [Refuse to risk the group on cracked concrete: order everyone past the bus to the ferry] +boxcar_sloane -> overpass_leave_paige
+
+== overpass_save_paige ==
++saved_overpass_bus
++clara_ferry_clue
++paige_rescued
+$saved_overpass_bus=true
+$clara_ferry_clue=true
+$paige_rescued=true
+"Nobody speaks above a whisper—no gunfire!" you command, scrambling up the hood of the stalled delivery truck alongside {ro1_name} and {ro3_name}.
+
+You extend {ro3_name}'s iron Halligan bar across the four-foot gap to the overturned bus. As the terrified fourteen-year-old leaps across onto the truck roof, a decayed state trooper catches her ankle.
+
+You brace your boots against the wet aluminum roof and haul Paige upward with both arms—using your bitten left forearm at full leverage.
+
+Beneath your sleeve, you feel a terrifying sensation: instead of weakness, a surge of ice-cold, unnatural adrenaline floods from the silvered bite mark into your muscles, allowing you to wrench the two-hundred-pound trooper off its feet and hurl it over the highway parapet with a single heave!
+
+On the truck roof, Paige sobs against {ro1_name}'s chest. "Dr. {ro1_name}! Clara made it onto the military tugboat at Pier 9 with Mara Lin's group—they're holding the pier until noon for late survivors!"
+{ro1_name} looks at you over the girl's head, {ro1_poss} eyes shining with fierce, overwhelming gratitude.
+
+* [Descend the off-ramp stairs into the lower industrial corridor] -> check_ch3_mid_suspicion
+
+== overpass_tactical_lure ==
++saved_overpass_bus
++clara_ferry_clue
+$saved_overpass_bus=true
+$clara_ferry_clue=true
+"Use their own instincts against them," you say swiftly. "{ro4_name}, pop the neutral gear on that Honda Civic at the top of the exit ramp and wedge the horn down!"
+
+{ro4_name} flashes a razor-sharp grin. "Now you're thinking like a street cop, Doc."
+Within thirty seconds, the driverless sedan rolls down the concrete off-ramp, horn blaring continuously into the lower intersection. Like iron filings drawn to a magnet, all forty infected abandon the overturned school bus and shuffle down the ramp after the noise.
+
+{ro1_name} and {ro3_name} help fourteen-year-old Paige down from the bus roof unscathed.
+"Clara's alive!" Paige gasps, clutching {ro1_name}'s coat. "The Coast Guard took her and Mara Lin's group to Pier 9—the last ferry to Fort Marrow doesn't cast off until noon!"
+Even {ro2_name} gives you an impressed nod. "Clean execution, Dr. {mc_surname}. Zero ammo spent."
+
+* [Descend the off-ramp stairs into the lower industrial corridor] -> check_ch3_mid_suspicion
+
+== overpass_leave_paige ==
+-saved_overpass_bus
+$saved_overpass_bus=false
+"The bridge deck is fracturing, {ro1_name}—if we go out on that bus, we lose the whole team," you say coldly, grabbing the back of {ro1_name}'s coat to pull {ro1_obj} toward the off-ramp stairs.
+
+"Let go of me!" {ro1_name} wrenches {ro1_poss} arm out of your grip, staring at you with raw, blistering betrayal as {ro2_name} and {ro4_name} herd the group down the concrete steps into the fog. Above you on the overpass, the sound of snapping wood and a high, terrified scream echoes across the mist before falling silent.
+
+At the bottom of the stairs, {ro1_name} refuses to look at you, {ro1_poss} voice shaking with ice-cold fury: "In October you broke the law to save one life, {mc_name}. When did you decide human beings were just math?"
+
+* [Descend the off-ramp stairs into the lower industrial corridor] -> check_ch3_mid_suspicion
+
+== ch3_precinct_route ==
+You lead the group south through the fog-choked alleyways into the fortified courtyard of the 14th Precinct Police Station.
+
+The precinct looks like a warzone. Two burned-out squad cars block the sally port, and the front lobby is packed with turned officers and civilians trapped behind the bulletproof intake glass.
+
+"{ro2_name}, cover the courtyard," {ro4_name} murmurs, punching a six-digit override code into the heavy steel basement evidence door at the back of the parking lot. "They never changed the narcotics lockup code after they took my shield. Armory and the evidence cages are right down these stairs."
+
+As the heavy steel door clicks open into the pitch-black, windowless subterranean corridor of the precinct basement, {ro4_name} suddenly stops dead on the threshold.
+
+You see it immediately: the narrow, airless concrete walls and the row of iron holding cells at the end of the hall are identical to St. Jude's Holding Cell B where {ro4_name} was chained for five hours while the hospital died.
+
+A bead of cold sweat rolls down {ro4_name}'s temple. {ro4_Poss} breathing turns shallow and rapid; {ro4_poss} bruised hand locks onto the steel doorframe as severe claustrophobia clamps around {ro4_poss} chest.
+
+"Mercer?" {ro2_name} frowns, raising {ro2_poss} rifle. "You stalling on us? The horde on the avenue heard the door buzzer—we have three minutes to clear that armory."
+
+How do you handle {ro4_name}'s claustrophobic freeze at the basement threshold?
+
+* [Step quietly between {ro4_name} and {ro2_name}, slipping your hand into {ro4_name}'s to ground {ro4_obj}] +boxcar_kieran $boxcar_caretaker=Kieran -> precinct_ground_kieran
+* [Order {ro4_name} to hand over the evidence locker keys so you and {ro2_name} can clear the basement instead] +boxcar_sloane $boxcar_caretaker=Sloane -> precinct_go_with_sloane
+* [Call {ro4_name} out sharply to snap {ro4_obj} out of the panic attack through sheer adrenaline] +boxcar_kieran -> precinct_snap_kieran
+
+== precinct_ground_kieran ==
+You step casually in front of {ro2_name}'s line of sight, pretending to check the doorframe lock while your right hand slides over {ro4_name}'s trembling, ice-cold knuckles in the shadow.
+
+"Eyes on me, {ro4_name}," you whisper so softly only the detective can hear. "No bars on this door. I've got the wedge right here, and I'm not letting anything lock behind us. Breathe with me."
+
+{ro4_name}'s dark eyes lock onto yours like a lifeline. {ro4_Subj} squeezes your fingers once—hard enough to bruise—and draws a long, steadying breath.
+"You see too damn much, Doc," {ro4_subj} rasps under {ro4_poss} breath, before stepping into the basement corridor right at your shoulder.
+
+* [Wrench the heavy evidence cage open] -> precinct_vault_breach
+
+== precinct_go_with_sloane ==
+"Mercer, watch the top of the stairs with {ro1_name} and {ro3_name} so we don't get boxed in," you say smoothly, taking the brass evidence keyring from {ro4_name}'s stiff fingers. "Commander {ro2_name} and I will clear the vault."
+
+{ro4_name} shoots you a brief, complex look of relief and wounded pride as you and {ro2_name} descend into the dark basement alone.
+In the narrow concrete corridor, {ro2_name} moves with lethal grace, your shoulders brushing as you clear each corner in tandem.
+"Good cover back there, {mc_name}," {ro2_name} murmurs quietly in the dark. "Mercer was two seconds from locking up. I like working with someone who reads the room as fast as I do."
+
+* [Wrench the heavy evidence cage open] -> precinct_vault_breach
+
+== precinct_snap_kieran ==
+"You dragged us two blocks south for your files, Detective—don't choke on the stairs now," you say sharply, nudging {ro4_name} past the threshold with your shoulder.
+
+Anger flashes like lightning across {ro4_name}'s face—instantly burning away the claustrophobic paralysis. {ro4_Subj} racks the slide of {ro4_poss} stolen Glock with a sharp clack.
+"Watch your mouth, {mc_surname}," {ro4_subj} growls, pushing past you to take point down the dark hallway.
+
+* [Wrench the heavy evidence cage open] -> precinct_vault_breach
+
+== precinct_vault_breach ==
++has_swat_rifles
+$has_swat_rifles=true
+Inside the subterranean Armory & Evidence Vault, your team hits paydirt: two tactical shotguns, a crate of 9mm and .38 ammunition, and the keys to the armored SWAT transport van parked at the Union Freight Yard two blocks over.
+
+Then, in the back corner of the Evidence Cage, you spot a red-tagged cardboard box labeled:
+CASE #10-449: ST. JUDE'S FREE CLINIC / DET. MERCER (SEALED BY INTERNAL AFFAIRS).
+
+Before you can open it, the reinforced steel grate of the basement ventilation shaft explodes inward!
+Two massive, rotting SWAT officers in full kevlar body armor drop from the air duct directly onto the narrow vault doorway, cutting you off from the stairs!
+
+To get the heavy steel vault door slid shut between you and the duct, someone has to manually wrench the rusted floor-track bar free. You grab the iron bar with both hands and haul backward with all your strength—and once again, a terrifying surge of icy, superhuman force erupts from the silvered bite on your left forearm, bending the rusted steel pin clean out of the concrete floor!
+
+As the steel grate slams shut on the armored corpses, you have three seconds beside Case Box #10-449. What do you do with the October investigation files?
+
+* [Grab the entire October case file box and hand it directly to {ro4_name}] +recovered_october_files $recovered_october_files=true +boxcar_kieran $boxcar_caretaker=Kieran -> precinct_vault_hand_files
+* [Slip the Hemovax-9 lab pages into your trauma bag to keep control of the secret] +recovered_october_files $recovered_october_files=true +stashed_files -> precinct_vault_stash_files
+
+== check_ch3_mid_suspicion ==
+You pause in the concrete culvert beneath the railway embankment, wiping the freezing mist from your eyelashes. Beneath your wet scrub sleeve, your silvered bite mark throbs with a dull, icy hum.
+
+* [Catch your breath and press forward into the freight yard] ?ro1_high_susp ?!ro1_knows_bite -> ch3_suspicion_ro1
+* [Catch your breath and press forward into the freight yard] ?ro2_high_susp ?!ro2_knows_bite -> ch3_suspicion_ro2
+* [Catch your breath and press forward into the freight yard] ?ro3_high_susp ?!ro3_knows_bite -> ch3_suspicion_ro3
+* [Catch your breath and press forward into the freight yard] ?ro4_high_susp ?!ro4_knows_bite -> ch3_suspicion_ro4
+* [Catch your breath and press forward into the freight yard] ?!ro1_high_susp ?!ro2_high_susp ?!ro3_high_susp ?!ro4_high_susp -> railyard_convergence
+* [Catch your breath and press forward into the freight yard] ?ro1_knows_bite ?ro2_knows_bite ?ro3_knows_bite ?ro4_knows_bite -> railyard_convergence
+
+== ch3_suspicion_ro1 ==
++ro1_knows_bite
+$ro1_knows_bite=true
+As your group ducks into a concrete culvert leading toward the Union Freight Yard, {ro1_name} catches your arm and pulls you three paces behind the others.
+"Your sleeve tore when you pulled that weight back there," {ro1_name} whispers fiercely, staring straight at the exposed silver-grey crescent of teeth marks on your forearm. "God Almighty, {mc_name}—that's Patient Zero's bite! And it's... it's completely silvered over."
+
+{ ro1_high_rel:
+{ro1_name}'s hands tremble as {ro1_subj} quickly pulls your cuff down and wraps {ro1_poss} own silk surgical scarf around your wrist to hide it. "You're immune. Stay right beside me—nobody touches you while I'm alive."
+- else:
+{ro1_name} stares at you with pale, shaken dread. "Keep that covered before {ro2_name} shoots you on the tracks. We are having a long talk about this tonight."
+}
+
+* [Duck through the concrete culvert into the freight yard] -> railyard_convergence
+
+== ch3_suspicion_ro2 ==
++ro2_knows_bite
+$ro2_knows_bite=true
+At the culvert entrance to the Union Freight Yard, Commander {ro2_name} steps squarely into your path, catching your left wrist in a vise-like tactical grip where your bandage slipped during the fight.
+{ro2_Poss} cold grey eyes lock onto the raised silver crescent of teeth marks.
+"Seven hours since Exam Room 4," {ro2_name} murmurs in a low, lethal whisper, keeping {ro2_poss} body between you and the others so they can't see.
+
+{ ro2_high_rel:
+"No fever. Normal pupillary response. And you just moved two hundred pounds of dead weight like it was cardboard," {ro2_name} whispers, pulling your cuff back down over the scar. "You're an immune carrier, {mc_name}. Keep your mouth shut around the others—I'm covering your six."
+- else:
+"You hid a Class-4 bio-exposure from my unit," {ro2_name} hisses coldly. "You're still alive, which makes you a tactical asset—for now. One symptom of aggression, Doctor, and I put you down myself."
+}
+
+* [Duck through the concrete culvert into the freight yard] -> railyard_convergence
+
+== ch3_suspicion_ro3 ==
++ro3_knows_bite
+$ro3_knows_bite=true
+As you pause by the freight yard fence to catch your breath, {ro3_name} notices the slipped Coban wrap on your left wrist and gasps softly, pulling you behind a rusted signal box.
+"{mc_name}... that's a bite mark from Exam 4," {ro3_name} whispers, eyes wide. "Wait—it's silver. You've had that all night and you didn't turn?!"
+
+{ ro3_high_rel:
+{ro3_name} immediately straps a clean black velcro splint over your wrist with trembling, devoted hands. "You're a walking miracle, partner. I won't let anyone see it—I swear on Rig 9."
+- else:
+{ro3_name} backs away half a step, hurt and shaken that you kept it from {ro3_obj}. "Keep your sleeve down, {mc_name}. Just... stay clear of me until I know what's happening to you."
+}
+
+* [Duck through the concrete culvert into the freight yard] -> railyard_convergence
+
+== ch3_suspicion_ro4 ==
++ro4_knows_bite
+$ro4_knows_bite=true
+While the others scout the freight yard fence ahead, {ro4_name} hooks a finger into your belt loop and pulls you into the shadow of a signal shed, tapping the exposed silvered crescent where your bandage frayed.
+"Thought so," {ro4_name} murmurs with a low, dangerous whistle. "Bit before midnight, still breathing at seven AM, and strong enough to bend iron."
+
+{ ro4_high_rel:
+{ro4_name} pulls your cuff down and fastens it carefully. "Good thing you've got a detective on your payroll, Doc. Your secret's safe with me."
+- else:
+"Looks like I own your leash now, Dr. {mc_surname}," {ro4_name} smirks coldly. "Keep me alive, and I keep {ro2_name} from finding out what's under your cuff."
+}
+
+* [Duck through the concrete culvert into the freight yard] -> railyard_convergence
+
+== railyard_convergence ==
+07:40 AM. Both routes converge at the sprawling, rust-red tracks of the Union Freight Yard, half a mile west of the harbor piers.
+
+Sitting beside the central refueling depot is an armored Municipal SWAT Transport Van—heavy steel mesh over the windshield, high clearance, and enough room to carry your entire group straight through the dockside hordes to Pier 9.
+
+There is only one problem: the van's diesel tank is bone-dry, and the gravity-fed fuel hose on the depot pump takes four full minutes to siphon twenty gallons.
+
+As {ro2_name} and {ro4_name} run the hose into the van's tank, a frantic metallic banging echoes from the elevated glass Railroad Switching Tower forty yards across the tracks.
+
+Three unarmed railway workers—a middle-aged engineer and two young apprentices—are trapped on the tower's exterior catwalk. Below them, drawn by a derailed locomotive's hissing steam valve, nearly a hundred slow, rotting infected are crowding the bottom of the iron tower stairs, slowly forcing the safety gate open.
+
+"Look at the horde's vector," {ro2_name} says coldly beside the fuel pump. "As long as those three workers keep yelling up on that catwalk, all one hundred hostiles stay focused on the switching tower while we finish fueling the van in total safety."
+
+"If we don't draw them off, that gate breaks in two minutes and those people get torn apart!" {ro3_name} protests fiercely, looking straight at you. "{mc_name}, we have a working locomotive horn on Track 2—we can blow the air-horn and open fire to split the horde so those workers can sprint to our van!"
+
+"And bring half that pack down on an unfueled transport while your own stamina is red-lining, Doc?" {ro4_name} counters sharply.
+
+{ro1_name} watches your face intently. Everyone waits for your command:
+
+* [Sound the Track 2 air-horn to rescue the rail workers ({ro3_name} & {ro1_name} approve)] $railyard_choice=saved_workers +saved_workers +boxcar_harry $boxcar_caretaker=Harry -> railyard_flare_climax
+* [Use the trapped workers' noise as bait to finish fueling silently ({ro2_name} & {ro4_name} approve)] $railyard_choice=used_bait +used_bait +boxcar_sloane $boxcar_caretaker=Sloane -> railyard_flare_climax
+* [Fire a precision flare-gun shot to detonate a distraction across the yard] $railyard_choice=flare_diversion +flare_diversion -> railyard_flare_climax
+
+== railyard_flare_climax ==
+{ railyard_choice == "saved_workers":
+You blast the locomotive air-horn and charge the catwalk stairs alongside {ro3_name} and {ro1_name}. In ninety seconds of brutal, close-quarters fighting, you clear the gate and haul all three rail workers back to the armored van—the grateful engineer tossing you a master keycard to the Pier 9 harbor cranes before scrambling into the back cab!
+}
+{ railyard_choice == "used_bait":
+You hold up a fist, ordering total silence at the fuel pump. Across the tracks, the switching tower gate gives way; {ro3_name} turns {ro3_poss} face into the van's steel side, hands pressed over {ro3_poss} ears, while the hundred infected swarm the catwalk—leaving your fuel line completely untouched until the tank clicks full.
+}
+{ railyard_choice == "flare_diversion":
+You snatch an emergency road-flare pistol from the depot cab and bank a shot off the derailed tanker fifty yards west. The resulting fireball draws eighty percent of the horde away from both the switching tower and your van, allowing the three rail workers to escape down the far embankment while {ro2_name} caps the full diesel tank.
+}
+
+Then—just as a secondary wave of two hundred infected pours through the main freight yard gates, temporarily cutting you off from the van's driver-side cab—your body hits a biological wall.
+
+Exerting that unnatural, silvered strength earlier today triggers a violent Cytokine Flare in your bloodstream.
+
+A drop of dark, metallic silver-red blood spills from your nose onto your lip. Behind your eyes, the world turns white-hot, then glacial cold. Your heart rate plummets to forty beats per minute as your blood pressure crashes, and the silver veins beneath your left sleeve blaze like liquid mercury under your skin.
+
+"Boxcar! Now, before they cut us off from the van!"
+
+Before your knees can hit the gravel tracks, your companion hauls you up into an empty steel freight boxcar and slides the heavy iron door shut with an inch to spare!
+
+* [Climb into the dark freight boxcar as your vision spins] ?boxcar_kieran -> boxcar_scene_ro4
+* [Climb into the dark freight boxcar as your vision spins] ?boxcar_sloane -> boxcar_scene_ro2
+* [Climb into the dark freight boxcar as your vision spins] ?boxcar_harry  -> boxcar_scene_ro3
+* [Climb into the dark freight boxcar as your vision spins] ?boxcar_julian -> boxcar_scene_ro1
+* [Climb into the dark freight boxcar as your vision spins] ?!boxcar_kieran ?!boxcar_sloane ?!boxcar_harry ?!boxcar_julian -> boxcar_scene_ro1
+
+== boxcar_scene_ro1 ==
++ro1_knows_bite
+$ro1_knows_bite=true
+$boxcar_caretaker=Julian
+Outside the steel boxcar walls, hundreds of rotting hands scrape blindly past in the rain while the rest of the team waits inside the armored van thirty feet away.
+Inside the dark boxcar, {ro1_name} drops to {ro1_poss} knees beside you, pulling your head into {ro1_poss} lap and wiping the silver-tinged blood from your upper lip with {ro1_poss} thumb.
+
+{ !ro1_knows_bite:
+As {ro1_subj} tears your wet scrub sleeve open to check your brachial pulse, {ro1_name} sees the glowing silver veins radiating from Patient Zero's bite mark—and gasps in the dark.
+}
+
+"Look at me, {mc_name}—don't you dare close your eyes on me," {ro1_name} whispers fiercely, unbuttoning {ro1_poss} own coat to press {ro1_poss} warm chest against your freezing shoulders as {ro1_poss} lips brush your temple. "Your blood is rewriting the virus, and your core temperature is crashing. Hold onto me. I've got you."
+
+* [Hold on through the darkness into the aftermath] -> ch3_ending_summary
+
+== boxcar_scene_ro2 ==
++ro2_knows_bite
+$ro2_knows_bite=true
+$boxcar_caretaker=Sloane
+Outside the steel boxcar walls, hundreds of rotting hands scrape blindly past in the rain while the rest of the team waits inside the armored van thirty feet away.
+Inside the dark boxcar, Commander {ro2_name} locks the iron latch and drops beside you, pulling your shivering frame directly between {ro2_poss} knees with {ro2_poss} back braced against the steel wall.
+
+{ !ro2_knows_bite:
+As {ro2_subj} rips your wet left cuff open to check your radial artery, {ro2_name}'s grey eyes lock onto the silvered teeth marks and the mercury-pale veins beneath your skin.
+}
+
+Instead of drawing {ro2_poss} sidearm, {ro2_name} pulls off {ro2_poss} tactical gloves, cupping your freezing jaw in both warm, scarred hands and pressing {ro2_poss} forehead hard against yours in the dark.
+"Forty beats a minute and your eyes are still locked on mine," {ro2_name} whispers roughly. "Breathe with me, {mc_name}. That's a direct order. You're not dying in this boxcar."
+
+* [Hold on through the darkness into the aftermath] -> ch3_ending_summary
+
+== boxcar_scene_ro3 ==
++ro3_knows_bite
+$ro3_knows_bite=true
+$boxcar_caretaker=Harry
+Outside the steel boxcar walls, hundreds of rotting hands scrape blindly past in the rain while the rest of the team waits inside the armored van thirty feet away.
+Inside the dark boxcar, {ro3_name} pulls you straight into {ro3_poss} lap, wrapping {ro3_poss} heavy turnout coat around both of you as {ro3_subj} wipes the silver-red blood from your nose.
+
+{ !ro3_knows_bite:
+When your left sleeve slides back against {ro3_poss} chest, {ro3_name} sees the silvered crescent bite mark and the pale veins glowing beneath your skin—and instead of flinching, {ro3_subj} holds you tighter.
+}
+
+"Hey, partner—stay with me, {mc_name}," {ro3_name} whispers, pressing warm, desperate kisses against your icy knuckles and forehead to share {ro3_poss} body heat. "Your heart's beating slow, like hypothermia, but your eyes are totally clear. Just listen to my voice until the horde passes."
+
+* [Hold on through the darkness into the aftermath] -> ch3_ending_summary
+
+== boxcar_scene_ro4 ==
++ro4_knows_bite
+$ro4_knows_bite=true
+$boxcar_caretaker=Kieran
+Outside the steel boxcar walls, hundreds of rotting hands scrape blindly past in the rain while the rest of the team waits inside the armored van thirty feet away.
+Inside the pitch-black, enclosed boxcar—despite {ro4_poss} own terrifying claustrophobia—{ro4_name} completely ignores the locked walls to focus every ounce of attention on you, pulling your back flush against {ro4_poss} chest and wrapping both arms around your ribs.
+
+{ !ro4_knows_bite:
+As {ro4_subj} pushes your wet sleeve up to check your pulse, {ro4_name} sees the silvered crescent of teeth marks and the pale veins tracing your forearm in the dark.
+}
+
+"Look at you, Doc—even your blood refuses to play by the rules," {ro4_name} rasps softly against your ear, {ro4_poss} calloused hand pressing over your slow, steady heartbeat while {ro4_poss} chin rests on your shoulder. "Forget the walls. Just feel my pulse and breathe, {mc_name}. Neither of us is checking out today."
+
+* [Hold on through the darkness into the aftermath] -> ch3_ending_summary
+
+== ch3_ending_summary ==
+----------------------------------------------------------------------------
+END OF CHAPTER 3: THE FOG OF IRON — STATE & SUSPICION LEDGER
+----------------------------------------------------------------------------
+PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
+• Route Taken: {route_choice}
+• Railyard Action: {railyard_choice}
+• Boxcar Caretaker: {boxcar_caretaker}
+• October Case Files: {recovered_october_files:Recovered|- else:Lost}
+• Clara Ferry Clue: {clara_ferry_clue:Acquired at bus|- else:Pending}
+
+ROMANCE & BITE SUSPICION STATUS:
+• {ro1_name}: {ro1_knows_bite:Knows your bite immunity and protects you|- else:Bite kept secret}
+• {ro2_name}: {ro2_knows_bite:Discovered your silvered bite mark|- else:Bite kept secret}
+• {ro3_name}: {ro3_knows_bite:Shared the secret of Exam Room 4|- else:Bite kept secret}
+• {ro4_name}: {ro4_knows_bite:Holds the leverage of your immunity|- else:Bite kept secret}
+----------------------------------------------------------------------------
+
+* [Restart Story from Chapter 1] -> start
+
+== precinct_vault_hand_files ==
+"Here," you breathe, shoving the sealed Internal Affairs dossier into {ro4_name}'s hands. "The proof that the hospital board framed you—and the Hemovax-9 shipping manifests from October."
+
+{ro4_name} stares down at the box in stunned silence, then looks up at you with something raw and unguarded in {ro4_poss} dark eyes. "You really aren't hiding behind that lie anymore, are you, {mc_name}?"
+
+* [Climb the iron sally port stairs into the misty rain] -> check_ch3_mid_suspicion
+
+== precinct_vault_stash_files ==
+You palm the top folder—containing the board's secret Hemovax-9 human trial logs and your forged signature—into your medical bag before calling the others up the stairs.
+
+* [Climb the iron sally port stairs into the misty rain] -> check_ch3_mid_suspicion
