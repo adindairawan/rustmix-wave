@@ -12,7 +12,7 @@ use crate::buttons::ButtonEvent;
 pub const STORY_FILE: &str = "STORY.TXT";
 pub const STORY_SAVE_FILE: &str = "SAVE.TXT";
 pub const STORY_DIR: &str = "STORIES";
-pub const STORY_MAX_BYTES: u64 = 256 * 1024;
+pub const STORY_MAX_BYTES: u64 = 1024 * 1024;
 pub const STORY_CHARS_PER_LINE: usize = 42;
 pub const STORY_LINES_PER_PAGE: usize = 12;
 pub const STORY_MAX_UNDO: usize = 32;
@@ -235,20 +235,20 @@ impl StoryGame {
             }
 
             if trimmed.starts_with("==") && trimmed.ends_with("==") && trimmed.len() > 4 {
-                flush_node(
-                    &mut current_id,
-                    &mut current_lines,
-                    &mut current_flags,
-                    &mut current_vars,
-                    &mut current_choices,
-                    &mut nodes,
-                    &mut node_order,
-                );
                 let id = trimmed[2..trimmed.len() - 2].trim().to_string();
-                if !id.is_empty() {
+                if !id.is_empty() && !id.chars().all(|c| c == '=') {
+                    flush_node(
+                        &mut current_id,
+                        &mut current_lines,
+                        &mut current_flags,
+                        &mut current_vars,
+                        &mut current_choices,
+                        &mut nodes,
+                        &mut node_order,
+                    );
                     current_id = Some(id);
+                    continue;
                 }
-                continue;
             }
 
             if let Some(rest) = trimmed
@@ -390,7 +390,7 @@ impl StoryGame {
                 }
             }
             for (k, v) in node.set_vars {
-                self.vars.insert(k, v);
+                apply_var_assignment(&mut self.vars, &k, &v);
             }
         }
     }
@@ -486,7 +486,7 @@ impl StoryGame {
             }
         }
         for (k, v) in choice.set_vars {
-            self.vars.insert(k, v);
+            apply_var_assignment(&mut self.vars, &k, &v);
         }
         self.current_node = choice.target.clone();
         self.apply_node_flags(&choice.target);
@@ -984,6 +984,38 @@ impl StoryGame {
     }
 }
 
+fn apply_var_assignment(vars: &mut BTreeMap<String, String>, key: &str, expr: &str) {
+    let expr = expr.trim();
+    if let Some((left, right)) = expr.split_once('+') {
+        let left_val = vars
+            .get(left.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| left.trim().parse::<i64>().ok());
+        let right_val = vars
+            .get(right.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| right.trim().parse::<i64>().ok());
+        if let (Some(l), Some(r)) = (left_val, right_val) {
+            vars.insert(key.to_string(), (l + r).to_string());
+            return;
+        }
+    } else if let Some((left, right)) = expr.split_once('-') {
+        let left_val = vars
+            .get(left.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| left.trim().parse::<i64>().ok());
+        let right_val = vars
+            .get(right.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| right.trim().parse::<i64>().ok());
+        if let (Some(l), Some(r)) = (left_val, right_val) {
+            vars.insert(key.to_string(), (l - r).to_string());
+            return;
+        }
+    }
+    vars.insert(key.to_string(), expr.to_string());
+}
+
 pub fn eval_condition(
     cond: &str,
     flags: &BTreeSet<String>,
@@ -991,6 +1023,66 @@ pub fn eval_condition(
 ) -> bool {
     let cond = cond.trim();
     let cond = cond.strip_prefix('?').unwrap_or(cond).trim();
+
+    if let Some((left, right)) = cond.split_once("&&").or_else(|| cond.split_once(" and ")) {
+        return eval_condition(left, flags, vars) && eval_condition(right, flags, vars);
+    }
+    if let Some((left, right)) = cond.split_once("||").or_else(|| cond.split_once(" or ")) {
+        return eval_condition(left, flags, vars) || eval_condition(right, flags, vars);
+    }
+
+    if let Some((left, right)) = cond.split_once(">=") {
+        let l_num = vars
+            .get(left.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| left.trim().parse::<i64>().ok());
+        let r_num = vars
+            .get(right.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| right.trim().trim_matches('"').trim_matches('\'').parse::<i64>().ok());
+        if let (Some(l), Some(r)) = (l_num, r_num) {
+            return l >= r;
+        }
+    }
+    if let Some((left, right)) = cond.split_once("<=") {
+        let l_num = vars
+            .get(left.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| left.trim().parse::<i64>().ok());
+        let r_num = vars
+            .get(right.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| right.trim().trim_matches('"').trim_matches('\'').parse::<i64>().ok());
+        if let (Some(l), Some(r)) = (l_num, r_num) {
+            return l <= r;
+        }
+    }
+    if let Some((left, right)) = cond.split_once('>') {
+        let l_num = vars
+            .get(left.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| left.trim().parse::<i64>().ok());
+        let r_num = vars
+            .get(right.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| right.trim().trim_matches('"').trim_matches('\'').parse::<i64>().ok());
+        if let (Some(l), Some(r)) = (l_num, r_num) {
+            return l > r;
+        }
+    }
+    if let Some((left, right)) = cond.split_once('<') {
+        let l_num = vars
+            .get(left.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| left.trim().parse::<i64>().ok());
+        let r_num = vars
+            .get(right.trim())
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| right.trim().trim_matches('"').trim_matches('\'').parse::<i64>().ok());
+        if let (Some(l), Some(r)) = (l_num, r_num) {
+            return l < r;
+        }
+    }
 
     if let Some((left, right)) = cond.split_once("==") {
         let left = left.trim();
@@ -1865,6 +1957,13 @@ Up.
         assert_eq!(sim.current_node, "ch3_ending_summary");
         let ch3_summary = sim.current_body();
         assert!(ch3_summary.contains("END OF CHAPTER 3"));
+
+        // Advance into Chapter 4: The Anatomy of a Lie
+        sim.selected_choice = 0; // -> chapter_four_start
+        sim.choose_selected();
+        assert_eq!(sim.current_node, "chapter_four_start");
+        let ch4_body = sim.current_body();
+        assert!(ch4_body.contains("CHAPTER 4"));
     }
 
     #[test]
@@ -1890,7 +1989,10 @@ Up.
         let choices = game.visible_choices();
         assert_eq!(choices.len(), 2);
         assert_eq!(choices[0].label, "Play: The Saltmire Beacon");
-        assert_eq!(choices[1].label, "Play: Dead Weight: Ch 1 - 3");
+        assert_eq!(
+            choices[1].label,
+            "Play: Dead Weight: Book I & II (Chapters 1 - 9 Complete)"
+        );
 
         // Pick Dead Weight
         game.selected_choice = 1;
