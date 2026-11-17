@@ -908,18 +908,18 @@ impl StoryGame {
                 let end_idx = (start_idx + window_size).min(total_choices);
 
                 let has_above = start_idx > 0;
-                let has_below = end_idx < total_choices;
+                let mut has_below = end_idx < total_choices;
 
                 if has_above {
                     canvas.text(
                         20,
-                        508,
+                        506,
                         format!("▲ [{} option(s) above - UP to scroll]", start_idx),
                         CanvasTextStyle::Detail,
                     )?;
                 }
 
-                let mut cy = if has_above { 530 } else { 514 };
+                let mut cy = if has_above { 526 } else { 506 };
                 for idx in start_idx..end_idx {
                     let choice = &choices[idx];
                     let is_sel = idx == self.selected_choice;
@@ -931,16 +931,24 @@ impl StoryGame {
                     };
 
                     let full_label = format!("{prefix} {}. {}", idx + 1, choice.label);
-                    // Word-wrap long choice labels up to 2 lines so they don't bleed off screen
-                    let wrapped = wrap_passage(&full_label, 36);
-                    for (line_idx, line) in wrapped.iter().take(2).enumerate() {
+                    // Word-wrap long choice labels without line limits so full option text is readable
+                    let wrapped = wrap_passage(&full_label, 38);
+                    let choice_h = (wrapped.len() * 20 + 6) as i32;
+
+                    if idx > start_idx && cy + choice_h > 684 && idx > self.selected_choice {
+                        has_below = true;
+                        break;
+                    }
+
+                    let indent = if idx + 1 >= 10 { "      " } else { "     " };
+                    for (line_idx, line) in wrapped.iter().enumerate() {
                         let text = if line_idx == 0 {
                             line.clone()
                         } else {
-                            format!("     {line}")
+                            format!("{indent}{line}")
                         };
                         canvas.text(20, cy, text, style)?;
-                        cy += 22;
+                        cy += 20;
                     }
                     cy += 6;
                 }
@@ -954,7 +962,7 @@ impl StoryGame {
                             "▼ [Option {}/{} - {} more below - DOWN to scroll]",
                             self.selected_choice + 1,
                             total_choices,
-                            remaining
+                            remaining.max(1)
                         ),
                         CanvasTextStyle::Detail,
                     )?;
@@ -1781,6 +1789,29 @@ Up.
         assert_eq!(game.current_node, "south");
         assert_eq!(game.selected_choice, 0);
         assert_eq!(game.choice_scroll_offset, 0);
+    }
+
+    #[test]
+    fn choice_options_with_many_lines_do_not_truncate_at_two_lines() {
+        let story_text = r#"TITLE: Long Choice Test
+== start ==
+You are faced with a crucial decision.
+* [Turn directly to Kieran: "You were hunting the board, Mercer, but they were going to sacrifice Julian before your subpoena ever saw daylight."] -> kieran_choice
+== kieran_choice ==
+Kieran speaks.
+"#;
+        let game = StoryGame::from_story_text(story_text).unwrap();
+        let mut canvas = NativeGameCanvas::default();
+        game.render_initial(&mut canvas).unwrap();
+
+        let label = &game.visible_choices()[0].label;
+        let full_label = format!("> 1. {label}");
+        let wrapped = wrap_passage(&full_label, 38);
+        assert!(
+            wrapped.len() >= 3,
+            "Long option must wrap to 3 or more lines, got {}",
+            wrapped.len()
+        );
     }
 
     #[test]
