@@ -1989,10 +1989,7 @@ Up.
         let choices = game.visible_choices();
         assert_eq!(choices.len(), 2);
         assert_eq!(choices[0].label, "Play: The Saltmire Beacon");
-        assert_eq!(
-            choices[1].label,
-            "Play: Dead Weight: Book I & II (Chapters 1 - 9 Complete)"
-        );
+        assert_eq!(choices[1].label, "Play: Dead Weight: Book I & II");
 
         // Pick Dead Weight
         game.selected_choice = 1;

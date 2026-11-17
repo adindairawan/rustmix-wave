@@ -1,7 +1,6 @@
-TITLE: Dead Weight: Book I & II (Chapters 1 - 9 Complete)
+TITLE: Dead Weight: Book I & II
 AUTHOR: Inkle Interactive Novel
 START: start
-
 VAR mc_name = "Alex"
 VAR mc_surname = "Vance"
 VAR mc_gender = "nb"
@@ -11,7 +10,6 @@ VAR mc_poss = "their"
 VAR mc_poss_adj = "theirs"
 VAR mc_refl = "themselves"
 VAR mc_is_plural = true
-
 VAR empathy = 50
 VAR honesty = 50
 VAR composure = 50
@@ -21,7 +19,6 @@ VAR supplies = 3
 VAR ammo = 6
 VAR has_revolver = false
 VAR saved_chart = false
-
 VAR ro1_name = "Julian"
 VAR ro1_subj = "he"
 VAR ro1_obj = "him"
@@ -33,7 +30,6 @@ VAR ro1_romance = 25
 VAR ro1_tension = 65
 VAR ro1_suspicion = 15
 VAR ro1_knows_bite = false
-
 VAR ro2_name = "Sloane"
 VAR ro2_subj = "she"
 VAR ro2_obj = "her"
@@ -45,7 +41,6 @@ VAR ro2_romance = 0
 VAR ro2_tension = 50
 VAR ro2_suspicion = 10
 VAR ro2_knows_bite = false
-
 VAR ro3_name = "Harry"
 VAR ro3_subj = "he"
 VAR ro3_obj = "him"
@@ -57,7 +52,6 @@ VAR ro3_romance = 15
 VAR ro3_tension = 10
 VAR ro3_suspicion = 10
 VAR ro3_knows_bite = false
-
 VAR ro4_name = "Kieran"
 VAR ro4_subj = "he"
 VAR ro4_obj = "him"
@@ -69,7 +63,6 @@ VAR ro4_romance = 0
 VAR ro4_tension = 80
 VAR ro4_suspicion = 20
 VAR ro4_knows_bite = false
-
 VAR triage_choice = "none"
 VAR toby_status = "alive"
 VAR tunnel_catcher = "none"
@@ -128,7 +121,6 @@ VAR infection_stage = 1
 VAR dyke_defense_choice = "none"
 VAR book_two_completed = false
 VAR mc_sloane_stance = "none"
-
 == start ==
 DEAD WEIGHT: BOOK ONE - THE TRIAGE OF ASH
 Chapter 1: Code Black at St. Jude's
@@ -416,9 +408,9 @@ Seconds after {ro4_name}'s brass key unlocks the subterranean floodgate, {ro2_na
 A concussion wave of warm dust roars down the brick tunnel as St. Jude's Hospital collapses into its own foundation footprint, burying four thousand infected forever. Ankle-deep black rainwater swirls around your boots as your group pushes half a mile north through the dark storm drain toward the Mercer Street surface ladder.
 
 { toby_status == "alive":
-    Ahead of you, Toby limps between {ro3_name} and {ro1_name}, whispering quiet thank-yous in the dark.
+Ahead of you, Toby limps between {ro3_name} and {ro1_name}, whispering quiet thank-yous in the dark.
 - else:
-    Ahead of you, {ro3_name} walks ten paces in front in rigid, devastated silence, refusing to look back at you.
+Ahead of you, {ro3_name} walks ten paces in front in rigid, devastated silence, refusing to look back at you.
 }
 
 Halfway to the ladder shaft, your body finally cashes the check your adrenaline wrote.
@@ -522,13 +514,13 @@ St. Jude's Metro Hospital is gone. You survived the initial outbreak.
 You climb through the third-floor fire exit into Safehouse 3B—a vacant four-room dental office overlooking the smoldering skyline of St. Jude's.
 
 { wearing_kieran_jacket:
-    As you set your trauma bag on the kitchen table, {ro1_name} immediately notices the oversized dark wool detective's coat draped over your shoulders.
+As you set your trauma bag on the kitchen table, {ro1_name} immediately notices the oversized dark wool detective's coat draped over your shoulders.
 }
 
 { toby_status == "alive":
-    Young Toby is propped on the sofa with a severe compound ankle sprain, his face pale and clammy under the greasy emergency blanket.
+Young Toby is propped on the sofa with a severe compound ankle sprain, his face pale and clammy under the greasy emergency blanket.
 - else:
-    With Toby gone, the apartment feels suffocatingly quiet. His empty yellow EMT windbreaker sits on the armchair where {ro3_name} left it.
+With Toby gone, the apartment feels suffocatingly quiet. His empty yellow EMT windbreaker sits on the armchair where {ro3_name} left it.
 }
 
 Supplies are dangerously thin: exactly two rolls of sterile gauze, one suture kit, and half a bottle of lidocaine. Who receives your priority attention before dawn?
@@ -582,8 +574,8 @@ When you step inside and push the door nearly shut, {ro1_name} looks at your ref
 "When I walked out of our apartment in October, {mc_name}," {ro1_subj} whispers rawly, "you thought I left because I couldn't stand looking at you after you falsified that report. Didn't you? I didn't leave because I was disgusted with you. A child died on my table, and instead of letting me pay for it, you put your own neck in a noose for me. Every time I looked at you across our kitchen table, I was terrified that {ro4_name} Mercer was going to kick our door in and drag *you* away in handcuffs for my mistake."
 
 { saved_chart:
-    You pull Maya Lin's bloodstained chart from your bag and lay it on the porcelain sink beside {ro1_obj}, pointing to the batch stamp: *HEMOVAX-9*.
-    {ro1_name}'s breath catches. "That's... that's the exact same synthetic blood-expander lot they gave the councilman's nephew on my table in October," {ro1_subj} whispers, stunned. "It wasn't surgical error. The hospital board was running human bio-trials at our free clinic."
+You pull Maya Lin's bloodstained chart from your bag and lay it on the porcelain sink beside {ro1_obj}, pointing to the batch stamp: *HEMOVAX-9*.
+{ro1_name}'s breath catches. "That's... that's the exact same synthetic blood-expander lot they gave the councilman's nephew on my table in October," {ro1_subj} whispers, stunned. "It wasn't surgical error. The hospital board was running human bio-trials at our free clinic."
 }
 
 {ro1_name} turns to face you in the cramped candlelight, stepping close enough that you can feel the heat radiating off {ro1_poss} skin.
@@ -610,14 +602,14 @@ In the dim candlelight by the sink, {ro1_name}'s fingers catch the edge of your 
 For two full seconds, {ro1_name} stops breathing.
 
 { ro1_high_rel:
-    Instead of backing away or calling for {ro2_name}, {ro1_name} immediately pulls your arm flush against {ro1_poss} chest to shield it from the doorway, {ro1_poss} dark eyes wide with fierce, protective terror.
-    "Maya Lin. Four hours ago," {ro1_name} deduces in a trembling whisper, pressing two fingers to your steady carotid pulse. "The retro-antivirals you took after that needlestick in January—they arrested the pathogen. God Almighty, {mc_name}... you're immune."
-    {ro1_Subj} binds fresh sterile tape over your sleeve and presses a reverent kiss to your knuckles. "If {ro2_name} or anyone else tries to touch you over this, they shoot through me first."
+Instead of backing away or calling for {ro2_name}, {ro1_name} immediately pulls your arm flush against {ro1_poss} chest to shield it from the doorway, {ro1_poss} dark eyes wide with fierce, protective terror.
+"Maya Lin. Four hours ago," {ro1_name} deduces in a trembling whisper, pressing two fingers to your steady carotid pulse. "The retro-antivirals you took after that needlestick in January—they arrested the pathogen. God Almighty, {mc_name}... you're immune."
+{ro1_Subj} binds fresh sterile tape over your sleeve and presses a reverent kiss to your knuckles. "If {ro2_name} or anyone else tries to touch you over this, they shoot through me first."
 - else:
-    {ro1_name} recoils half a step against the sink, staring at the bite mark with pale, betrayed horror.
-    "You were bitten in Exam 4," {ro1_subj} whispers harshly. "You walked into that tunnel with us carrying a bite mark and didn't say a word?!"
-    "It's been six hours, {ro1_name}—I'm not turning!" you hiss back.
-    {ro1_name} stares at your clear pupils, jaw trembling, before looking away. "Keep your damn sleeve down. I won't tell {ro2_name} tonight—but if your fever spikes by one degree, I swear to God I won't let you take the rest of them down."
+{ro1_name} recoils half a step against the sink, staring at the bite mark with pale, betrayed horror.
+"You were bitten in Exam 4," {ro1_subj} whispers harshly. "You walked into that tunnel with us carrying a bite mark and didn't say a word?!"
+"It's been six hours, {ro1_name}—I'm not turning!" you hiss back.
+{ro1_name} stares at your clear pupils, jaw trembling, before looking away. "Keep your damn sleeve down. I won't tell {ro2_name} tonight—but if your fever spikes by one degree, I swear to God I won't let you take the rest of them down."
 }
 * [Return to the night watch hub] -> ch2_talk_hub
 
@@ -629,10 +621,10 @@ Commander {ro2_name} is standing by the front window, stripped of {ro2_poss} out
 "Give me the needle-driver, Commander," you say quietly, taking the forceps from {ro2_poss} hand and tying off the suture with practiced precision.
 
 { has_lemon_tin:
-    You also hold out the battered tin of sour lemon drops {ro2_subj} gave you in the storm drain, offering one back.
-    The corner of {ro2_name}'s austere mouth softens. "Those tags inside my shirt were Strike Team Seven," {ro2_name} confesses in a low murmur as you finish the stitch. "Two years ago in Kivu, my commanding officer hid a bite for six hours. He carried that lemon tin. When he turned inside our perimeter tent, we lost fourteen people before I had to put a round through his head myself. People think I'm made of concrete, {mc_name}—they don't realize that if I stop doing the cold math for five seconds, I'll never get back up."
+You also hold out the battered tin of sour lemon drops {ro2_subj} gave you in the storm drain, offering one back.
+The corner of {ro2_name}'s austere mouth softens. "Those tags inside my shirt were Strike Team Seven," {ro2_name} confesses in a low murmur as you finish the stitch. "Two years ago in Kivu, my commanding officer hid a bite for six hours. He carried that lemon tin. When he turned inside our perimeter tent, we lost fourteen people before I had to put a round through his head myself. People think I'm made of concrete, {mc_name}—they don't realize that if I stop doing the cold math for five seconds, I'll never get back up."
 - else:
-    "Cleanest field suture I've ever had, Doctor," {ro2_name} murmurs, watching your face in the orange glow of the burning skyline. "Thirty minutes before I wired the basement, District Command's radio went dead. There's no cavalry coming for us—just the people in this room."
+"Cleanest field suture I've ever had, Doctor," {ro2_name} murmurs, watching your face in the orange glow of the burning skyline. "Thirty minutes before I wired the basement, District Command's radio went dead. There's no cavalry coming for us—just the people in this room."
 }
 
 * [Leave your hand resting on {ro2_poss} warm shoulder: "You don't have to carry the whole city alone tonight."] +ro2_high_rel -> talk_ro2_bond
@@ -657,14 +649,14 @@ With blinding tactical speed, {ro2_name}'s hand locks around your left wrist, pe
 The click of {ro2_name}'s sidearm safety coming off sounds like a thunderclap in the quiet room.
 
 { ro2_high_rel:
-    {ro2_name}'s gun hand trembles—for the first time tonight.
-    {ro2_Subj} presses {ro2_poss} thumb into your steady radial pulse, watching your unclouded pupils in the dark.
-    "Four hours in that basement... and your vitals are completely normal," {ro2_name} whispers, lowering the barrel. "Kivu protocol says execute on sight. But I've watched you save three people tonight, Doctor. If this is immunity... you might be the only reason any of us get out of this state alive."
+{ro2_name}'s gun hand trembles—for the first time tonight.
+{ro2_Subj} presses {ro2_poss} thumb into your steady radial pulse, watching your unclouded pupils in the dark.
+"Four hours in that basement... and your vitals are completely normal," {ro2_name} whispers, lowering the barrel. "Kivu protocol says execute on sight. But I've watched you save three people tonight, Doctor. If this is immunity... you might be the only reason any of us get out of this state alive."
 - else:
-    {ro2_name} presses the cold muzzle of {ro2_poss} .38 directly against your forehead, {ro2_poss} eyes dead and empty.
-    "Give me one reason why I shouldn't blow your brains across this floor right now," {ro2_subj} snarls softly.
-    "I'm immune, Commander! It's been six hours since Exam 4—look at my pupils!"
-    {ro2_name} holds the gun steady for five agonizing seconds before slowly lowering it. "Keep your sleeve down. You walk in front of me tomorrow. One stumble, and you take a round."
+{ro2_name} presses the cold muzzle of {ro2_poss} .38 directly against your forehead, {ro2_poss} eyes dead and empty.
+"Give me one reason why I shouldn't blow your brains across this floor right now," {ro2_subj} snarls softly.
+"I'm immune, Commander! It's been six hours since Exam 4—look at my pupils!"
+{ro2_name} holds the gun steady for five agonizing seconds before slowly lowering it. "Keep your sleeve down. You walk in front of me tomorrow. One stumble, and you take a round."
 }
 * [Return to the night watch hub] -> ch2_talk_hub
 
@@ -674,11 +666,11 @@ The click of {ro2_name}'s sidearm safety coming off sounds like a thunderclap in
 You step onto the iron fire-escape landing where {ro3_name} is sitting on the top step in the drizzling rain, knees pulled to {ro3_poss} chest.
 
 { toby_status == "alive":
-    {ro3_name} looks up and pats the dry iron grate beside {ro3_obj}, offering you half of a protein bar from {ro3_poss} turnout coat.
-    "Toby's sleeping like a rock," {ro3_name} says softly, nudging your shoulder with {ro3_poss} own. "When that cabinet fell on him back there... if you hadn't charged in with me, {mc_name}, I think something inside my head would've broken for good. Two years on Rig 9, I've watched you save a hundred people. Tonight it's my turn to look after you."
+{ro3_name} looks up and pats the dry iron grate beside {ro3_obj}, offering you half of a protein bar from {ro3_poss} turnout coat.
+"Toby's sleeping like a rock," {ro3_name} says softly, nudging your shoulder with {ro3_poss} own. "When that cabinet fell on him back there... if you hadn't charged in with me, {mc_name}, I think something inside my head would've broken for good. Two years on Rig 9, I've watched you save a hundred people. Tonight it's my turn to look after you."
 - else:
-    {ro3_name} doesn't look up at first, picking at a dried flake of blood on {ro3_poss} yellow jacket.
-    "I keep hearing Toby calling for us behind that glass, {mc_name}," {ro3_name} whispers, {ro3_poss} voice cracking. "I know you had to make a brutal call so you wouldn't lose the rest of us. I was just so scared that the person I believed in was gone."
+{ro3_name} doesn't look up at first, picking at a dried flake of blood on {ro3_poss} yellow jacket.
+"I keep hearing Toby calling for us behind that glass, {mc_name}," {ro3_name} whispers, {ro3_poss} voice cracking. "I know you had to make a brutal call so you wouldn't lose the rest of us. I was just so scared that the person I believed in was gone."
 }
 
 * [Cup {ro3_name}'s cheek and lean in to kiss the corner of {ro3_poss} mouth in the quiet rain] +ro3_high_rel -> talk_ro3_kiss
@@ -704,13 +696,13 @@ Under the beam of {ro3_name}'s small medical penlight, the gauze parts over the 
 "Maya," {ro3_name} whispers, trembling violently. "She bit you in Exam 4."
 
 { ro3_high_rel:
-    {ro3_name} doesn't pull away. {ro3_Subj} drops to {ro3_poss} knees in the wet iron grating, burying {ro3_poss} face against your good arm, sobbing in choked relief.
-    "You're not burning. Your eyes are completely clear," {ro3_subj} whispers, kissing the fabric of your sleeve. "I won't let {ro2_name} see it. We're getting you to that quarantine research lab if I have to carry you on my back."
+{ro3_name} doesn't pull away. {ro3_Subj} drops to {ro3_poss} knees in the wet iron grating, burying {ro3_poss} face against your good arm, sobbing in choked relief.
+"You're not burning. Your eyes are completely clear," {ro3_subj} whispers, kissing the fabric of your sleeve. "I won't let {ro2_name} see it. We're getting you to that quarantine research lab if I have to carry you on my back."
 - else:
-    {ro3_name} drops the penlight, scrambling back against the iron railing.
-    "You lied to me," {ro3_subj} gasps, hurt cutting deeper than fear. "Two years on Rig 9, {mc_name}... and you hid an infection from me?!"
-    "I'm immune, {ro3_name}—it's been six hours!"
-    {ro3_name} wipes {ro3_poss} face, turning away in the rain. "I won't tell {ro2_name}. But don't ask me to look at you right now."
+{ro3_name} drops the penlight, scrambling back against the iron railing.
+"You lied to me," {ro3_subj} gasps, hurt cutting deeper than fear. "Two years on Rig 9, {mc_name}... and you hid an infection from me?!"
+"I'm immune, {ro3_name}—it's been six hours!"
+{ro3_name} wipes {ro3_poss} face, turning away in the rain. "I won't tell {ro2_name}. But don't ask me to look at you right now."
 }
 * [Return to the night watch hub] -> ch2_talk_hub
 
@@ -743,13 +735,13 @@ With the effortless sleight-of-hand of a veteran homicide detective, {ro4_name}'
 You stiffen, reaching for your pocket—but {ro4_name} merely catches your wrist, holding it up to {ro4_poss} eyes with cool, professional fascination.
 
 { ro4_high_rel:
-    {ro4_name} lets out a low, appreciative whistle, tracing the silver edge with {ro4_poss} thumb.
-    "Patient Zero's teeth," {ro4_name} murmurs, looking up into your eyes with fierce respect. "You're walking around with a million-dollar biological miracle in your veins, Vance. Keep your mouth shut and let me handle {ro2_name}. We get you across that river, and we write our own tickets."
+{ro4_name} lets out a low, appreciative whistle, tracing the silver edge with {ro4_poss} thumb.
+"Patient Zero's teeth," {ro4_name} murmurs, looking up into your eyes with fierce respect. "You're walking around with a million-dollar biological miracle in your veins, Vance. Keep your mouth shut and let me handle {ro2_name}. We get you across that river, and we write our own tickets."
 - else:
-    {ro4_name}'s grip turns to iron, pinning your wrist against the brick wall.
-    "Well, well, well," {ro4_subj} whispers coldly. "Looks like I finally caught you red-handed after all, Chief Resident. One word to {ro2_name}, and {ro2_subj} puts you down like a rabid dog."
-    "And who unlocks the 14th Precinct evidence safe for you tomorrow without my medical badge, Mercer?" you snap back.
-    {ro4_name} stares at you, a slow, grim smirk touching {ro4_poss} lips. "Touche, Doc. Keep your sleeve down."
+{ro4_name}'s grip turns to iron, pinning your wrist against the brick wall.
+"Well, well, well," {ro4_subj} whispers coldly. "Looks like I finally caught you red-handed after all, Chief Resident. One word to {ro2_name}, and {ro2_subj} puts you down like a rabid dog."
+"And who unlocks the 14th Precinct evidence safe for you tomorrow without my medical badge, Mercer?" you snap back.
+{ro4_name} stares at you, a slow, grim smirk touching {ro4_poss} lips. "Touche, Doc. Keep your sleeve down."
 }
 * [Return to the night watch hub] -> ch2_talk_hub
 
@@ -762,9 +754,9 @@ An infected St. Jude's bio-containment riot officer—clad in full composite tac
 "Out the fire escape!" {ro2_name} roars, leveling her shotgun and blowing the second infected backward down the stairs.
 
 { toby_status == "alive":
-    {ro3_name} and {ro1_name} haul Toby out onto the fire escape landing between them.
+{ro3_name} and {ro1_name} haul Toby out onto the fire escape landing between them.
 - else:
-    {ro3_name} and {ro1_name} scramble out onto the iron fire-escape landing.
+{ro3_name} and {ro1_name} scramble out onto the iron fire-escape landing.
 }
 
 The armored riot officer lunges straight at you across the kitchen island, his blackened combat knife slashing down toward your throat!
@@ -803,9 +795,9 @@ Everyone turns to look at you in the grey dawn rain. Beneath your sleeve, your s
 == ch2_ending_summary ==
 Together, your battered group moves into the ash-grey dawn along the {route_choice} route.
 
-----------------------------------------------------------------------------
+----------------
 END OF CHAPTER 2: STATE & SURVIVAL LEDGER
-----------------------------------------------------------------------------
+----------------
 PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
 • Route Chosen: {route_choice}
 • Intern Toby Status: {toby_status}
@@ -817,7 +809,7 @@ COMPANION BOND & TRUST STATUS:
 • Tactical Commander {ro2_name}: {ro2_knows_bite:Discovered your silvered bite mark|- else:Bite kept secret}
 • Paramedic Partner {ro3_name}: {ro3_knows_bite:Shared the secret of Exam Room 4|- else:Bite kept secret}
 • Detective {ro4_name}: {ro4_knows_bite:Holds the leverage of your immunity|- else:Bite kept secret}
-----------------------------------------------------------------------------
+----------------
 
 * [Descend from the roof into Chapter 3: The Fog of Iron] -> chapter_three_start
 
@@ -1172,9 +1164,9 @@ As {ro4_subj} pushes your wet sleeve up to check your pulse, {ro4_name} sees the
 * [Hold on through the darkness into the aftermath] -> ch3_ending_summary
 
 == ch3_ending_summary ==
-----------------------------------------------------------------------------
+----------------
 END OF CHAPTER 3: THE FOG OF IRON — STATE & SUSPICION LEDGER
-----------------------------------------------------------------------------
+----------------
 PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
 • Route Taken: {route_choice}
 • Railyard Action: {railyard_choice}
@@ -1187,7 +1179,7 @@ ROMANCE & BITE SUSPICION STATUS:
 • {ro2_name}: {ro2_knows_bite:Discovered your silvered bite mark|- else:Bite kept secret}
 • {ro3_name}: {ro3_knows_bite:Shared the secret of Exam Room 4|- else:Bite kept secret}
 • {ro4_name}: {ro4_knows_bite:Holds the leverage of your immunity|- else:Bite kept secret}
-----------------------------------------------------------------------------
+----------------
 
 * [Slide the boxcar door open into Chapter 4: The Anatomy of a Lie] -> chapter_four_start
 * [Restart Story from Chapter 1] -> start
@@ -1204,7 +1196,6 @@ You palm the top folder—containing the board's secret Hemovax-9 human trial lo
 
 * [Climb the iron sally port stairs into the misty rain] -> check_ch3_mid_suspicion
 
-
 == chapter_four_start ==
 CHAPTER 4: THE ANATOMY OF A LIE (08:00 AM)
 
@@ -1217,39 +1208,39 @@ The Cytokine Flare in your chest finally releases its grip.
 Your pulse—sluggish, freezing, dropping beneath forty beats a minute during the height of the seizure—rises in slow, agonizing increments back toward sixty. The silver veins that flared like liquid mercury beneath the skin of your left arm dim into quiet, raised scar tissue, leaving behind a cold, humming ache that settles deep in the marrow of your radius.
 
 { boxcar_caretaker == "Julian":
-    {ro1_name} is still on {ro1_poss} knees beside you, {ro1_poss} chest heaving in the darkness. {ro1_Poss} hand—calloused from thousand-hour residency rotations and delicate pediatric tendon repairs—remains pressed flat against your sternum, counting every beat.
-    
-    "{mc_name}?" {ro1_subj} breathes, {ro1_poss} smoke-roughened baritone trembling with an exhaustion so raw it sounds like a prayer. "Your color is coming back. Your pupils are reacting to the light through the door seam."
-    
-    {ro1_Subj} pulls {ro1_poss} woolen surgical scarf from {ro1_poss} neck and gently, almost reverently, dabs the silvered smear of blood from your upper lip. For a heartbeat, {ro1_poss} thumb lingers on the corner of your mouth.
-    
-    "Four hours ago, I thought I was going to watch you die on this concrete floor," {ro1_subj} murmurs, dark eyes glistening in the gloom. "Just like that boy in October. Don't... don't do that to me again."
+{ro1_name} is still on {ro1_poss} knees beside you, {ro1_poss} chest heaving in the darkness. {ro1_Poss} hand—calloused from thousand-hour residency rotations and delicate pediatric tendon repairs—remains pressed flat against your sternum, counting every beat.
+
+"{mc_name}?" {ro1_subj} breathes, {ro1_poss} smoke-roughened baritone trembling with an exhaustion so raw it sounds like a prayer. "Your color is coming back. Your pupils are reacting to the light through the door seam."
+
+{ro1_Subj} pulls {ro1_poss} woolen surgical scarf from {ro1_poss} neck and gently, almost reverently, dabs the silvered smear of blood from your upper lip. For a heartbeat, {ro1_poss} thumb lingers on the corner of your mouth.
+
+"Four hours ago, I thought I was going to watch you die on this concrete floor," {ro1_subj} murmurs, dark eyes glistening in the gloom. "Just like that boy in October. Don't... don't do that to me again."
 }
 
 { boxcar_caretaker == "Sloane":
-    Commander {ro2_name} doesn't move a muscle until your breathing steadies. {ro2_Subj} sits braced against the corrugated wall, {ro2_poss} heavy combat frame sheltering your shivering body from the draft.
-    
-    {ro2_Subj} reaches out with a bare, scarred thumb, wiping the drop of metallic silver blood from your jawline with military efficiency before inspecting it against the grey light of the door seam.
-    
-    "Hypothermia symptoms reversed without external heat source," {ro2_name} reports in a low, disciplined rasp, though the slight tremor in {ro2_poss} fingers betrays {ro2_obj}. "Sixty-two beats per minute. You're stable, Vance."
-    
-    {ro2_Subj} presses another sour lemon drop into your hand, closing your fingers over the tin. "Two years ago, when Captain Vance turned in Kivu, his temperature spiked to a hundred and six before his mind snapped. You're doing the opposite. You're freezing it out. Stand up when you're ready, Doctor. We don't leave assets behind."
+Commander {ro2_name} doesn't move a muscle until your breathing steadies. {ro2_Subj} sits braced against the corrugated wall, {ro2_poss} heavy combat frame sheltering your shivering body from the draft.
+
+{ro2_Subj} reaches out with a bare, scarred thumb, wiping the drop of metallic silver blood from your jawline with military efficiency before inspecting it against the grey light of the door seam.
+
+"Hypothermia symptoms reversed without external heat source," {ro2_name} reports in a low, disciplined rasp, though the slight tremor in {ro2_poss} fingers betrays {ro2_obj}. "Sixty-two beats per minute. You're stable, Vance."
+
+{ro2_Subj} presses another sour lemon drop into your hand, closing your fingers over the tin. "Two years ago, when Captain Vance turned in Kivu, his temperature spiked to a hundred and six before his mind snapped. You're doing the opposite. You're freezing it out. Stand up when you're ready, Doctor. We don't leave assets behind."
 }
 
 { boxcar_caretaker == "Harry":
-    {ro3_name} lets out a long, ragged sob against your shoulder, wrapping {ro3_poss} oversized yellow turnout coat even tighter around your frame.
-    
-    "You're warm again," {ro3_subj} gasps, {ro3_poss} voice thick with tears as {ro3_subj} rests {ro3_poss} forehead against your temple. "Your pulse was so slow, {mc_name}... I thought your heart was just going to stop. I had my hands on your ribs ready to start CPR."
-    
-    {ro3_Subj} pulls back, sniffing hard, a faint, lopsided smile breaking through the soot and dried rain on {ro3_poss} freckled cheeks. "Two years on Rig 9, and you never let me drive when things got hairy. Don't you dare die in a rusted freight car and leave me with Mercer and the Commander."
+{ro3_name} lets out a long, ragged sob against your shoulder, wrapping {ro3_poss} oversized yellow turnout coat even tighter around your frame.
+
+"You're warm again," {ro3_subj} gasps, {ro3_poss} voice thick with tears as {ro3_subj} rests {ro3_poss} forehead against your temple. "Your pulse was so slow, {mc_name}... I thought your heart was just going to stop. I had my hands on your ribs ready to start CPR."
+
+{ro3_Subj} pulls back, sniffing hard, a faint, lopsided smile breaking through the soot and dried rain on {ro3_poss} freckled cheeks. "Two years on Rig 9, and you never let me drive when things got hairy. Don't you dare die in a rusted freight car and leave me with Mercer and the Commander."
 }
 
 { boxcar_caretaker == "Kieran":
-    Detective {ro4_name} stays locked flush against your back, his chin hooked over your shoulder. Even in the pitch darkness, you can feel the rigid, wire-tight tension in his spine—every second trapped in this windowless iron box is clawing at his claustrophobia, but he hasn't let go of you once.
-    
-    "Pulse is back up, Vance," {ro4_name} rasps into your ear, his voice low, gravelly, and ragged around the edges. "Fifty-eight... sixty. Good. Because if you flatlined in this tin can, I was going to have to shoot my way out alone, and I hate working overtime."
-    
-    He shifts, his calloused hand sliding from your ribs to rest on the heavy iron door handle, deliberately not looking at the ceiling. "Horde's clear of the switch track. Let's get out of this coffin before I lose my damn mind."
+Detective {ro4_name} stays locked flush against your back, his chin hooked over your shoulder. Even in the pitch darkness, you can feel the rigid, wire-tight tension in his spine—every second trapped in this windowless iron box is clawing at his claustrophobia, but he hasn't let go of you once.
+
+"Pulse is back up, Vance," {ro4_name} rasps into your ear, his voice low, gravelly, and ragged around the edges. "Fifty-eight... sixty. Good. Because if you flatlined in this tin can, I was going to have to shoot my way out alone, and I hate working overtime."
+
+He shifts, his calloused hand sliding from your ribs to rest on the heavy iron door handle, deliberately not looking at the ceiling. "Horde's clear of the switch track. Let's get out of this coffin before I lose my damn mind."
 }
 
 * [Push to your feet and check the yard through the door gap] -> boxcar_exit_dash
@@ -1266,10 +1257,10 @@ Together, you sprint through the misty rain, boots crunching on the wet gravel. 
 Hands reach out to haul you inside into the amber glow of the cabin dome light.
 
 { toby_status == "alive":
-    Young Toby is huddled on the passenger bench beside a milk crate of scavenged saline bags, his splinted leg propped on an ammunition can. When he sees you stumble aboard, his pale face lights up with sheer, trembling relief.
-    "Dr. Vance!" Toby whispers, reaching out to steady your elbow. "We saw the flare from the tracks—we thought the swarm caught you on Track 4!"
+Young Toby is huddled on the passenger bench beside a milk crate of scavenged saline bags, his splinted leg propped on an ammunition can. When he sees you stumble aboard, his pale face lights up with sheer, trembling relief.
+"Dr. Vance!" Toby whispers, reaching out to steady your elbow. "We saw the flare from the tracks—we thought the swarm caught you on Track 4!"
 - else:
-    On the rear bench, an empty yellow turnout jacket sits draped across an ammunition crate where Toby would have sat. {ro3_name}'s eyes linger on the empty sleeve for a fraction of a second, {ro3_poss} jaw tightening with quiet, unresolved grief before looking away.
+On the rear bench, an empty yellow turnout jacket sits draped across an ammunition crate where Toby would have sat. {ro3_name}'s eyes linger on the empty sleeve for a fraction of a second, {ro3_poss} jaw tightening with quiet, unresolved grief before looking away.
 }
 
 The heavy steel door slams shut behind you, deadbolts sliding home with a solid, armored *thunk*.
@@ -1284,12 +1275,12 @@ Outside the reinforced windshield, the city is drowning in mist and smoke. Aband
 Inside the rear cabin, the yellow overhead dome light flickers with the engine's vibration.
 
 { recovered_october_files:
-    Resting on the diamond-plate steel floor between {ro4_name}'s combat boots is the red-tagged cardboard box salvaged from the 14th Precinct Armory:
-    *CASE #10-449: ST. JUDE'S FREE CLINIC / INTERNAL AFFAIRS (SEALED).*
+Resting on the diamond-plate steel floor between {ro4_name}'s combat boots is the red-tagged cardboard box salvaged from the 14th Precinct Armory:
+*CASE #10-449: ST. JUDE'S FREE CLINIC / INTERNAL AFFAIRS (SEALED).*
 - else:
-    On the metal floor beneath the passenger jump-seat sits a locked steel executive dispatch briefcase—salvaged from the glove rack of the SWAT transport, stamped with the embossed gold seal of the *Municipal Health Authority & St. Jude's Board of Directors*.
-    
-    With a dull crack, {ro4_name} wedges the tip of the Halligan pry-bar beneath the lock latch, snapping the brass pins.
+On the metal floor beneath the passenger jump-seat sits a locked steel executive dispatch briefcase—salvaged from the glove rack of the SWAT transport, stamped with the embossed gold seal of the *Municipal Health Authority & St. Jude's Board of Directors*.
+
+With a dull crack, {ro4_name} wedges the tip of the Halligan pry-bar beneath the lock latch, snapping the brass pins.
 }
 
 A sheaf of water-damaged manila folders spills across the floorboards.
@@ -1443,7 +1434,7 @@ From the driver's seat, Commander {ro2_name} glances back in the mirror with fie
 
 The transport van clears the industrial railway underpass and climbs the steep, tree-lined bluffs overlooking the Eastside Harbor.
 
-Through the rain-streaked windshield, the imposing Gothic red-brick architecture of **St. Catherine's Preparatory Academy** looms through the mist. Wrought-iron security gates, smashed off their stone hinges, lie tangled in the wet hedges. Across the manicured courtyard, hundreds of dropped textbooks, torn raincoats, and abandoned luggage bags are trampled into the red mud.
+Through the rain-streaked windshield, the imposing Gothic red-brick architecture of St. Catherine's Preparatory Academy looms through the mist. Wrought-iron security gates, smashed off their stone hinges, lie tangled in the wet hedges. Across the manicured courtyard, hundreds of dropped textbooks, torn raincoats, and abandoned luggage bags are trampled into the red mud.
 
 At the center of the campus stands the massive brick structure of the Saint Catherine's Gymnasium.
 
@@ -1458,19 +1449,19 @@ Commander {ro2_name} brings the armored transport to a halt behind the row of st
 "Tactical assessment," {ro2_name} whispers, surveying the plaza through her rifle optics. "Fifty hostiles at the front doors. If we fire into that pack, every stray in the surrounding five blocks converges on the steps before we can cut those entrance chains."
 
 { toby_status == "alive":
-    Suddenly, Toby leans forward between the front bucket seats, his face flushed with sudden recognition.
-    
-    "Commander! Dr. Vance!" Toby whispers urgently. "I know this school! My mom taught sophomore English here for ten years before she passed. The athletic field behind the gym has an auxiliary diesel generator in the south equipment shed!"
-    
-    Toby points a trembling finger through the mesh toward a low brick outbuilding seventy yards across the wet lawn.
-    
-    "If we can get into that shed and throw the main breaker, the school's emergency stadium floodlights are wired straight to the roof cornice! Six thousand watts of high-intensity halogen will illuminate the entire northern sports field. These things follow light and sound—it'll pull ninety percent of the pack away from the gym doors and trap them against the chain-link tennis courts!"
-    
-    {ro2_name} glances back at you, eyebrows raised. "High-risk sprint through open grass. But it clears the bottleneck without expending a single rifle round."
+Suddenly, Toby leans forward between the front bucket seats, his face flushed with sudden recognition.
+
+"Commander! Dr. Vance!" Toby whispers urgently. "I know this school! My mom taught sophomore English here for ten years before she passed. The athletic field behind the gym has an auxiliary diesel generator in the south equipment shed!"
+
+Toby points a trembling finger through the mesh toward a low brick outbuilding seventy yards across the wet lawn.
+
+"If we can get into that shed and throw the main breaker, the school's emergency stadium floodlights are wired straight to the roof cornice! Six thousand watts of high-intensity halogen will illuminate the entire northern sports field. These things follow light and sound—it'll pull ninety percent of the pack away from the gym doors and trap them against the chain-link tennis courts!"
+
+{ro2_name} glances back at you, eyebrows raised. "High-risk sprint through open grass. But it clears the bottleneck without expending a single rifle round."
 - else:
-    "We don't have a distraction," {ro4_name} growls, chambering a round in his shotgun. "Frontal assault. We punch through the center with the van, ram the steps, and hold the perimeter while {ro1_name} cuts the door chains."
-    
-    "And risk getting the van pinned against the masonry if the axle breaks on the curb?" {ro3_name} counters, tapping the Halligan bar nervously against his boots. "Let me take the pry-bar and flank through the west faculty breezeway. I can draw thirty of them off with an emergency road flare while you clear the front."
+"We don't have a distraction," {ro4_name} growls, chambering a round in his shotgun. "Frontal assault. We punch through the center with the van, ram the steps, and hold the perimeter while {ro1_name} cuts the door chains."
+
+"And risk getting the van pinned against the masonry if the axle breaks on the curb?" {ro3_name} counters, tapping the Halligan bar nervously against his boots. "Let me take the pry-bar and flank through the west faculty breezeway. I can draw thirty of them off with an emergency road flare while you clear the front."
 }
 
 The lives of everyone inside that gymnasium depend on how you breach the perimeter.
@@ -1576,13 +1567,13 @@ The gym teacher, a woman in her late forties with bandage-wrapped knuckles, lowe
 
 Your breath catches in your throat. *Mara Lin. Patient Zero's older sister.*
 
-"Mara had an emergency military manifest," the teacher continues. "She took nineteen of the older students—including Clara—straight down the waterfront boulevard to **Pier 9**. They were being loaded onto the **Fort Marrow Quarantine Ferry** across the bay!"
+"Mara had an emergency military manifest," the teacher continues. "She took nineteen of the older students—including Clara—straight down the waterfront boulevard to Pier 9. They were being loaded onto the Fort Marrow Quarantine Ferry across the bay!"
 
 "Pier 9," Commander {ro2_name} repeats, checking her tactical wristwatch with grim, sudden urgency. "The radio broadcast in the van said the harbor command is initiating Operation Clean Sweep at noon. They're cutting the mooring lines and shelling the docks with white phosphorus to prevent a bay crossing."
 
 {ro1_name} looks at the gymnasium clock mounted above the basketball hoop.
 
-The hands read **09:30 AM**.
+The hands read 09:30 AM.
 
 "Two and a half hours," {ro1_name} breathes, turning to look at you with eyes full of fierce, burning resolve. "Clara is alive. She's at the pier with Maya's sister. We have two and a half hours to cross the waterfront and get onto that boat."
 
@@ -1628,11 +1619,11 @@ She pauses, looking up at you with eyes like flint.
 {ro3_name} is sitting on the trainer's table, swinging his legs.
 
 { harry_shoulder_wounded:
-    His shoulder is freshly wrapped in clean white bandages, his arm immobilized in an improvised triangular sling. Despite the pain, he manages a bright, crooked grin as you approach.
-    "Looks like you're carrying the heavy bags down at the dock, partner," {ro3_name} jokes weakly, though his eyes are soft with deep, unshakeable devotion. "I'm still good to shoot with my left. Rig 9 doesn't go out of service."
+His shoulder is freshly wrapped in clean white bandages, his arm immobilized in an improvised triangular sling. Despite the pain, he manages a bright, crooked grin as you approach.
+"Looks like you're carrying the heavy bags down at the dock, partner," {ro3_name} jokes weakly, though his eyes are soft with deep, unshakeable devotion. "I'm still good to shoot with my left. Rig 9 doesn't go out of service."
 - else:
-    He's sipping water from a paper cup, watching the boarding students with quiet, protective warmth.
-    "We saved them, {mc_name}," {ro3_name} whispers as you sit beside him. "Toby, these kids... we didn't just survive tonight. We saved people. Don't let this world make you forget that."
+He's sipping water from a paper cup, watching the boarding students with quiet, protective warmth.
+"We saved them, {mc_name}," {ro3_name} whispers as you sit beside him. "Toby, these kids... we didn't just survive tonight. We saved people. Don't let this world make you forget that."
 }
 
 * [Squeeze his good shoulder affectionately: "You're the heart of this team, {ro3_name}."] -> st_catherines_finale
@@ -1665,9 +1656,9 @@ And the final run for the sea begins.
 * [Advance into Chapter 5: The Pier 9 Bottleneck] -> chapter_four_ending_summary
 
 == chapter_four_ending_summary ==
-----------------------------------------------------------------------------
+----------------
 END OF CHAPTER 4: THE ANATOMY OF A LIE — STATE & SURVIVAL LEDGER
-----------------------------------------------------------------------------
+----------------
 PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
 • October Truth Revealed: Confessed ({mc_october_stance})
 • St. Catherine's Breach Method: {toby_repaired_generator:Toby's Generator Floodlights|- else:{harry_shoulder_wounded:Harry's Flank (Wounded)|Van Direct Ram}
@@ -1680,11 +1671,10 @@ COMPANION BOND & TRUST STATUS:
 • {ro2_name}: Cinderblock Conspiracy Exposed / Allied
 • {ro3_name}: {harry_shoulder_wounded:Wounded Devotion|- else:Steadfast Moral Anchor}
 • {ro4_name}: Truth Acknowledged / Life Debt Bound
-----------------------------------------------------------------------------
+----------------
 
 * [Advance onto the harbor waterfront into Chapter 5: The Pier 9 Bottleneck] -> chapter_five_start
 * [Restart Story from Chapter 1] -> start
-
 
 == chapter_five_start ==
 CHAPTER 5: THE PIER 9 BOTTLENECK (10:15 AM)
@@ -1696,7 +1686,7 @@ Through the heavy steel mesh, the waterfront of the Eastside Industrial District
 
 *The two-hour warning from Pier 9.*
 
-The hands on your chief resident watch read **10:20 AM**. You have one hour and forty minutes before the military initiates Operation Clean Sweep—the scheduled white-phosphorus bombardment designed to incinerate every dock, warehouse, and living soul left on the Eastside shoreline.
+The hands on your chief resident watch read 10:20 AM. You have one hour and forty minutes before the military initiates Operation Clean Sweep—the scheduled white-phosphorus bombardment designed to incinerate every dock, warehouse, and living soul left on the Eastside shoreline.
 
 Commander {ro2_name} grips the steering wheel, her tactical radio headset crackling with static on the PRC-117 tactical band. Beside her, Detective {ro4_name} sits forward, tracking the dark avenues through the sights of his scavenged shotgun.
 
@@ -1812,17 +1802,17 @@ From the front seat, Commander {ro2_name} reaches up and rips the tactical radio
 == pier_perimeter_arrival ==
 10:55 AM.
 
-The armored transport clears the seawall embankment and enters the vast, concrete staging yard of **Pier 9**.
+The armored transport clears the seawall embankment and enters the vast, concrete staging yard of Pier 9.
 
 The scene before you is an industrial nightmare.
 
-Surrounding the pier terminal is a twelve-foot perimeter of reinforced chain-link fencing topped with triple-coiled concertina razor wire. Outside the fence, pressed shoulder-to-shoulder in the pouring rain, is a staggering horde of nearly **eight thousand infected**. Drawn by the diesel hum of maritime generators and the blaring foghorns, the swarm forms a shifting, rotting sea of bodies, clawing at the wire mesh until the steel posts groan and lean under the weight.
+Surrounding the pier terminal is a twelve-foot perimeter of reinforced chain-link fencing topped with triple-coiled concertina razor wire. Outside the fence, pressed shoulder-to-shoulder in the pouring rain, is a staggering horde of nearly eight thousand infected. Drawn by the diesel hum of maritime generators and the blaring foghorns, the swarm forms a shifting, rotting sea of bodies, clawing at the wire mesh until the steel posts groan and lean under the weight.
 
 Inside the perimeter fence sits the pier proper—a five-hundred-foot timber-and-concrete jetty extending into the deep channel of the bay.
 
 Moored at the far end of the pier are two vessels:
-1. **The Fort Marrow Quarantine Ferry (*The Commonwealth*):** A massive, three-deck municipal passenger ferry, already loaded to capacity with over four hundred evacuees. Its lower vehicle ramps are chained shut, and its massive twin diesel engines are idling with a deep, water-churning rumble.
-2. **Harbor Patrol Cutter 44:** Tied off at the mid-pier hydraulic fueling dock. A twin-engine, heavily armored coastal interdiction patrol boat, its heavy twin .50-caliber mount hooded in canvas on the bow.
+1. The Fort Marrow Quarantine Ferry (*The Commonwealth*): A massive, three-deck municipal passenger ferry, already loaded to capacity with over four hundred evacuees. Its lower vehicle ramps are chained shut, and its massive twin diesel engines are idling with a deep, water-churning rumble.
+2. Harbor Patrol Cutter 44: Tied off at the mid-pier hydraulic fueling dock. A twin-engine, heavily armored coastal interdiction patrol boat, its heavy twin .50-caliber mount hooded in canvas on the bow.
 
 Above the main security checkpoint at the inner gate stands an elevated sandbag catwalk manned by twelve Directorate Black-Ops soldiers in full MOPP-4 composite tactical armor, armed with suppressed M4 rifles and high-powered searchlights.
 
@@ -1833,7 +1823,7 @@ A fourteen-year-old girl in a soaked St. Catherine's navy blazer, her dark hair 
 
 "Clara!" {ro1_name} gasps, his breath fogging the reinforced glass. "She's on the upper deck! She's alive!"
 
-Standing beside Clara is a young woman in her early twenties wearing an oil-stained canvas work jacket, holding Clara's hand with fierce, protective vigilance. Across the back of her jacket, painted in white stencil, is the name: **M. LIN**.
+Standing beside Clara is a young woman in her early twenties wearing an oil-stained canvas work jacket, holding Clara's hand with fierce, protective vigilance. Across the back of her jacket, painted in white stencil, is the name: M. LIN.
 
 *Mara Lin. Patient Zero's older sister.*
 
@@ -1871,7 +1861,7 @@ Fifty yards east, the perimeter chain-link fence—unable to withstand the immen
 
 Like black water bursting through a ruptured dam, the massive horde of infected surges onto the concrete pier apron, flooding the space between your transport van, the guard catwalk, and the ferry gangway!
 
-The hands on your watch read **11:20 AM**. Forty minutes until the white phosphorus airstrike.
+The hands on your watch read 11:20 AM. Forty minutes until the white phosphorus airstrike.
 
 * [Kick the rear doors open into the chaos of the pier] -> pier_three_way_siege
 
@@ -1967,7 +1957,7 @@ Behind you, your entire group stares at you in frozen, horrified disbelief.
 == crane_hydraulic_climax ==
 You reach the mid-pier fueling dock.
 
-Below in the slip, **Harbor Patrol Cutter 44** is rocking violently against the pylons. Its diesel engines are coughing to life—started by young Toby and {ro3_name}, who have already dropped onto the aft deck with the medical bags.
+Below in the slip, Harbor Patrol Cutter 44 is rocking violently against the pylons. Its diesel engines are coughing to life—started by young Toby and {ro3_name}, who have already dropped onto the aft deck with the medical bags.
 
 "Engines are running!" {ro3_name} shouts from the deck, his face drenched in rain. "But the hydraulic gangway bridge is locked upright! The cutter can't clear the fueling arms!"
 
@@ -2112,7 +2102,7 @@ The twin Caterpillar marine diesels roar to life with a deafening surge of mecha
 
 Behind you on the docks, the pier falls into distance.
 
-The hands on your watch hit **12:00 PM Sharp**.
+The hands on your watch hit 12:00 PM Sharp.
 
 A low, atmospheric shriek tears through the storm clouds high above the city skyline.
 
@@ -2136,24 +2126,24 @@ On the cutter's forward deck, fourteen-year-old Clara Vance-Rowe leans over the 
 
 {ro1_name} stands on the bow of your cutter, tears cutting clean paths through the soot on his cheeks, waving with both arms. "Clara! I'm here! I'm here!"
 
-Beside Clara on the ferry, twenty-four-year-old **Mara Lin** watches your cutter approach. Her eyes, filled with months of grief and suspicion, lock onto you.
+Beside Clara on the ferry, twenty-four-year-old Mara Lin watches your cutter approach. Her eyes, filled with months of grief and suspicion, lock onto you.
 
 { saved_chart:
-    ~ saved_mara_lin = true
-    You reach into your waterproof trauma bag and pull out the bloodstained, folded admission chart from Exam Room 4:
-    *PATIENT ZERO: MAYA LIN, AGE 7.*
-    
-    As the cutter pulls alongside the ferry's steel fender, you step across the gangway and press the paper gently into Mara's trembling hands.
-    
-    "She didn't die alone, Mara," you say quietly, your voice thick with emotion. "I was with her until the end. She told me to find you by the ferry. She wanted you to know she loved you."
-    
-    Mara stares at her little sister's handwriting on the intake sheet. A dry, choking sob tears from her throat; she collapses forward, throwing her arms around your neck, weeping against your scrubs in profound, overwhelming gratitude.
-    
-    "Thank you," Mara whispers, her fingers gripping your back. "Thank you for bringing her back to me."
-    
-    Beside you, Kieran and Julian watch with quiet reverence. In that single moment, you have secured the fiercest, most loyal ally the harbor resistance will ever know.
+~ saved_mara_lin = true
+You reach into your waterproof trauma bag and pull out the bloodstained, folded admission chart from Exam Room 4:
+*PATIENT ZERO: MAYA LIN, AGE 7.*
+
+As the cutter pulls alongside the ferry's steel fender, you step across the gangway and press the paper gently into Mara's trembling hands.
+
+"She didn't die alone, Mara," you say quietly, your voice thick with emotion. "I was with her until the end. She told me to find you by the ferry. She wanted you to know she loved you."
+
+Mara stares at her little sister's handwriting on the intake sheet. A dry, choking sob tears from her throat; she collapses forward, throwing her arms around your neck, weeping against your scrubs in profound, overwhelming gratitude.
+
+"Thank you," Mara whispers, her fingers gripping your back. "Thank you for bringing her back to me."
+
+Beside you, Kieran and Julian watch with quiet reverence. In that single moment, you have secured the fiercest, most loyal ally the harbor resistance will ever know.
 - else:
-    As the cutter pulls alongside the ferry's fender, Mara watches you with cold, guarded eyes, pulling Clara behind her. You have no proof of what happened in Exam Room 4—only the knowledge that your secrets will have to be earned across the bay.
+As the cutter pulls alongside the ferry's fender, Mara watches you with cold, guarded eyes, pulling Clara behind her. You have no proof of what happened in Exam Room 4—only the knowledge that your secrets will have to be earned across the bay.
 }
 
 You walk to the stern of Patrol Cutter 44 alone.
@@ -2180,10 +2170,10 @@ And in your veins lies the secret of the new world.
 * [Conclude Book I: The Triage of Ash] -> book_one_final_summary
 
 == book_one_final_summary ==
-----------------------------------------------------------------------------
+----------------
 BOOK ONE: THE TRIAGE OF ASH — COMPLETE
 MASTER SURVIVAL & RELATIONSHIP LEDGER
-----------------------------------------------------------------------------
+----------------
 PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
 • Book One Status: COMPLETED
 • Toby Status: {toby_status}
@@ -2199,11 +2189,10 @@ PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
 DESTINATION:
 The Peninsula Safe Zone & Fort Marrow Quarantine Island.
 Ahead lies BOOK TWO: THE QUARANTINE OF GLASS.
-----------------------------------------------------------------------------
+----------------
 
 * [Disembark onto the concrete docks into Chapter 6: The Quarantine of Glass] -> chapter_six_start
 * [Return to Main Menu (Start New Run)] -> start
-
 
 == chapter_six_start ==
 BOOK TWO: THE QUARANTINE OF GLASS
@@ -2211,9 +2200,9 @@ CHAPTER 6: THE GLASS HARBOR (DAY 3 — 07:00 AM)
 
 Forty-eight hours on the open waters of the North Atlantic will strip the illusions from any soul.
 
-The rain has turned to a freezing coastal drizzle, coating the grey fiberglass deck of Harbor Patrol Cutter 44 in a slick sheen of salt spray and diesel soot. Two miles to the west, rising like a jagged black tooth out of the sea fog, stands the **Peninsula Safe Zone**—a four-square-mile industrial harbor fortress walled off from the infected mainland by forty-foot reinforced concrete sea dykes, razor-wire entanglements, and towering steel gantry cranes.
+The rain has turned to a freezing coastal drizzle, coating the grey fiberglass deck of Harbor Patrol Cutter 44 in a slick sheen of salt spray and diesel soot. Two miles to the west, rising like a jagged black tooth out of the sea fog, stands the Peninsula Safe Zone—a four-square-mile industrial harbor fortress walled off from the infected mainland by forty-foot reinforced concrete sea dykes, razor-wire entanglements, and towering steel gantry cranes.
 
-Above the central breakwater, heavy automated searchlights sweep across the grey swells. Black flags bearing the golden caduceus of the **Municipal Health Directorate** snap violently in the sea wind.
+Above the central breakwater, heavy automated searchlights sweep across the grey swells. Black flags bearing the golden caduceus of the Municipal Health Directorate snap violently in the sea wind.
 
 On the stern deck, {ro1_name} stands with both hands gripping the iron railing, his dark eyes never leaving the stern ramp of *The Commonwealth* ferry cruising two hundred yards off your port bow.
 
@@ -2236,14 +2225,14 @@ Patrol Cutter 44 guides *The Commonwealth* into the shadow of the massive concre
 
 The air inside the basin hits your throat with the sting of carbolic acid, ozone, and industrial bleach.
 
-The intake terminal—known to the evacuees as **The Glasshouse**—is a vast, three-acre former container warehouse retrofitted with reinforced plexiglass isolation corridors, chain-link cattle-chutes, and overhead catwalks manned by Directorate MPs wearing grey bio-hazard slickers and composite helmets.
+The intake terminal—known to the evacuees as The Glasshouse—is a vast, three-acre former container warehouse retrofitted with reinforced plexiglass isolation corridors, chain-link cattle-chutes, and overhead catwalks manned by Directorate MPs wearing grey bio-hazard slickers and composite helmets.
 
 As the gangplank slams down onto the slick concrete wharf, four hundred exhausted, shivering refugees are herded down the ramps by armed guards with electric cattle prods.
 
 "Dismount and form up!" {ro2_name} orders in a tight whisper. "Kieran, keep your knife out of sight. Harry, keep your eyes on the deck. If Thorne's intake officers see my Taskforce patch, they'll lock this entire dock down."
 
 { toby_status == "alive":
-    Young Toby limps between you and {ro3_name}, his aluminum crutch clicking rhythmically on the wet concrete. His knuckles are white with tension as he watches the MPs roughly shoving elderly passengers into line.
+Young Toby limps between you and {ro3_name}, his aluminum crutch clicking rhythmically on the wet concrete. His knuckles are white with tension as he watches the MPs roughly shoving elderly passengers into line.
 }
 
 {ro1_name} pushes through the crowd toward the ferry gangway, his eyes locked on Clara as she is escorted down the metal steps by a burly Directorate intake officer with a clipboard.
@@ -2254,7 +2243,7 @@ The girl turns, her face lighting up with tearful relief: "{ro1_name}!"
 
 Before {ro1_name} can take two steps, three Directorate MPs step between them, leveling heavy polycarbonate riot shields and raising shock batons.
 
-"Stand back, civilian!" an intake sergeant barks through a black respirator mask. "All unaccompanied minors from the maritime transports are remanded directly to the **Sector 4 Youth Ward** for medical assessment and labor reassignment! No contact permitted!"
+"Stand back, civilian!" an intake sergeant barks through a black respirator mask. "All unaccompanied minors from the maritime transports are remanded directly to the Sector 4 Youth Ward for medical assessment and labor reassignment! No contact permitted!"
 
 "She's my sister!" {ro1_name} roars, his hands clenching into fists, taking an aggressive step forward. "I am Dr. {ro1_name} Vance-Rowe, Attending Pediatric Surgeon from St. Jude's! She stays with me!"
 
@@ -2341,26 +2330,26 @@ The intake sorting is swift, impersonal, and brutal.
 
 Because your group arrives without official Directorate travel requisitions, you are stamped with grey transit wristbands and funneled out of the clean, heated upper sectors into the lower underbelly of the fortress:
 
-**Sector 9 — The Bilges.**
+Sector 9 — The Bilges.
 
 Sector 9 is a labyrinth of waterlogged wooden docks, half-sunken cargo barges, and rusted sheet-metal warehouses built beneath the concrete shadow of the forty-foot sea dykes. Salt mist hangs perpetually in the damp air. Thousands of dispossessed refugees huddle around burning fifty-gallon oil drums, trading scavenged cans of beans for dry socks under the watchful gaze of Directorate sniper towers high above.
 
 "Over here," a low, familiar voice calls from the shadow of a dry-docked fishing trawler.
 
-Stepping out from beneath a dripping oilcloth awning is twenty-four-year-old **Mara Lin**.
+Stepping out from beneath a dripping oilcloth awning is twenty-four-year-old Mara Lin.
 
-Her dark hair is pulled back in a practical bandana, a stained mechanic's jumpsuit zipped to her collar, a heavy wrench tucked into her utility belt. Behind her stand four armed dockworkers wearing blue armbands—the symbol of the **Harbor Union**.
+Her dark hair is pulled back in a practical bandana, a stained mechanic's jumpsuit zipped to her collar, a heavy wrench tucked into her utility belt. Behind her stand four armed dockworkers wearing blue armbands—the symbol of the Harbor Union.
 
 { saved_mara_lin:
-    Mara's tough exterior softens completely the instant she spots you. She steps forward, taking both of your hands in hers with fierce, unshakeable loyalty.
-    
-    "Dr. Vance," Mara whispers, her voice thick with emotion. "I saw what happened at the intake gate. My people have eyes on the Youth Ward. We're going to help you get Clara back. I swear it on Maya's soul."
-    
-    ~ union_rep = union_rep + 30
+Mara's tough exterior softens completely the instant she spots you. She steps forward, taking both of your hands in hers with fierce, unshakeable loyalty.
+
+"Dr. Vance," Mara whispers, her voice thick with emotion. "I saw what happened at the intake gate. My people have eyes on the Youth Ward. We're going to help you get Clara back. I swear it on Maya's soul."
+
+~ union_rep = union_rep + 30
 - else:
-    Mara watches your group with sharp, guarded eyes, her hand resting near the butt of a concealed revolver.
-    
-    "St. Jude's survivors," Mara says coldly. "Word travels fast down here. You want safe harbor in Sector 9, you pay your way. The Union doesn't carry dead weight."
+Mara watches your group with sharp, guarded eyes, her hand resting near the butt of a concealed revolver.
+
+"St. Jude's survivors," Mara says coldly. "Word travels fast down here. You want safe harbor in Sector 9, you pay your way. The Union doesn't carry dead weight."
 }
 
 * [Follow Mara Lin into the Union's underground sanctuary] -> union_safehouse_hub
@@ -2368,7 +2357,7 @@ Her dark hair is pulled back in a practical bandana, a stained mechanic's jumpsu
 == union_safehouse_hub ==
 Mara leads your group through the rusted hull of a dry-docked refrigeration ship into a hidden subterranean loft beneath Slip 7.
 
-The hideout—known as **The Rusty Needle**—serves as the Union's underground emergency clinic and black-market repair workshop. The air is dry and warm, smelling of ozone, solder, and rubbing alcohol. Two cast-iron wood stoves crackle against the draft; kerosene lanterns cast a warm amber glow across rows of salvaged medical supplies, surgical instruments, and an industrial BSL-3 laboratory centrifuge bolted to a heavy steel workbench.
+The hideout—known as The Rusty Needle—serves as the Union's underground emergency clinic and black-market repair workshop. The air is dry and warm, smelling of ozone, solder, and rubbing alcohol. Two cast-iron wood stoves crackle against the draft; kerosene lanterns cast a warm amber glow across rows of salvaged medical supplies, surgical instruments, and an industrial BSL-3 laboratory centrifuge bolted to a heavy steel workbench.
 
 "This is as safe as it gets on the Peninsula," Mara says, pulling heavy canvas curtains across the high windows. "Director Thorne's MPs don't raid Sector 9 during daylight. You have until dusk to rest, rearm, and plan your move on the Youth Ward."
 
@@ -2479,21 +2468,21 @@ She pops a sour drop onto her tongue, then catches your hand before you can pull
 {ro3_name} is sitting on an upturned milk crate in the dark corner behind the suture trays, staring down at his open palms.
 
 { harry_shoulder_wounded:
-    His right arm is immobilized in a clean sling; fresh white bandages show beneath his ripped yellow turnout jacket.
+His right arm is immobilized in a clean sling; fresh white bandages show beneath his ripped yellow turnout jacket.
 }
 
 { harry_first_kill:
-    His freckled face is pale and hollowed out. On the wooden bench beside him sits your .38 revolver—the weapon he fired at Pier 9 to save your life.
-    
-    "{mc_name}," {ro3_name} whispers as you approach, his voice trembling so slightly it aches. "Two years on Rig 9... every time someone called 911, my job was to stop the bleeding. To hold someone's hand while the sirens screamed and tell them they were going to see their families again."
-    
-    He looks up, his bright hazel eyes swimming with unshed tears.
-    
-    "When I pulled that trigger on the dock... when that soldier fell into the water... I felt his life snap like dry kindling. I know he was going to kill you. I know I had to do it. But... what if I'm not a healer anymore, {mc_name}? What if this world turns me into a killer?"
+His freckled face is pale and hollowed out. On the wooden bench beside him sits your .38 revolver—the weapon he fired at Pier 9 to save your life.
+
+"{mc_name}," {ro3_name} whispers as you approach, his voice trembling so slightly it aches. "Two years on Rig 9... every time someone called 911, my job was to stop the bleeding. To hold someone's hand while the sirens screamed and tell them they were going to see their families again."
+
+He looks up, his bright hazel eyes swimming with unshed tears.
+
+"When I pulled that trigger on the dock... when that soldier fell into the water... I felt his life snap like dry kindling. I know he was going to kill you. I know I had to do it. But... what if I'm not a healer anymore, {mc_name}? What if this world turns me into a killer?"
 - else:
-    He's carefully sorting through vials of salvaged lidocaine and sterile saline, his face tired but warm.
-    
-    "Toby's asleep on the bunk," {ro3_name} smiles softly as you step up. "His ankle's holding up great. We made it, {mc_name}. St. Jude's is behind us. We're going to get Clara back, and then we're going to build something good here."
+He's carefully sorting through vials of salvaged lidocaine and sterile saline, his face tired but warm.
+
+"Toby's asleep on the bunk," {ro3_name} smiles softly as you step up. "His ankle's holding up great. We made it, {mc_name}. St. Jude's is behind us. We're going to get Clara back, and then we're going to build something good here."
 }
 
 * { harry_first_kill } [Kneel before him, taking his shaking hands in yours: "You did it to save me, Harry. That makes you my guardian, not a killer."] +ro3_high_rel -> talk_harry_comfort_kill
@@ -2610,7 +2599,7 @@ In normal infected patients, the synthetic prion pathogen liquefies erythrocytes
 
 The silvered antibodies don't destroy the infection.
 
-**They subjugate it.**
+They subjugate it.
 
 They act as an active, intelligent biological lattice, binding to the pathogen, freezing its necrosis, and converting its cellular energy into rapid tissue regeneration and heightened neural reflexes.
 
@@ -2618,7 +2607,7 @@ And then, as you test your silvered serum against an active vial of necrotic flu
 
 *In twenty-five seconds, your silvered antibodies arrest the necrotic spread in the donor sample.*
 
-**Your blood can cure a newly bitten human—if transfused within twenty minutes of exposure.**
+Your blood can cure a newly bitten human—if transfused within twenty minutes of exposure.
 
 "Dear God Almighty," a voice whispers behind your shoulder.
 
@@ -2656,9 +2645,9 @@ Your silvered blood pulses with unnatural, icy clarity. Clara is in the Youth Wa
 * [Order Commander {ro2_name} to deploy smoke and breach the floodgates] -> chapter_six_ending_summary
 
 == chapter_six_ending_summary ==
-----------------------------------------------------------------------------
+----------------
 END OF CHAPTER 6: THE GLASS HARBOR — STATE & REACTION LEDGER
-----------------------------------------------------------------------------
+----------------
 PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
 • Location: Sector 9 (The Bilges) — Safehouse "The Rusty Needle"
 • Clara Vance-Rowe: Imprisoned in Sector 4 Youth Ward (Master Keycard Secured: {ro4_trust >= 30:True|- else:False})
@@ -2672,11 +2661,10 @@ COMPANION BOND & ROMANCE STATUS:
 • Sloane: {ro2_romance >= 35:Intimate Devotion / Tactically Rogue|- else:Allied Commander}
 • Harry: {ro3_romance >= 35:Fierce Guardian / Emotionally Bound|- else:Steadfast Medic}
 • Kieran: {ro4_romance >= 35:Rough Passion / Mutual Obsession|- else:Dangerous Partner}
-----------------------------------------------------------------------------
+----------------
 
 * [Slip into the shadows of Sector 4 into Chapter 7: The Youth Ward Breach] -> chapter_seven_start
 * [Return to Main Menu (Start New Run)] -> start
-
 
 == chapter_seven_start ==
 CHAPTER 7: THE YOUTH WARD BREACH (DAY 3 — 19:30 PM)
@@ -2805,7 +2793,7 @@ Jamie survives the surgery, unconscious from hypovolemic shock. Teresa holds the
 
 A cold, greasy mist rolls off the Atlantic, blanketing the sheer rock bluffs that separate the lower docks from the Directorate's upper administrative fortress.
 
-At the summit of the bluffs sits **Sector 4 — The Directorate Youth Ward**.
+At the summit of the bluffs sits Sector 4 — The Directorate Youth Ward.
 
 Surrounded by sixteen-foot concrete walls, razor-wire entanglements, and automated searchlight towers, the facility resembles a maximum-security prison rather than a refugee dormitory. Long rows of opaque, reinforced plexiglass windows glow with an unnatural, sterile fluor-tube green in the dark.
 
@@ -2897,7 +2885,7 @@ He slams his fist into the desk, tears of pure rage burning in his dark eyes. "T
 
 == isolation_cell_reunion ==
 ~ clara_rescued = true
-At the end of the solitary containment wing stands **Cell 14**.
+At the end of the solitary containment wing stands Cell 14.
 
 Behind the heavy, reinforced steel-and-wire door sits fourteen-year-old Clara Vance-Rowe. She is huddled on a bare steel cot, clutching the silver locket Julian gave her for her thirteenth birthday, her St. Catherine's navy blazer draped over her shivering shoulders.
 
@@ -2923,7 +2911,7 @@ Clara pulls back, wiping her tears, her eyes falling on you standing in the door
 
 Suddenly, Clara grips your scrub sleeve with urgent, trembling fingers.
 
-"Alex, listen to me," Clara whispers rapidly. "Director Thorne was here two hours ago with his chief scientist. They moved the master synthesis equipment and the original St. Jude's trial logs up to his **Citadel Executive Suite** on the cliffs! And... and there are eight other girls from St. Catherine's locked in Cell Block C down the hall! They're scheduled for surgery at dawn!"
+"Alex, listen to me," Clara whispers rapidly. "Director Thorne was here two hours ago with his chief scientist. They moved the master synthesis equipment and the original St. Jude's trial logs up to his Citadel Executive Suite on the cliffs! And... and there are eight other girls from St. Catherine's locked in Cell Block C down the hall! They're scheduled for surgery at dawn!"
 
 At that exact second, a deafening klaxon roars through the ceiling!
 
@@ -3011,10 +2999,10 @@ Rain lashes the wooden pilings of Slip 7 as your group scrambles down the muddy 
 Waiting at the dock is Mara Lin and {ro3_name}, standing on the deck of an idling Harbor Union cargo barge with warm wool blankets and hot thermoses of tea.
 
 { rescued_children_count > 0:
-    Mara's eyes fill with fierce, triumphant tears as she helps Clara and the eight rescued St. Catherine's boarding students aboard the barge.
-    "You got them all," Mara whispers, hugging you fiercely against her canvas jacket. "Every single one of them. The Union will keep these kids safe in the deep tunnels where Thorne can never touch them."
+Mara's eyes fill with fierce, triumphant tears as she helps Clara and the eight rescued St. Catherine's boarding students aboard the barge.
+"You got them all," Mara whispers, hugging you fiercely against her canvas jacket. "Every single one of them. The Union will keep these kids safe in the deep tunnels where Thorne can never touch them."
 - else:
-    Mara helps Clara aboard the barge, wrapping the shivering girl in a heavy wool fleece. "She's safe now, Doctor. The Union will hide her in the deep tunnels."
+Mara helps Clara aboard the barge, wrapping the shivering girl in a heavy wool fleece. "She's safe now, Doctor. The Union will hide her in the deep tunnels."
 }
 
 On the barge deck, fourteen-year-old Clara is huddled under a blanket, sipping hot tea, safe from Director Thorne's knives.
@@ -3029,16 +3017,16 @@ His body is trembling with a relief so deep it feels like rebirth.
 
 Behind you, Detective {ro4_name} leans against a wooden piling, lighting a fresh cigarette in the dark, watching the two of you with a slow, knowing smirk that carries both respect and a lingering, dangerous ache.
 
-High above on the bluffs, the searchlights of the **Citadel Executive Suite** sweep across the stormy bay.
+High above on the bluffs, the searchlights of the Citadel Executive Suite sweep across the stormy bay.
 
 Clara is free. But the war for the Peninsula has reached the point of no return.
 
 * [Advance into Chapter 8: The Shadow of the Citadel] -> chapter_seven_ending_summary
 
 == chapter_seven_ending_summary ==
-----------------------------------------------------------------------------
+----------------
 END OF CHAPTER 7: THE YOUTH WARD BREACH — MASTER SURVIVAL LEDGER
-----------------------------------------------------------------------------
+----------------
 PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
 • Location: Sector 9 (The Bilges) — Harbor Union Tugboat Slip 7
 • Jamie Transfusion Status: {jamie_transfused:Cured with Silvered Blood (Immunity Drained +1)|- else:Morphine Palliative / Amputated}
@@ -3054,11 +3042,10 @@ COMPANION BOND & ROMANCE STATUS:
 • Sloane: Tactical Co-Commander (Trust: {ro2_trust})
 • Harry: Devoted Guardian (Trust: {ro3_trust})
 • Kieran: Intimate Rival / Master Accomplice (Romance: {ro4_romance})
-----------------------------------------------------------------------------
+----------------
 
 * [Ascend the cliffside gantry into Chapter 8: The Shadow of the Citadel] -> chapter_eight_start
 * [Return to Main Menu (Start New Run)] -> start
-
 
 == chapter_eight_start ==
 CHAPTER 8: THE SHADOW OF THE CITADEL (DAY 4 — 14:00 PM)
@@ -3074,14 +3061,14 @@ You are the doctor who cured a bite.
 Inside the warm, sawdust-scented workshop, fourteen-year-old Clara is asleep on a clean cot behind the canvas curtain, guarded by young Toby and two armed Union fighters.
 
 { toby_status == "alive":
-    Toby sits on an ammunition crate beside her, cleaning a scavenged hunting rifle with quiet, dedicated vigilance. "She's safe, Dr. Vance," Toby whispers as you walk past. "Nobody gets through this door."
+Toby sits on an ammunition crate beside her, cleaning a scavenged hunting rifle with quiet, dedicated vigilance. "She's safe, Dr. Vance," Toby whispers as you walk past. "Nobody gets through this door."
 }
 
 Mara Lin unrolls a massive architectural schematic of the Peninsula across the central workbench, weighting down the corners with brass pipe fittings.
 
 Her face is grim, the dark circles under her eyes etched deep.
 
-"Look at the cliff bluffs," Mara says, tapping the highest point of the peninsula with a grease-stained thumb. "Director Thorne's **Citadel Executive Complex**. Three hundred feet of sheer granite above the sea, isolated from the docks by a single fortified funicular railway and high-voltage perimeter walls."
+"Look at the cliff bluffs," Mara says, tapping the highest point of the peninsula with a grease-stained thumb. "Director Thorne's Citadel Executive Complex. Three hundred feet of sheer granite above the sea, isolated from the docks by a single fortified funicular railway and high-voltage perimeter walls."
 
 She leans forward, her voice dropping into a fierce whisper.
 
@@ -3114,36 +3101,36 @@ The sea wind whips your wet scrub jacket against your ribs. Beneath your left sl
 Footsteps sound behind you on the rusted iron grate.
 
 { ro1_romance >= 40 && ro4_romance >= 35:
-    You turn around to find both **Julian** and **Kieran** stepping onto the narrow balcony.
-    
-    The tension between them is so thick it could be carved with a scalpel.
-    
-    Julian stands with his arms crossed, his surgeon's coat pulled tight against the wind, his dark eyes fixed on Kieran's hands. On his left wrist, the scratched silver watch you bought him catches the pale afternoon light.
-    
-    Kieran leans his back against the brick wall, lighting a crushed menthol cigarette. The smoke curls between them, sharp and insolent.
-    
-    "Four months ago, Mercer," Julian says in a low, clipped voice that trembles with suppressed fury, "you spent three weeks dragging {mc_name}'s name through Internal Affairs. You sat in an interrogation room threatening to put them in a state penitentiary for perjury. And now you're hovering over their shoulder like a guardian angel. What's your play?"
-    
-    Kieran takes a long, slow drag of his cigarette, exhaling the smoke straight toward the grey sky. A lazy, dangerous smirk touches his bruised mouth.
-    
-    "No play, Surgeon," Kieran rasps softly, his dark eyes shifting to lock onto yours with open, possessive heat. "Just making sure the only person in this city with a real backbone stays alive. You had four years with {mc_name}, Doc. You let them forge a log and ruin their career to keep your hands clean. Don't get territorial now that someone who actually knows how to pull a trigger is watching their back."
-    
-    Julian takes half a step forward, his fists clenching at his sides, his jaw tight as granite. "You know nothing about what we went through in October."
-    
-    "I know you let {mc_name} carry the weight alone," Kieran growls back, stepping away from the wall, his own frame coiling tight.
-    
-    Both men look at you in the freezing rain, waiting for you to draw the line between them.
-    
-    * [Step between them and place your hand flat on Julian's chest: "Julian is the reason I survived October. Back off, Mercer."] -> jealousy_choose_julian
-    * [Step toward Kieran and take the cigarette from his fingers: "Kieran kept me alive at Pier 9, Julian. We need him."] -> jealousy_choose_kieran
-    * [Glare at both of them with ice-veined authority: "Enough! Neither of you owns me. We have six hours before this city burns!"] -> jealousy_choose_neither
+You turn around to find both Julian and Kieran stepping onto the narrow balcony.
+
+The tension between them is so thick it could be carved with a scalpel.
+
+Julian stands with his arms crossed, his surgeon's coat pulled tight against the wind, his dark eyes fixed on Kieran's hands. On his left wrist, the scratched silver watch you bought him catches the pale afternoon light.
+
+Kieran leans his back against the brick wall, lighting a crushed menthol cigarette. The smoke curls between them, sharp and insolent.
+
+"Four months ago, Mercer," Julian says in a low, clipped voice that trembles with suppressed fury, "you spent three weeks dragging {mc_name}'s name through Internal Affairs. You sat in an interrogation room threatening to put them in a state penitentiary for perjury. And now you're hovering over their shoulder like a guardian angel. What's your play?"
+
+Kieran takes a long, slow drag of his cigarette, exhaling the smoke straight toward the grey sky. A lazy, dangerous smirk touches his bruised mouth.
+
+"No play, Surgeon," Kieran rasps softly, his dark eyes shifting to lock onto yours with open, possessive heat. "Just making sure the only person in this city with a real backbone stays alive. You had four years with {mc_name}, Doc. You let them forge a log and ruin their career to keep your hands clean. Don't get territorial now that someone who actually knows how to pull a trigger is watching their back."
+
+Julian takes half a step forward, his fists clenching at his sides, his jaw tight as granite. "You know nothing about what we went through in October."
+
+"I know you let {mc_name} carry the weight alone," Kieran growls back, stepping away from the wall, his own frame coiling tight.
+
+Both men look at you in the freezing rain, waiting for you to draw the line between them.
+
+* [Step between them and place your hand flat on Julian's chest: "Julian is the reason I survived October. Back off, Mercer."] -> jealousy_choose_julian
+* [Step toward Kieran and take the cigarette from his fingers: "Kieran kept me alive at Pier 9, Julian. We need him."] -> jealousy_choose_kieran
+* [Glare at both of them with ice-veined authority: "Enough! Neither of you owns me. We have six hours before this city burns!"] -> jealousy_choose_neither
 - else:
-    Who approaches you on the balcony before the final assault?
-    
-    * [Julian steps out, his eyes soft with quiet, urgent longing] -> balcony_private_julian
-    * [Commander Sloane steps out, handing you an extra magazine for your sidearm] -> balcony_private_sloane
-    * [Harry steps out, offering a thermos of hot chicory coffee] -> balcony_private_harry
-    * [Detective Kieran steps out, leaning against the railing beside you] -> balcony_private_kieran
+Who approaches you on the balcony before the final assault?
+
+* [Julian steps out, his eyes soft with quiet, urgent longing] -> balcony_private_julian
+* [Commander Sloane steps out, handing you an extra magazine for your sidearm] -> balcony_private_sloane
+* [Harry steps out, offering a thermos of hot chicory coffee] -> balcony_private_harry
+* [Detective Kieran steps out, leaning against the railing beside you] -> balcony_private_kieran
 }
 
 == jealousy_choose_julian ==
@@ -3277,9 +3264,9 @@ At the base of the three-hundred-foot cliff, your strike team regathers beneath 
 
 Three paths lead into the belly of the beast:
 
-1. **The Industrial Coal Tramway (Sloane's Tactical Route):** An automated overhead cable-car used to haul fuel from the docks straight into the Citadel's sub-basement boiler room. High-altitude vertigo, total stealth, bypassing all surface checkpoints.
-2. **The Executive Funicular Lift (Kieran's Infiltration Route):** Using the Directorate MP credentials and stolen uniform coats to bluff your way through the VIP intake station at the main cliff elevator. High-stakes deception and close-quarters tension.
-3. **The Sea-Cave Coolant Sluice (Mara's Smuggler Route):** Scuba diving through the submerged tide caverns into the Citadel's nuclear-grade water-cooling intake pipes. Extremely claustrophobic and freezing, entering directly into the Bio-Suite.
+1. The Industrial Coal Tramway (Sloane's Tactical Route): An automated overhead cable-car used to haul fuel from the docks straight into the Citadel's sub-basement boiler room. High-altitude vertigo, total stealth, bypassing all surface checkpoints.
+2. The Executive Funicular Lift (Kieran's Infiltration Route): Using the Directorate MP credentials and stolen uniform coats to bluff your way through the VIP intake station at the main cliff elevator. High-stakes deception and close-quarters tension.
+3. The Sea-Cave Coolant Sluice (Mara's Smuggler Route): Scuba diving through the submerged tide caverns into the Citadel's nuclear-grade water-cooling intake pipes. Extremely claustrophobic and freezing, entering directly into the Bio-Suite.
 
 Which route do you choose to infiltrate the Citadel?
 
@@ -3348,11 +3335,11 @@ You haul yourselves out onto the warm, perforated titanium floor grating, stripp
 
 == citadel_laboratory_interior ==
 ~ master_synthesizer_codes = true
-You step into the inner sanctum of the **Citadel Bio-Research Suite**.
+You step into the inner sanctum of the Citadel Bio-Research Suite.
 
 The facility is a temple of cold, clinical technology. Polished white titanium walls, laminar flow hoods, negative-pressure isolation tanks, and rows of humming automated oligonucleotide synthesizers.
 
-On the central pedestal sits the **Master Hemovax-9 Synthesizer Terminal**.
+On the central pedestal sits the Master Hemovax-9 Synthesizer Terminal.
 
 You slide your stolen St. Jude's admin bypass drive into the optical port.
 
@@ -3384,7 +3371,7 @@ A smooth, cultured voice—dripping with aristocratic cruelty—filters through 
 
 == confrontation_with_thorne ==
 ~ thorne_confronted = true
-Behind the four-inch bulletproof glass of the upper observation balcony stands **Director Julian Thorne**.
+Behind the four-inch bulletproof glass of the upper observation balcony stands Director Julian Thorne.
 
 He is in his late fifties, his silver hair impeccably styled, wearing a tailored charcoal wool suit beneath a heavy black overcoat. Flanking him on the balcony are eight elite Black-Ops commandos in full composite armor, their suppressed assault rifles aimed through the firing slits directly at your heads.
 
@@ -3519,9 +3506,9 @@ And the dawn of Book Two breaks across the open water.
 * [Advance into the Chapter 8 Master Ledger] -> chapter_eight_ending_summary
 
 == chapter_eight_ending_summary ==
-----------------------------------------------------------------------------
+----------------
 END OF CHAPTER 8: THE SHADOW OF THE CITADEL — MASTER SURVIVAL LEDGER
-----------------------------------------------------------------------------
+----------------
 PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
 • Location: The Citadel Executive Suite — Peninsula Safe Zone
 • Master Hemovax-9 Synthesis Codes: Secured ({master_synthesizer_codes})
@@ -3535,11 +3522,10 @@ COMPANION BOND & TRUST STATUS:
 • Sloane: Liberated Commander / Vengeance Delivered (Trust: {ro2_trust})
 • Harry: Unshakeable Moral Anchor (Trust: {ro3_trust})
 • Kieran: Intimate Accomplice / Master Infiltrator (Romance: {ro4_romance})
-----------------------------------------------------------------------------
+----------------
 
 * [Descend to the roaring sea gates into Chapter 9: The Siege of the Sea Dykes] -> chapter_nine_start
 * [Return to Main Menu (Start New Run)] -> start
-
 
 == chapter_nine_start ==
 CHAPTER 9: THE SIEGE OF THE SEA DYKES (DAY 5 — 02:00 AM)
@@ -3555,7 +3541,7 @@ Across the docks, forty thousand liberated refugees are scrambling to board ever
 
 Inside the Citadel’s funicular terminal, your strike team regroups at the base of the bluffs.
 
-In your waterproof trauma bag sits the **Master Hemovax-9 Synthesis Drive**—the stolen key to humanity's survival.
+In your waterproof trauma bag sits the Master Hemovax-9 Synthesis Drive—the stolen key to humanity's survival.
 
 Beside you, {ro1_name} stands with his hand firmly holding yours, his breathing ragged but steady. On his wrist, the silver watch catches the flashing amber strobes of the docks. Commander {ro2_name} is reloading her carbine, while Detective {ro4_name} and {ro3_name} scan the seawalls through rain-streaked binoculars.
 
@@ -3653,13 +3639,13 @@ Two feral sleepers—trapped in the sewer pipes during the surge—erupt into th
 Before anyone can draw a weapon:
 
 { toby_status == "alive":
-    Nineteen-year-old Toby throws himself forward with his crutch to shield Clara! A sleeper's rotting jaw clamps savagely into Toby's right shoulder, tearing through his yellow EMT windbreaker!
-    
-    Simultaneously, the second sleeper lunges straight at fourteen-year-old Clara! She screams as its blackened teeth sink deep into her left forearm, ripping through her St. Catherine's navy blazer!
+Nineteen-year-old Toby throws himself forward with his crutch to shield Clara! A sleeper's rotting jaw clamps savagely into Toby's right shoulder, tearing through his yellow EMT windbreaker!
+
+Simultaneously, the second sleeper lunges straight at fourteen-year-old Clara! She screams as its blackened teeth sink deep into her left forearm, ripping through her St. Catherine's navy blazer!
 - else:
-    Union medic Teresa dives across the cot to shield Clara! The first sleeper's rotting teeth sink savagely into Teresa's neck and clavicle!
-    
-    Simultaneously, the second sleeper lunges straight at fourteen-year-old Clara! She screams as its blackened teeth sink deep into her left forearm, ripping through her St. Catherine's navy blazer!
+Union medic Teresa dives across the cot to shield Clara! The first sleeper's rotting teeth sink savagely into Teresa's neck and clavicle!
+
+Simultaneously, the second sleeper lunges straight at fourteen-year-old Clara! She screams as its blackened teeth sink deep into her left forearm, ripping through her St. Catherine's navy blazer!
 }
 
 *BANG! BANG!*
@@ -3675,11 +3661,11 @@ The room falls dead silent. The only sound is the roar of the hurricane outside 
 On Clara's slender forearm is a ragged, weeping crescent of human teeth marks—dark, necrotic venom already spider-webbing up her cephalic vein toward her heart.
 
 { toby_status == "alive":
-    Five feet away on the floor, young Toby is collapsed against the wall, clutching his torn shoulder. Grey necrotic fluid is pulsing from his bite wound; his teeth are chattering, his skin turning ash-grey as the neuro-invasion begins.
-    
-    "{mc_name}..." Toby whispers through trembling, blue lips. "I... I kept her safe. I kept her safe..."
+Five feet away on the floor, young Toby is collapsed against the wall, clutching his torn shoulder. Grey necrotic fluid is pulsing from his bite wound; his teeth are chattering, his skin turning ash-grey as the neuro-invasion begins.
+
+"{mc_name}..." Toby whispers through trembling, blue lips. "I... I kept her safe. I kept her safe..."
 - else:
-    Five feet away on the floor, Union medic Teresa is collapsed against a medical crate, blood bubbling from the bite on her collarbone. Her dark eyes look up at you in silent, pleading agony.
+Five feet away on the floor, Union medic Teresa is collapsed against a medical crate, blood bubbling from the bite on her collarbone. Her dark eyes look up at you in silent, pleading agony.
 }
 
 {ro1_name} turns his face toward you. His dark eyes are hollow, brimming with an agony so profound it shatters the soul.
@@ -3697,7 +3683,7 @@ You look down at your own left arm.
 The physiological reality is brutal and absolute:
 Your body contains approximately five liters of blood. Transfusing one full unit (500 ml) to halt the infection in one patient is physically survivable.
 
-Transfusing **both** requires giving over a thousand milliliters of silvered blood—triggering catastrophic hypovolemic shock, permanently reducing your physical stamina, and accelerating the dormant pathogen in your left arm until the silver and black veins creep straight up your neck toward your brainstem.
+Transfusing both requires giving over a thousand milliliters of silvered blood—triggering catastrophic hypovolemic shock, permanently reducing your physical stamina, and accelerating the dormant pathogen in your left arm until the silver and black veins creep straight up your neck toward your brainstem.
 
 The twenty-minute window has begun.
 
@@ -3727,11 +3713,11 @@ Within ninety seconds, the miracle occurs. The black spider-veins on Clara's arm
 Across the room, a heart-wrenching sob breaks from {ro3_name}.
 
 { toby_status == "alive":
-    Young Toby's eyes milk over into cloudy, necrotic grey. His spine arches off the floorboards in the final seizure of the pathogen.
-    
-    Detective {ro4_name} steps forward in silence, his jaw tight as iron. He rests his heavy hand on {ro3_name}'s trembling shoulder, draws his suppressed pistol, and puts a merciful round through Toby's temple.
+Young Toby's eyes milk over into cloudy, necrotic grey. His spine arches off the floorboards in the final seizure of the pathogen.
+
+Detective {ro4_name} steps forward in silence, his jaw tight as iron. He rests his heavy hand on {ro3_name}'s trembling shoulder, draws his suppressed pistol, and puts a merciful round through Toby's temple.
 - else:
-    Teresa's eyes cloud with black fluid. {ro4_name} steps forward and delivers the mercy shot in grim, devastated silence.
+Teresa's eyes cloud with black fluid. {ro4_name} steps forward and delivers the mercy shot in grim, devastated silence.
 }
 
 {ro3_name} sits on the wet floor, staring at his bloodstained hands, refusing to look at you as the tears stream down his face.
@@ -3852,7 +3838,7 @@ The storm howls across the open Atlantic, but the Peninsula Safe Zone is fading 
 
 Harbor Patrol Cutter 44 leads a flotilla of thirty-two civilian vessels away from the dying coast, charting a course west into the flooded interior waterways toward the Appalachian foothills.
 
-Ahead lies **Mount Weather** and the **Blackwood Mountain Research Complex**—the deep subterranean bunker where *Hemovax-9* was born, and where the master synthesizer can forge a global vaccine.
+Ahead lies Mount Weather and the Blackwood Mountain Research Complex—the deep subterranean bunker where *Hemovax-9* was born, and where the master synthesizer can forge a global vaccine.
 
 On the stern deck of the flagship, wrapped in heavy wool blankets against the biting cold, you sit braced against the cabin bulkhead.
 
@@ -3866,15 +3852,15 @@ Beside you, your companions sit in the pre-dawn mist:
 
 You survived the Triage of Ash. You shattered the Quarantine of Glass.
 
-And ahead lies **Book Three: The Winter of Rust**.
+And ahead lies Book Three: The Winter of Rust.
 
 * [Conclude Book Two: The Quarantine of Glass] -> book_two_final_summary
 
 == book_two_final_summary ==
-----------------------------------------------------------------------------
+----------------
 BOOK TWO: THE QUARANTINE OF GLASS — COMPLETE
 MASTER SURVIVAL & ETHICAL LEDGER
-----------------------------------------------------------------------------
+----------------
 PROTAGONIST: Dr. {mc_name} {mc_surname} ({mc_subj}/{mc_obj})
 • Book Two Status: COMPLETED
 • Transfusion Outcome: {transfusion_choice}
@@ -3891,6 +3877,6 @@ ROMANCE & FACTION RELATIONS:
 • Harry: Devoted Guardian / Hardened Conscience (Trust: {ro3_trust})
 • Kieran: Loyal Infiltrator / Intimate Confidant (Romance: {ro4_romance})
 • Harbor Union: Liberated & Reorganized under Mara Lin
-----------------------------------------------------------------------------
+----------------
 
 * [Return to Main Menu (Start New Run)] -> start
