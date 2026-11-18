@@ -149,7 +149,7 @@ pub fn render_clock_details(
 
     Text::new("Refresh policy", Point::new(22, 568), heading).draw(display)?;
     line(display, 614, "Live refresh", "30 seconds", body)?;
-    line(display, 654, "Idle sleep", "60 seconds", body)?;
+    line(display, 654, "Idle sleep", "15m light / 1h deep", body)?;
     draw_footer(display, state.display, "HOLD BOOT BACK")?;
     Ok(())
 }

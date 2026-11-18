@@ -25,6 +25,10 @@ pub use state::AppState;
 
 /// Idle interval before the panel controller and ALDO3 rail enter sleep.
 pub const PANEL_IDLE_SLEEP_SECONDS: u64 = 60;
+/// Idle interval before the ESP32-S3 enters light sleep (15 minutes).
+pub const LIGHT_SLEEP_IDLE_SECONDS: u64 = 15 * 60;
+/// Idle interval before the device enters deep sleep with a sleep image (1 hour).
+pub const DEEP_SLEEP_IDLE_SECONDS: u64 = 60 * 60;
 /// Detail-screen status cadence inherited from the sample-app clock use case.
 pub const SAMPLE_LIVE_REFRESH_SECONDS: u64 = 30;
 /// Motion diagnostics refresh at a slower e-paper-safe cadence.
@@ -130,5 +134,14 @@ mod tests {
         state.apply(ButtonEvent::Select);
         assert_eq!(state.active_route(), ScreenRoute::Dictionary);
         assert!(state.take_power_key_manual_refresh_request());
+    }
+
+    #[test]
+    fn tiered_idle_sleep_intervals_are_strictly_ordered() {
+        assert_eq!(super::PANEL_IDLE_SLEEP_SECONDS, 60);
+        assert_eq!(super::LIGHT_SLEEP_IDLE_SECONDS, 900);
+        assert_eq!(super::DEEP_SLEEP_IDLE_SECONDS, 3600);
+        assert!(super::PANEL_IDLE_SLEEP_SECONDS < super::LIGHT_SLEEP_IDLE_SECONDS);
+        assert!(super::LIGHT_SLEEP_IDLE_SECONDS < super::DEEP_SLEEP_IDLE_SECONDS);
     }
 }

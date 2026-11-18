@@ -38,9 +38,10 @@ mod firmware {
         app::{
             display::{DisplayPreferences, DISPLAY_CONFIG_PATH},
             render_current_screen, AppState, ScreenRoute, ALARM_POLL_SECONDS,
-            IMU_EVENT_SCREEN_REFRESH_SECONDS, MOTION_LIVE_REFRESH_SECONDS,
-            NETWORK_LIVE_REFRESH_SECONDS, NETWORK_LOG_HEARTBEAT_SECONDS, PANEL_IDLE_SLEEP_SECONDS,
-            SAMPLE_LIVE_REFRESH_SECONDS, VOICE_RECORD_SCREEN_REFRESH_SECONDS,
+            DEEP_SLEEP_IDLE_SECONDS, IMU_EVENT_SCREEN_REFRESH_SECONDS, LIGHT_SLEEP_IDLE_SECONDS,
+            MOTION_LIVE_REFRESH_SECONDS, NETWORK_LIVE_REFRESH_SECONDS,
+            NETWORK_LOG_HEARTBEAT_SECONDS, PANEL_IDLE_SLEEP_SECONDS, SAMPLE_LIVE_REFRESH_SECONDS,
+            VOICE_RECORD_SCREEN_REFRESH_SECONDS,
         },
         audio::{
             espidf::AudioRuntime, AudioSnapshot, AudioUiRequest, AUDIO_MCLK_HZ,
@@ -600,6 +601,9 @@ mod firmware {
         info!("rustmix-wave=rtc-alarm-int-readiness-ready gpio={RTC_ALARM_INTERRUPT_GPIO} active-low=true");
         info!("rustmix-wave=power-key-sleep-image-mode-ready path={SLEEP_IMAGE_DIRECTORY} format=native-800x480-1bpp-bmp mcu-sleep=false");
         info!("rustmix-wave=power-key-short-menu-long-sleep-ready short-press=display-maintenance-menu long-press=sleep-image wake=power-key menu-action=manual-global-refresh");
+        info!(
+            "rustmix-wave=tiered-idle-power-policy-ready panel-sleep-seconds={PANEL_IDLE_SLEEP_SECONDS} light-sleep-seconds={LIGHT_SLEEP_IDLE_SECONDS} deep-sleep-seconds={DEEP_SLEEP_IDLE_SECONDS}"
+        );
         info!("rustmix-wave=release-flash-workflow-safety-ready docs=consolidated workflow=ci release-artifact=elf supported-flash=espflash-flash factory-image=deferred");
         info!("rustmix-wave=text-editor-layout-alignment-ready voice-title-editor=shared-grid-keyboard calendar-editor-status=compact-date keyboard=boot-hv-axis footer=width-safe");
         info!("rustmix-wave=sleep-image-directory-classification-fix-ready policy=fat-metadata-fallback");
@@ -702,6 +706,111 @@ mod firmware {
         let mut weather_retry = WeatherRetryState::default();
         let mut last_voice_record_refresh = Instant::now();
         let boot_started_at = Instant::now();
+
+        macro_rules! enter_sleep_image_mode {
+            ($cause_label:expr) => {{
+                info!("rustmix-wave=deep-sleep-enter-initiated cause={}", $cause_label);
+                stop_wifi_transfer_server(
+                    &mut wifi_transfer_server,
+                    &mut state,
+                    &mut storage_browser,
+                    _mounted_sd.is_some(),
+                    "sleep-entry",
+                );
+                if let Some(active) = voice_recording.take() {
+                    let _ = active.cancel();
+                    if let Some(runtime) = audio_runtime.as_mut() {
+                        let _ = runtime.finish_voice_recording();
+                        state.update_audio_snapshot(runtime.snapshot());
+                    }
+                    state.voice_notes.cancel_recording();
+                    info!(
+                        "rustmix-wave=voice-record status=cancelled reason=sleep-entry"
+                    );
+                }
+                if voice_playback.is_some() {
+                    stop_voice_note_playback(
+                        &mut voice_playback,
+                        &mut audio_runtime,
+                        &mut state,
+                        "sleep-entry",
+                    );
+                }
+                if let Some(runtime) = audio_runtime.as_mut() {
+                    match runtime.stop_playback() {
+                        Ok(()) => info!("rustmix-wave=audio-event outcome=playback-stop reason=sleep-mode"),
+                        Err(error) => {
+                            warn!("rustmix-wave=audio-event outcome=playback-stop-failed reason=sleep-mode error={error:#}");
+                            runtime.record_failure(format!("{error:#}"));
+                        }
+                    }
+                    state.update_audio_snapshot(runtime.snapshot());
+                    log_audio_snapshot(&state.audio);
+                }
+                let selection =
+                    sleep_images.select_random(unsafe { sys::esp_random() });
+                log_sleep_image_selection(&selection);
+                if !suspend_network_for_sleep(
+                    &mut network_runtime,
+                    &mut state,
+                    &mut sleep_network,
+                    &mut last_network_fingerprint,
+                    &mut last_network_log,
+                ) {
+                    warn!("rustmix-wave=sleep-mode-enter status=rejected reason=network-suspend-failed");
+                    last_activity = Instant::now();
+                    continue;
+                }
+                if !state.panel_awake {
+                    panel.initialize()?;
+                    state.panel_awake = true;
+                }
+                let restore_route = state.power_key_sleep_restore_route();
+                frame = selection.frame;
+                panel.show_base(frame.as_bytes())?;
+                panel_refresh
+                    .reset_after_external_global(PanelGlobalReason::SleepImage);
+                sync_panel_refresh_diagnostics(&mut state, &panel_refresh);
+                info!("rustmix-wave=panel-refresh plan=global-base reason=sleep-image transport=global-base");
+                sleep_mode.enter(restore_route, selection.file_name.clone());
+                sleep_wake_guard.begin_sleep_entry();
+                info!(
+                    "rustmix-wave=sleep-wake-guard status=waiting-for-quiet-window minimum-quiet-ms={POWER_KEY_WAKE_GUARD_QUIET_MS} policy=suppress-stale-power-key"
+                );
+                panel.sleep()?;
+                state.panel_awake = false;
+                info!(
+                    "rustmix-wave=sleep-mode-enter cause={} image={} restore-route={} display=global-refresh panel=deep-sleep aldo3=off wifi=off network-services=paused mcu-sleep=true-deep-sleep-isolated",
+                    $cause_label,
+                    selection.file_name,
+                    restore_route.marker()
+                );
+
+                // Wait for any button release quiet window
+                FreeRtos::delay_ms(POWER_KEY_WAKE_GUARD_QUIET_MS as u32);
+
+                // Power down ES8311 codec, QMI8658 IMU, and AXP2101 ADC before releasing I2C/SPI/SDMMC drivers
+                if let Some(runtime) = audio_runtime.as_mut() {
+                    runtime.shutdown_for_sleep();
+                }
+                board_services.prepare_for_deep_sleep();
+                drop(wifi_transfer_server);
+                drop(voice_recording);
+                drop(voice_playback);
+                drop(audio_runtime);
+                drop(panel);
+                drop(board_services);
+                drop(shared_i2c);
+                drop(network_runtime);
+                drop(_mounted_sd);
+                drop(buttons);
+                drop(back_button);
+                drop(rtc_alarm_interrupt);
+                write_persisted_sleep_flag(true);
+                enter_deep_sleep_isolated();
+            }};
+        }
+
         loop {
             maintain_wifi_transfer_server(
                 &mut wifi_transfer_server,
@@ -715,6 +824,20 @@ mod firmware {
                 panel.sleep()?;
                 state.panel_awake = false;
                 info!("rustmix-wave=epd397-panel-sleep");
+            }
+
+            // Tier 3: 1-hour automatic idle deep-sleep with sleep-image screen saver
+            if last_activity.elapsed() >= Duration::from_secs(DEEP_SLEEP_IDLE_SECONDS)
+                && voice_recording.is_none()
+                && voice_playback.is_none()
+                && wifi_transfer_server.is_none()
+                && state.alarms.active.is_none()
+            {
+                info!(
+                    "rustmix-wave=idle-deep-sleep timeout=1hour elapsed-seconds={}",
+                    last_activity.elapsed().as_secs()
+                );
+                enter_sleep_image_mode!("idle-timeout-1hour");
             }
 
             let mut voice_capture_failure = None;
@@ -1307,103 +1430,7 @@ mod firmware {
                                 "rustmix-wave=sleep-mode-enter status=rejected reason=active-alarm"
                             );
                         } else {
-                            stop_wifi_transfer_server(
-                                &mut wifi_transfer_server,
-                                &mut state,
-                                &mut storage_browser,
-                                _mounted_sd.is_some(),
-                                "sleep-entry",
-                            );
-                            if let Some(active) = voice_recording.take() {
-                                let _ = active.cancel();
-                                if let Some(runtime) = audio_runtime.as_mut() {
-                                    let _ = runtime.finish_voice_recording();
-                                    state.update_audio_snapshot(runtime.snapshot());
-                                }
-                                state.voice_notes.cancel_recording();
-                                info!(
-                                    "rustmix-wave=voice-record status=cancelled reason=sleep-entry"
-                                );
-                            }
-                            if voice_playback.is_some() {
-                                stop_voice_note_playback(
-                                    &mut voice_playback,
-                                    &mut audio_runtime,
-                                    &mut state,
-                                    "sleep-entry",
-                                );
-                            }
-                            if let Some(runtime) = audio_runtime.as_mut() {
-                                match runtime.stop_playback() {
-                                    Ok(()) => info!("rustmix-wave=audio-event outcome=playback-stop reason=sleep-mode"),
-                                    Err(error) => {
-                                        warn!("rustmix-wave=audio-event outcome=playback-stop-failed reason=sleep-mode error={error:#}");
-                                        runtime.record_failure(format!("{error:#}"));
-                                    }
-                                }
-                                state.update_audio_snapshot(runtime.snapshot());
-                                log_audio_snapshot(&state.audio);
-                            }
-                            let selection =
-                                sleep_images.select_random(unsafe { sys::esp_random() });
-                            log_sleep_image_selection(&selection);
-                            if !suspend_network_for_sleep(
-                                &mut network_runtime,
-                                &mut state,
-                                &mut sleep_network,
-                                &mut last_network_fingerprint,
-                                &mut last_network_log,
-                            ) {
-                                warn!("rustmix-wave=sleep-mode-enter status=rejected reason=network-suspend-failed");
-                                last_activity = Instant::now();
-                                continue;
-                            }
-                            if !state.panel_awake {
-                                panel.initialize()?;
-                                state.panel_awake = true;
-                            }
-                            let restore_route = state.power_key_sleep_restore_route();
-                            frame = selection.frame;
-                            panel.show_base(frame.as_bytes())?;
-                            panel_refresh
-                                .reset_after_external_global(PanelGlobalReason::SleepImage);
-                            sync_panel_refresh_diagnostics(&mut state, &panel_refresh);
-                            info!("rustmix-wave=panel-refresh plan=global-base reason=sleep-image transport=global-base");
-                            sleep_mode.enter(restore_route, selection.file_name.clone());
-                            sleep_wake_guard.begin_sleep_entry();
-                            info!(
-                                "rustmix-wave=sleep-wake-guard status=waiting-for-quiet-window minimum-quiet-ms={POWER_KEY_WAKE_GUARD_QUIET_MS} policy=suppress-stale-power-key"
-                            );
-                            panel.sleep()?;
-                            state.panel_awake = false;
-                            info!(
-                                "rustmix-wave=sleep-mode-enter image={} restore-route={} display=global-refresh panel=deep-sleep aldo3=off wifi=off network-services=paused mcu-sleep=true-deep-sleep-isolated",
-                                selection.file_name,
-                                restore_route.marker()
-                            );
-
-                            // 1. Wait 900ms so you can release the physical PWR button cleanly
-                            FreeRtos::delay_ms(POWER_KEY_WAKE_GUARD_QUIET_MS as u32);
-
-                            // 2. Power down ES8311 codec, QMI8658 IMU, and AXP2101 ADC before releasing I2C/SPI/SDMMC drivers
-                            if let Some(runtime) = audio_runtime.as_mut() {
-                                runtime.shutdown_for_sleep();
-                            }
-                            board_services.prepare_for_deep_sleep();
-                            drop(wifi_transfer_server);
-                            drop(voice_recording);
-                            drop(voice_playback);
-                            drop(audio_runtime);
-                            drop(panel);
-                            drop(board_services);
-                            drop(shared_i2c);
-                            drop(network_runtime);
-                            drop(_mounted_sd);
-                            drop(buttons);
-                            drop(back_button);
-                            drop(rtc_alarm_interrupt);
-                            write_persisted_sleep_flag(true);
-                            enter_deep_sleep_isolated();
+                            enter_sleep_image_mode!("power-key-long-press");
                         }
                     }
                     Ok(None) => {}
@@ -1966,9 +1993,58 @@ mod firmware {
             }
 
             if !state.panel_awake && voice_recording.is_none() && voice_playback.is_none() {
-                // When the e-paper panel is idle/asleep between page turns,
-                // slow the poll loop from 50Hz (20ms) down to 10Hz (100ms)
-                FreeRtos::delay_ms(100);
+                if last_activity.elapsed() >= Duration::from_secs(LIGHT_SLEEP_IDLE_SECONDS)
+                    && wifi_transfer_server.is_none()
+                    && state.alarms.active.is_none()
+                {
+                    // Tier 2: 15-minute idle reached. Enter ESP32-S3 light sleep.
+                    // Arm GPIO wakeups for rotary UP/DOWN/SELECT, BOOT button, and RTC alarm.
+                    unsafe {
+                        let _ = sys::gpio_wakeup_enable(
+                            sys::gpio_num_t_GPIO_NUM_0,
+                            sys::gpio_int_type_t_GPIO_INTR_LOW_LEVEL,
+                        );
+                        let _ = sys::gpio_wakeup_enable(
+                            sys::gpio_num_t_GPIO_NUM_4,
+                            sys::gpio_int_type_t_GPIO_INTR_LOW_LEVEL,
+                        );
+                        let _ = sys::gpio_wakeup_enable(
+                            sys::gpio_num_t_GPIO_NUM_5,
+                            sys::gpio_int_type_t_GPIO_INTR_LOW_LEVEL,
+                        );
+                        let _ = sys::gpio_wakeup_enable(
+                            sys::gpio_num_t_GPIO_NUM_6,
+                            sys::gpio_int_type_t_GPIO_INTR_LOW_LEVEL,
+                        );
+                        let _ = sys::gpio_wakeup_enable(
+                            sys::gpio_num_t_GPIO_NUM_45,
+                            sys::gpio_int_type_t_GPIO_INTR_LOW_LEVEL,
+                        );
+                        let _ = sys::esp_sleep_enable_gpio_wakeup();
+
+                        // 1-second periodic timer wake for AXP2101 power-key polling,
+                        // RTC alarm domain schedule checks, and checking the 1-hour deep-sleep transition.
+                        let _ = sys::esp_sleep_enable_timer_wakeup(1_000_000);
+
+                        let _ = sys::esp_light_sleep_start();
+
+                        let _ = sys::gpio_wakeup_disable(sys::gpio_num_t_GPIO_NUM_0);
+                        let _ = sys::gpio_wakeup_disable(sys::gpio_num_t_GPIO_NUM_4);
+                        let _ = sys::gpio_wakeup_disable(sys::gpio_num_t_GPIO_NUM_5);
+                        let _ = sys::gpio_wakeup_disable(sys::gpio_num_t_GPIO_NUM_6);
+                        let _ = sys::gpio_wakeup_disable(sys::gpio_num_t_GPIO_NUM_45);
+
+                        let wakeup_cause = sys::esp_sleep_get_wakeup_cause();
+                        if wakeup_cause == sys::esp_sleep_source_t_ESP_SLEEP_WAKEUP_GPIO {
+                            info!("rustmix-wave=light-sleep-wake cause=gpio");
+                            last_activity = Instant::now();
+                        }
+                    }
+                } else {
+                    // Tier 1: When the e-paper panel is idle/asleep between page turns,
+                    // slow the poll loop from 50Hz (20ms) down to 10Hz (100ms)
+                    FreeRtos::delay_ms(100);
+                }
             } else {
                 FreeRtos::delay_ms(20);
             }
