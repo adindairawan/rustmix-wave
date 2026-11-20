@@ -30,10 +30,15 @@ pub fn render_weather(
     let body = state.display.body_style();
     let weather = &state.weather;
     let current = weather.current.as_ref();
-    let temperature = current.map_or_else(|| "--.- F".into(), |value| value.temperature_label());
+    let unit = state.regional.temperature_unit;
+    let placeholder = match unit {
+        crate::regional::TemperatureUnit::Celsius => "--.- C",
+        crate::regional::TemperatureUnit::Fahrenheit => "--.- F",
+    };
+    let temperature = current.map_or_else(|| placeholder.into(), |value| value.temperature_label(unit));
     let apparent = current.map_or_else(
-        || "--.- F".into(),
-        |value| value.apparent_temperature_label(),
+        || placeholder.into(),
+        |value| value.apparent_temperature_label(unit),
     );
     let humidity = current.map_or_else(
         || "--%".into(),
@@ -73,7 +78,7 @@ pub fn render_weather(
         .draw(display)?;
     } else {
         for (index, row) in weather.forecast.iter().take(4).enumerate() {
-            draw_forecast_row(display, 374 + index as i32 * 52, row, body)?;
+            draw_forecast_row(display, 374 + index as i32 * 52, row, unit, body)?;
         }
     }
 
@@ -172,6 +177,7 @@ fn draw_forecast_row(
     display: &mut OrientedFrameBuffer<'_>,
     y: i32,
     row: &DailyForecast,
+    unit: crate::regional::TemperatureUnit,
     style: UiTextStyle,
 ) -> Result<(), Infallible> {
     let precipitation = row
@@ -183,11 +189,15 @@ fn draw_forecast_row(
         style,
     )
     .draw(display)?;
+    let (high, low, suffix) = match unit {
+        crate::regional::TemperatureUnit::Celsius => (row.high_tenths_c(), row.low_tenths_c(), "C"),
+        crate::regional::TemperatureUnit::Fahrenheit => (row.high_tenths_f, row.low_tenths_f, "F"),
+    };
     Text::new(
         &format!(
-            "High {}F   Low {}F   POP {precipitation}",
-            format_tenths(row.high_tenths_f),
-            format_tenths(row.low_tenths_f)
+            "High {}{suffix}   Low {}{suffix}   POP {precipitation}",
+            format_tenths(high),
+            format_tenths(low)
         ),
         Point::new(22, y + 24),
         style,

@@ -22,7 +22,7 @@ pub fn render_home(
 ) -> Result<(), Infallible> {
     let date = home_date_label(state);
     let time = state.board.time_label(state.regional);
-    let weather = state.weather.current_summary();
+    let weather = state.weather.current_summary(state.regional.temperature_unit);
     let battery = home_battery_label(state);
     let wifi = format!("Wi-Fi {}", state.network.wifi_state.label());
 

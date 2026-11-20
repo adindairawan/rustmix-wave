@@ -20,8 +20,8 @@ pub const DEFAULT_TIMEZONE_ABBREVIATION: &str = "EDT";
 /// Temperature unit used by product-facing screens.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum TemperatureUnit {
-    Celsius,
     #[default]
+    Celsius,
     Fahrenheit,
 }
 
@@ -256,10 +256,10 @@ mod tests {
     }
 
     #[test]
-    fn defaults_to_new_york_and_fahrenheit() {
+    fn defaults_to_new_york_and_celsius() {
         let preferences = RegionalPreferences::default();
         assert_eq!(preferences.timezone_name(), "America/New_York");
-        assert_eq!(preferences.temperature_unit, TemperatureUnit::Fahrenheit);
+        assert_eq!(preferences.temperature_unit, TemperatureUnit::Celsius);
         assert_eq!(preferences.timezone_label(), "EDT UTC-04:00");
     }
 

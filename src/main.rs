@@ -2297,7 +2297,7 @@ mod firmware {
             Ok(data) => {
                 retry.clear();
                 state.weather.record_success(data);
-                log_weather_snapshot(&state.weather);
+                log_weather_snapshot(&state.weather, state.regional.temperature_unit);
                 info!(
                     "rustmix-wave=weather-fetch status=completed cause={} attempt={} forecast-days={}",
                     attempt.cause,
@@ -2307,7 +2307,7 @@ mod firmware {
             }
             Err(error) => {
                 handle_weather_fetch_failure(attempt, error, retry, state);
-                log_weather_snapshot(&state.weather);
+                log_weather_snapshot(&state.weather, state.regional.temperature_unit);
             }
         }
     }
@@ -3121,14 +3121,17 @@ mod firmware {
         );
     }
 
-    fn log_weather_snapshot(snapshot: &WeatherSnapshot) {
+    fn log_weather_snapshot(
+        snapshot: &WeatherSnapshot,
+        unit: waveshare_epd397_rust_app::regional::TemperatureUnit,
+    ) {
         info!(
             "rustmix-wave=weather-snapshot state={} provider={} location={} timezone={} current={} forecast-days={} last-success={} error={}",
             snapshot.state.label(),
             snapshot.provider,
             snapshot.location,
             snapshot.provider_timezone,
-            snapshot.current_summary(),
+            snapshot.current_summary(unit),
             snapshot.forecast.len(),
             snapshot.last_success_label(),
             snapshot.error.as_deref().unwrap_or("none")

@@ -3,7 +3,10 @@
 //! JSON parsing and cache retention are hardware-independent. ESP-IDF HTTPS
 //! wiring lives below `cfg(target_os = "espidf")`.
 
-use crate::weather_config::{WeatherConfig, WEATHER_CONFIG_PATH};
+use crate::{
+    regional::TemperatureUnit,
+    weather_config::{WeatherConfig, WEATHER_CONFIG_PATH},
+};
 use anyhow::{bail, Context, Result};
 
 /// Maximum HTTP response accepted by the bounded weather client.
@@ -87,6 +90,18 @@ impl WeatherFetchState {
     }
 }
 
+#[must_use]
+pub fn fahrenheit_tenths_to_celsius_tenths(f: i16) -> i16 {
+    let diff = i32::from(f) - 320;
+    let numerator = diff * 5;
+    let rounded = if numerator >= 0 {
+        (numerator + 4) / 9
+    } else {
+        (numerator - 4) / 9
+    };
+    rounded as i16
+}
+
 /// One current-conditions payload in provider-native Fahrenheit and mph units.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CurrentConditions {
@@ -100,13 +115,29 @@ pub struct CurrentConditions {
 
 impl CurrentConditions {
     #[must_use]
-    pub fn temperature_label(&self) -> String {
-        format_tenths(self.temperature_tenths_f, " F")
+    pub fn temperature_tenths_c(&self) -> i16 {
+        fahrenheit_tenths_to_celsius_tenths(self.temperature_tenths_f)
     }
 
     #[must_use]
-    pub fn apparent_temperature_label(&self) -> String {
-        format_tenths(self.apparent_temperature_tenths_f, " F")
+    pub fn apparent_temperature_tenths_c(&self) -> i16 {
+        fahrenheit_tenths_to_celsius_tenths(self.apparent_temperature_tenths_f)
+    }
+
+    #[must_use]
+    pub fn temperature_label(&self, unit: TemperatureUnit) -> String {
+        match unit {
+            TemperatureUnit::Celsius => format_tenths(self.temperature_tenths_c(), " C"),
+            TemperatureUnit::Fahrenheit => format_tenths(self.temperature_tenths_f, " F"),
+        }
+    }
+
+    #[must_use]
+    pub fn apparent_temperature_label(&self, unit: TemperatureUnit) -> String {
+        match unit {
+            TemperatureUnit::Celsius => format_tenths(self.apparent_temperature_tenths_c(), " C"),
+            TemperatureUnit::Fahrenheit => format_tenths(self.apparent_temperature_tenths_f, " F"),
+        }
     }
 
     #[must_use]
@@ -132,18 +163,48 @@ pub struct DailyForecast {
 
 impl DailyForecast {
     #[must_use]
+    pub fn high_tenths_c(&self) -> i16 {
+        fahrenheit_tenths_to_celsius_tenths(self.high_tenths_f)
+    }
+
+    #[must_use]
+    pub fn low_tenths_c(&self) -> i16 {
+        fahrenheit_tenths_to_celsius_tenths(self.low_tenths_f)
+    }
+
+    #[must_use]
+    pub fn high_label(&self, unit: TemperatureUnit) -> String {
+        match unit {
+            TemperatureUnit::Celsius => format_tenths(self.high_tenths_c(), " C"),
+            TemperatureUnit::Fahrenheit => format_tenths(self.high_tenths_f, " F"),
+        }
+    }
+
+    #[must_use]
+    pub fn low_label(&self, unit: TemperatureUnit) -> String {
+        match unit {
+            TemperatureUnit::Celsius => format_tenths(self.low_tenths_c(), " C"),
+            TemperatureUnit::Fahrenheit => format_tenths(self.low_tenths_f, " F"),
+        }
+    }
+
+    #[must_use]
     pub const fn condition_label(&self) -> &'static str {
         condition_label(self.weather_code)
     }
 
     #[must_use]
-    pub fn compact_label(&self) -> String {
+    pub fn compact_label(&self, unit: TemperatureUnit) -> String {
+        let (high, low, suffix) = match unit {
+            TemperatureUnit::Celsius => (self.high_tenths_c(), self.low_tenths_c(), "C"),
+            TemperatureUnit::Fahrenheit => (self.high_tenths_f, self.low_tenths_f, "F"),
+        };
         format!(
             "{}  {:<12} H:{} L:{} POP:{}",
             self.date,
             self.condition_label(),
-            format_tenths(self.high_tenths_f, "F"),
-            format_tenths(self.low_tenths_f, "F"),
+            format_tenths(high, suffix),
+            format_tenths(low, suffix),
             self.precipitation_probability_percent
                 .map_or_else(|| "--%".into(), |value| format!("{value}%"))
         )
@@ -241,14 +302,14 @@ impl WeatherSnapshot {
     }
 
     #[must_use]
-    pub fn current_summary(&self) -> String {
+    pub fn current_summary(&self, unit: TemperatureUnit) -> String {
         self.current.as_ref().map_or_else(
             || "Weather unavailable".into(),
             |current| {
                 format!(
                     "{}  {}",
                     current.condition_label(),
-                    current.temperature_label()
+                    current.temperature_label(unit)
                 )
             },
         )
@@ -774,7 +835,7 @@ mod tests {
         condition_label, parse_open_meteo_response, WeatherFetchError, WeatherFetchState,
         WeatherSnapshot, WEATHER_RETRY_DELAYS_SECONDS, WEATHER_RETRY_LIMIT,
     };
-    use crate::weather_config::WeatherConfig;
+    use crate::{regional::TemperatureUnit, weather_config::WeatherConfig};
 
     const SAMPLE: &str = r#"{
       "timezone":"America/New_York",
@@ -790,12 +851,16 @@ mod tests {
     #[test]
     fn parses_current_conditions_and_four_day_forecast() {
         let data = parse_open_meteo_response(SAMPLE).unwrap();
-        assert_eq!(data.current.temperature_label(), "78.4 F");
-        assert_eq!(data.current.apparent_temperature_label(), "79.7 F");
+        assert_eq!(data.current.temperature_label(TemperatureUnit::Fahrenheit), "78.4 F");
+        assert_eq!(data.current.temperature_label(TemperatureUnit::Celsius), "25.8 C");
+        assert_eq!(data.current.apparent_temperature_label(TemperatureUnit::Fahrenheit), "79.7 F");
+        assert_eq!(data.current.apparent_temperature_label(TemperatureUnit::Celsius), "26.5 C");
         assert_eq!(data.current.wind_label(), "8.6 mph");
         assert_eq!(data.current.condition_label(), "Partly cloudy");
         assert_eq!(data.forecast.len(), 4);
         assert_eq!(data.forecast[1].condition_label(), "Rain");
+        assert_eq!(data.forecast[0].high_label(TemperatureUnit::Celsius), "26.7 C");
+        assert_eq!(data.forecast[0].low_label(TemperatureUnit::Celsius), "17.9 C");
     }
 
     #[test]
@@ -804,7 +869,8 @@ mod tests {
         snapshot.record_success(parse_open_meteo_response(SAMPLE).unwrap());
         snapshot.record_failure("temporary HTTP error");
         assert_eq!(snapshot.state, WeatherFetchState::Stale);
-        assert_eq!(snapshot.current_summary(), "Partly cloudy  78.4 F");
+        assert_eq!(snapshot.current_summary(TemperatureUnit::Celsius), "Partly cloudy  25.8 C");
+        assert_eq!(snapshot.current_summary(TemperatureUnit::Fahrenheit), "Partly cloudy  78.4 F");
         assert_eq!(snapshot.forecast.len(), 4);
     }
 
@@ -828,7 +894,8 @@ mod tests {
         snapshot.record_success(parse_open_meteo_response(SAMPLE).unwrap());
         snapshot.mark_retrying("temporary transport failure");
         assert_eq!(snapshot.state, WeatherFetchState::Retrying);
-        assert_eq!(snapshot.current_summary(), "Partly cloudy  78.4 F");
+        assert_eq!(snapshot.current_summary(TemperatureUnit::Celsius), "Partly cloudy  25.8 C");
+        assert_eq!(snapshot.current_summary(TemperatureUnit::Fahrenheit), "Partly cloudy  78.4 F");
         assert_eq!(snapshot.forecast.len(), 4);
     }
 
