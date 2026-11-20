@@ -2020,7 +2020,10 @@ Kieran speaks.
         let choices = game.visible_choices();
         assert_eq!(choices.len(), 2);
         assert_eq!(choices[0].label, "Play: The Saltmire Beacon");
-        assert_eq!(choices[1].label, "Play: Dead Weight: Book I & II");
+        assert_eq!(
+            choices[1].label,
+            "Play: Dead Weight: The Complete Trilogy (Books I - III Complete)"
+        );
 
         // Pick Dead Weight
         game.selected_choice = 1;
